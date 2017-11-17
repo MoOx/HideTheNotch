@@ -98,20 +98,20 @@ class Wallpaper extends React.Component<PropsType, void> {
         {loader && <ActivityIndicator size="large" />}
         <ImageBackground style={styles.image} source={image.file} />
         {effects.map((effect, i) =>
-          effect.map(image => (
+          effect.map(imageEffect => (
             <Image
               key={i}
-              source={image.file}
+              source={imageEffect.file}
               style={[
                 styles.imageEffect,
-                image.style({
+                imageEffect.style({
                   width,
                   height,
-                  imageWidth: Image.resolveAssetSource(image.file).width,
-                  imageHeight: Image.resolveAssetSource(image.file).height
+                  imageWidth: Image.resolveAssetSource(imageEffect.file).width,
+                  imageHeight: Image.resolveAssetSource(imageEffect.file).height
                 })
               ]}
-              resizeMode={image.resizeMode}
+              resizeMode={imageEffect.resizeMode}
             />
           ))
         )}

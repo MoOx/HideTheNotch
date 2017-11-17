@@ -71,3 +71,4 @@ website/*
 */sentry.properties
 ios/HideTheNotch/Images.xcassets/LaunchImage.launchimage/*
 ios/HideTheNotch/Images.xcassets/AppIcon.appiconset/*
+ios/fastlane/README.md

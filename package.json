@@ -1,0 +1,25 @@
+{
+  "name": "HideTheNotch",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "react-native start",
+    "android": "react-native run-android",
+    "ios": "react-native run-ios",
+    "fastlane": "bundler exec fastlane"
+  },
+  "dependencies": {
+    "react": "^16.1.0",
+    "react-native": "^0.49.0",
+    "react-native-image-picker": "^0.26.0",
+    "react-native-linear-gradient": "^2.3.0",
+    "react-native-permissions": "^1.0.0",
+    "react-native-sentry": "^0.30.0",
+    "react-native-vector-icons": "^4.4.0",
+    "react-native-view-shot": "^2.1.0"
+  },
+  "devDependencies": {
+    "flow-bin": "^0.53.0",
+    "react-test-renderer": "^16.1.0"
+  }
+}

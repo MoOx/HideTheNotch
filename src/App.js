@@ -523,7 +523,7 @@ export default class App extends React.Component<void, StateType> {
               styles.toolbar,
               styles.toolbarInline,
               styles.shadow,
-              { paddingBottom: hasInsetBottom ? 20 : 10 }
+              { paddingBottom: hasInsetBottom ? 30 : 10 }
             ]}
           >
             <TouchableOpacity

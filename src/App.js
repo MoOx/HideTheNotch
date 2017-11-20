@@ -363,7 +363,7 @@ export default class App extends React.Component<void, StateType> {
                 <Feather name="check" size={128} color={color} />
                 {state.saved ===
                   "com.apple.UIKit.activity.SaveToCameraRoll" && (
-                  <Text style={[styles.toolbarText]}>
+                  <Text style={[styles.savedText, styles.shadow]}>
                     Saved to your camera roll
                   </Text>
                 )}
@@ -392,7 +392,7 @@ export default class App extends React.Component<void, StateType> {
                 style={[styles.toolbar, styles.toolbarBlack, styles.credits]}
               >
                 {(state.image.author || state.image.url) && (
-                  <Text style={styles.toolbarText}>
+                  <Text style={styles.helpText}>
                     <Feather
                       name="info"
                       size={16}
@@ -403,7 +403,7 @@ export default class App extends React.Component<void, StateType> {
                   </Text>
                 )}
                 {state.image.location && (
-                  <Text style={styles.toolbarText}>
+                  <Text style={styles.helpText}>
                     <Feather
                       name="map-pin"
                       size={16}
@@ -654,8 +654,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 4
   },
-  toolbarText: {
-    color: "#fff"
+  savedText: {
+    color: "#fff",
+    fontSize: 20,
+    lineHeight: 20 * 1.5
   },
   debugText: {
     fontSize: 10,

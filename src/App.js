@@ -19,15 +19,17 @@ import {
 } from "react-native";
 
 import LinearGradient from "react-native-linear-gradient";
-import ImagePicker from "react-native-image-picker";
 import { captureRef, releaseCapture } from "react-native-view-shot";
 import Permissions from "react-native-permissions";
 import Feather from "react-native-vector-icons/Feather";
 
 import "./sentry.js";
 import effectsList from "../assets/effects";
+import type { EffectStyleArguments } from "../assets/effects";
 import imagesList from "../assets/wallpapers";
 import { windowHeight, windowWidth, hasInsetBottom } from "./platform.js";
+
+const ImagePicker = require("react-native-image-picker");
 
 const getRandomImage = () =>
   imagesList[Math.floor(Math.random() * imagesList.length)];
@@ -38,17 +40,18 @@ const previewMargin = 2;
 const previewWidth = windowWidth / widthCoeff - previewMargin * 4;
 
 type Effect = Array<{
-  file: ImageType,
+  file: ImageFile,
   resizeMode: "cover" | "contain",
-  style: ({
-    imageWidth: number,
-    imageHeight: number,
-    width: number,
-    height: number
-  }) => Object
+  style: EffectStyleArguments => Object
 }>;
 
-type ImageFile = number;
+type ImageFile =
+  | number
+  | {
+      uri: string,
+      width: number,
+      height: number
+    };
 
 type ImageType = {
   url?: string,
@@ -63,7 +66,7 @@ type PropsType = {
   loader?: boolean,
   image: ImageType,
   effects: Array<Effect>,
-  style: number,
+  style?: number,
   width: number,
   height: number
 };
@@ -98,22 +101,27 @@ class Wallpaper extends React.Component<PropsType, void> {
         {loader && <ActivityIndicator size="large" />}
         <ImageBackground style={styles.image} source={image.file} />
         {effects.map((effect, i) =>
-          effect.map(imageEffect => (
-            <Image
-              key={i}
-              source={imageEffect.file}
-              style={[
-                styles.imageEffect,
-                imageEffect.style({
-                  width,
-                  height,
-                  imageWidth: Image.resolveAssetSource(imageEffect.file).width,
-                  imageHeight: Image.resolveAssetSource(imageEffect.file).height
-                })
-              ]}
-              resizeMode={imageEffect.resizeMode}
-            />
-          ))
+          effect.map(imageEffect => {
+            const imageEffectSource = Image.resolveAssetSource(
+              imageEffect.file
+            );
+            return (
+              <Image
+                key={i}
+                source={imageEffect.file}
+                style={[
+                  styles.imageEffect,
+                  imageEffect.style({
+                    width,
+                    height,
+                    imageWidth: imageEffectSource && imageEffectSource.width,
+                    imageHeight: imageEffectSource && imageEffectSource.height
+                  })
+                ]}
+                resizeMode={imageEffect.resizeMode}
+              />
+            );
+          })
         )}
       </View>
     );
@@ -130,8 +138,8 @@ export default class App extends React.Component<void, StateType> {
     edit: false
   };
 
-  _wallpaperView: Object;
-  saveWallpaperRef = (ref: Object) => {
+  _wallpaperView: any;
+  saveWallpaperRef = (ref: any) => {
     this._wallpaperView = ref;
   };
 
@@ -166,7 +174,11 @@ export default class App extends React.Component<void, StateType> {
       },
       imageFromLib => {
         if (!imageFromLib.didCancel) {
-          this.setState({ image: { file: imageFromLib } });
+          this.setState({
+            image: {
+              file: imageFromLib
+            }
+          });
         }
         this.setState({ cameraRoll: false });
       }
@@ -277,16 +289,18 @@ export default class App extends React.Component<void, StateType> {
           height={windowHeight}
         />
         <View style={[styles.centerBlock, styles.shadow]}>
-          {Boolean(state.saved) && (
-            <View style={styles.center}>
-              <Feather name="check" size={128} color={color} />
-              {state.saved === "com.apple.UIKit.activity.SaveToCameraRoll" && (
-                <Text style={[styles.toolbarText]}>
-                  Saved to your camera roll
-                </Text>
-              )}
-            </View>
-          )}
+          {typeof state.saved != "undefined" &&
+            Boolean(state.saved) && (
+              <View style={styles.center}>
+                <Feather name="check" size={128} color={color} />
+                {state.saved ===
+                  "com.apple.UIKit.activity.SaveToCameraRoll" && (
+                  <Text style={[styles.toolbarText]}>
+                    Saved to your camera roll
+                  </Text>
+                )}
+              </View>
+            )}
         </View>
         <View style={styles.toolbarWrapper}>
           {/* {process.env.NODE_ENV !== "production" && (
@@ -310,17 +324,16 @@ export default class App extends React.Component<void, StateType> {
                 style={[styles.toolbar, styles.toolbarBlack, styles.credits]}
               >
                 {(state.image.author || state.image.url) && (
-                    <Text style={styles.toolbarText}>
-                      <Feather
-                        name="info"
-                        size={16}
-                        color={"rgba(255,255,255, 0.4)"}
-                      />{" "}
-                      Image {state.image.author &&
-                        "by " + state.image.author}{" "}
-                      {state.image.source && "from " + state.image.source}
-                    </Text>
-                  )}
+                  <Text style={styles.toolbarText}>
+                    <Feather
+                      name="info"
+                      size={16}
+                      color={"rgba(255,255,255, 0.4)"}
+                    />{" "}
+                    Image {state.image.author && "by " + state.image.author}{" "}
+                    {state.image.source && "from " + state.image.source}
+                  </Text>
+                )}
                 {state.image.location && (
                   <Text style={styles.toolbarText}>
                     <Feather
@@ -355,7 +368,8 @@ export default class App extends React.Component<void, StateType> {
               <View style={[styles.toolbar, styles.toolbarBlack]}>
                 <TouchableHighlight
                   onPress={() =>
-                    Linking.openURL("https://moox.io/apps/hide-the-notch")}
+                    Linking.openURL("https://moox.io/apps/hide-the-notch")
+                  }
                 >
                   <Text style={styles.helpText}>
                     Website: https://moox.io/apps/hide-the-notch
@@ -365,7 +379,8 @@ export default class App extends React.Component<void, StateType> {
                   onPress={() =>
                     Linking.openURL(
                       "mailto:apps+hide-the-notch@moox.io?subject=Support+request"
-                    )}
+                    )
+                  }
                 >
                   <Text style={styles.helpText}>
                     Support email: apps+hide-the-notch@moox.io
@@ -395,7 +410,8 @@ export default class App extends React.Component<void, StateType> {
                           })
                         : this.setState({
                             effects: state.effects.filter(e => e != effect)
-                          })}
+                          })
+                    }
                     style={[
                       styles.maskButton,
                       state.effects.includes(effect) && styles.maskButtonActive

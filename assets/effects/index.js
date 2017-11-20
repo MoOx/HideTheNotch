@@ -2,6 +2,13 @@
 
 import { windowWidth, hasNotch, notchDiff } from "../../src/platform.js";
 
+export type EffectStyleArguments = {
+  imageWidth?: number | null,
+  imageHeight?: number | null,
+  width: number,
+  height: number
+};
+
 const styles = {
   top: {
     position: "absolute",
@@ -16,11 +23,16 @@ export default {
     {
       file: require("./Rounded-Notch.png"),
       resizeMode: "cover",
-      style: ({ imageWidth, imageHeight, width, height }) => ({
+      style: ({
+        imageWidth,
+        imageHeight,
+        width,
+        height
+      }: EffectStyleArguments) => ({
         ...styles.top,
         top: width === windowWidth ? (hasNotch ? 0 : -notchDiff / 2) : 0,
         width: width,
-        height: imageHeight / imageWidth * width
+        height: imageHeight && imageWidth && imageHeight / imageWidth * width
       })
     }
   ],
@@ -28,11 +40,16 @@ export default {
     {
       file: require("./Rounded-Slim-Notch.png"),
       resizeMode: "cover",
-      style: ({ imageWidth, imageHeight, width, height }) => ({
+      style: ({
+        imageWidth,
+        imageHeight,
+        width,
+        height
+      }: EffectStyleArguments) => ({
         ...styles.top,
         top: width === windowWidth ? (hasNotch ? 0 : -notchDiff / 2) : 0,
         width: width,
-        height: imageHeight / imageWidth * width
+        height: imageHeight && imageWidth && imageHeight / imageWidth * width
       })
     }
   ],
@@ -40,11 +57,16 @@ export default {
     {
       file: require("./Hard-Notch.png"),
       resizeMode: "cover",
-      style: ({ imageWidth, imageHeight, width, height }) => ({
+      style: ({
+        imageWidth,
+        imageHeight,
+        width,
+        height
+      }: EffectStyleArguments) => ({
         ...styles.top,
         top: width === windowWidth ? (hasNotch ? 0 : -notchDiff / 2) : 0,
         width: width,
-        height: imageHeight / imageWidth * width
+        height: imageHeight && imageWidth && imageHeight / imageWidth * width
       })
     }
   ],
@@ -52,11 +74,16 @@ export default {
     {
       file: require("./Hard-Slim-Notch.png"),
       resizeMode: "cover",
-      style: ({ imageWidth, imageHeight, width, height }) => ({
+      style: ({
+        imageWidth,
+        imageHeight,
+        width,
+        height
+      }: EffectStyleArguments) => ({
         ...styles.top,
         top: width === windowWidth ? (hasNotch ? 0 : -notchDiff / 2) : 0,
         width: width,
-        height: imageHeight / imageWidth * width
+        height: imageHeight && imageWidth && imageHeight / imageWidth * width
       })
     }
   ]

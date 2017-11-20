@@ -320,18 +320,18 @@ export default class App extends React.Component<void, StateType> {
     );
   };
 
-  // handleExportPress = async () => {
-  //   if (await this.getCameraPermission()) {
-  //     const newWallpaper = await this.generateWallpaper();
-  //     this.setState({ log: newWallpaper });
-  //     try {
-  //       await CameraRoll.saveToCameraRoll(newWallpaper);
-  //       this.savedFeedback()
-  //     } catch (error) {
-  //       this.setState({ error });
-  //     }
-  //   }
-  // };
+  handleExportPress = async () => {
+    if (await this.getCameraPermission()) {
+      const newWallpaper = await this.generateWallpaper();
+      // this.setState({ log: newWallpaper });
+      try {
+        await CameraRoll.saveToCameraRoll(newWallpaper);
+        this.savedFeedback("com.apple.UIKit.activity.SaveToCameraRoll");
+      } catch (error) {
+        this.setState({ error });
+      }
+    }
+  };
 
   render() {
     const { state } = this;
@@ -570,12 +570,12 @@ export default class App extends React.Component<void, StateType> {
             >
               <Feather name="share" size={32} color={color} />
             </TouchableOpacity>
-            {/* <TouchableOpacity
+            <TouchableOpacity
               style={styles.toolbarButton}
               onPress={this.handleExportPress}
             >
               <Feather name="check-square" size={32} color={color} />
-            </TouchableOpacity> */}
+            </TouchableOpacity>
           </LinearGradient>
         </View>
       </View>

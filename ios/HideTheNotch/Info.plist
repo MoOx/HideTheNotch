@@ -46,7 +46,7 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Actually not used.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>We need this permission to be able to get your photos in order to add the effect.</string>
+	<string>We need the permission to be able to import and export wallpapers.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Actually not used.</string>
 	<key>UIAppFonts</key>

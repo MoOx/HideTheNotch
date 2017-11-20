@@ -16,9 +16,9 @@ import {
   Button,
   Share,
   Linking,
-  TouchableHighlight
+  TouchableHighlight,
+  Alert
 } from "react-native";
-
 import LinearGradient from "react-native-linear-gradient";
 import { captureRef, releaseCapture } from "react-native-view-shot";
 import Permissions from "react-native-permissions";
@@ -81,6 +81,35 @@ type StateType = {
   saved?: string,
   cameraRoll?: boolean
 };
+
+export const alertForSettings = (
+  title: string = "Photos Permissions required",
+  description: string = "We require permissions to your photos to import and export wallpapers"
+) =>
+  new Promise((resolve, reject) => {
+    Alert.alert(
+      title,
+      description,
+      [
+        ...(!Permissions.canOpenSettings()
+          ? []
+          : [
+              {
+                text: "Go to Settings",
+                onPress: () => Permissions.openSettings().then(resolve)
+              }
+            ]),
+        {
+          text: "OK",
+          style: "cancel",
+          onPress: reject
+        }
+      ],
+      {
+        cancelable: false
+      }
+    );
+  });
 
 class Wallpaper extends React.Component<PropsType, void> {
   render() {
@@ -179,14 +208,14 @@ export default class App extends React.Component<void, StateType> {
 
   getCameraPermission = async () => {
     try {
-      const { status } = await Permissions.askAsync(Permissions.CAMERA);
-      if (status == "granted") {
+      const response = await Permissions.request("photo");
+      if (response === "authorized") {
         return true;
       }
     } catch (error) {
       this.setState({ error });
     }
-    alert("Camera permissions required. Please adjust this app settings");
+    alertForSettings();
     return false;
   };
 
@@ -200,23 +229,25 @@ export default class App extends React.Component<void, StateType> {
     });
   };
 
-  handleCameraPress = () => {
+  handleCameraPress = async () => {
     this.setState({ cameraRoll: true });
-    ImagePicker.launchImageLibrary(
-      {
-        mediaType: "photo"
-      },
-      imageFromLib => {
-        if (!imageFromLib.didCancel) {
-          this.setState({
-            image: {
-              file: imageFromLib
-            }
-          });
+    if (await this.getCameraPermission()) {
+      ImagePicker.launchImageLibrary(
+        {
+          mediaType: "photo"
+        },
+        imageFromLib => {
+          if (!imageFromLib.didCancel) {
+            this.setState({
+              image: {
+                file: imageFromLib
+              }
+            });
+          }
+          this.setState({ cameraRoll: false });
         }
-        this.setState({ cameraRoll: false });
-      }
-    );
+      );
+    }
   };
 
   handleShufflePress = () => {

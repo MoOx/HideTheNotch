@@ -112,11 +112,18 @@ class Wallpaper extends React.Component<PropsType, void> {
         style={[styles.wallpaper, preview && styles.wallpaperPreview, style]}
         {...props}
       >
-        {loader && (
+        {!imageAvailable && (
           <View style={styles.strech}>
-            <ActivityIndicator size="large" color={"#fff"} />
+            <Text style={styles.error}>Oops. Something bad happened :(</Text>
+            <Text style={styles.error}>Can you check app permissions?</Text>
           </View>
         )}
+        {imageAvailable &&
+          loader && (
+            <View style={styles.strech}>
+              <ActivityIndicator size="large" color={"#fff"} />
+            </View>
+          )}
         {imageAvailable && (
           <ScrollView
             minimumZoomScale={1}

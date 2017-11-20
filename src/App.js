@@ -6,6 +6,7 @@ import {
   Dimensions,
   StyleSheet,
   Text,
+  ScrollView,
   View,
   ImageBackground,
   Image,
@@ -93,13 +94,39 @@ class Wallpaper extends React.Component<PropsType, void> {
       height,
       ...props
     } = this.props;
+
+    const imageAvailable =
+      typeof image.file === "number" ||
+      (typeof image.file === "object" && image.file.uri);
+    let imageRatio = 1;
+    const screenRatio = windowWidth / windowHeight;
+    if (imageAvailable) {
+      const file = Image.resolveAssetSource(image.file);
+      if (file && file.width && file.height) {
+        imageRatio = file.width / file.height;
+      }
+    }
+
     return (
       <View
         style={[styles.wallpaper, preview && styles.wallpaperPreview, style]}
         {...props}
       >
-        {loader && <ActivityIndicator size="large" />}
-        <ImageBackground style={styles.image} source={image.file} />
+        {loader && (
+          <View style={styles.strech}>
+            <ActivityIndicator size="large" color={"#fff"} />
+          </View>
+        )}
+        {imageAvailable && (
+          <ScrollView
+            minimumZoomScale={1}
+            maximumZoomScale={10}
+            contentContainerStyle={styles.wallpaperImage}
+            centerContent={true}
+          >
+            <ImageBackground style={styles.image} source={image.file} />
+          </ScrollView>
+        )}
         {effects.map((effect, i) =>
           effect.map(imageEffect => {
             const imageEffectSource = Image.resolveAssetSource(
@@ -517,17 +544,32 @@ export default class App extends React.Component<void, StateType> {
 
 const styles = StyleSheet.create({
   container: {
+    backgroundColor: "#000",
     flex: 1,
     alignItems: "center",
     justifyContent: "center"
   },
+  strech: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  error: {
+    color: "#fff"
+  },
   wallpaper: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: "center",
+    // alignItems: "center",
     overflow: "hidden"
   },
   wallpaperPreview: {
     borderRadius: 4
+  },
+  wallpaperImage: {
+    flex: 1
+    // alignItems:'center',
+    // justifyContent:'center'
   },
   image: {
     ...StyleSheet.absoluteFillObject,

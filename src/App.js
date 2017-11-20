@@ -418,18 +418,17 @@ export default class App extends React.Component<void, StateType> {
                   1. <Feather name="camera" size={16} color={color} /> Choose
                   your photo or{" "}
                   <Feather name="refresh-cw" size={16} color={color} /> randomly
-                  pick one
+                  pick one.
                 </Text>
                 <Text style={styles.helpText}>
                   2. <Feather name="sliders" size={16} color={color} /> Choose
-                  your effect
+                  your effect.
                 </Text>
                 <Text style={styles.helpText}>
-                  3. <Feather name="share" size={16} color={color} /> Export the
-                  picture where you want to use it. You can save it{" "}
-                  <Feather name="download" size={16} color={color} /> to your
-                  camera roll, then quit the app and set the saved picture as
-                  your wallpaper (as you normally do). Be sure to use make it
+                  3. Save the picture{" "}
+                  <Feather name="check-square" size={16} color={color} /> to
+                  your camera roll, then quit the app and set the saved picture
+                  as your wallpaper (as you normally do). Be sure to use make it
                   "Still" and align it at the bottom.
                 </Text>
               </View>
@@ -699,7 +698,9 @@ const styles = StyleSheet.create({
   },
   helpText: {
     color: "#fff",
-    padding: 10
+    padding: 10,
+    fontSize: 16,
+    lineHeight: 24
   },
   credits: {
     paddingVertical: 10,

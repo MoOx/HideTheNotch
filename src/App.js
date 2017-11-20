@@ -201,7 +201,7 @@ export default class App extends React.Component<void, StateType> {
     // help: process.env.NODE_ENV !== "production",
     help: false,
     // edit: process.env.NODE_ENV !== "production"
-    edit: false
+    edit: true
   };
 
   _wallpaperView: any;

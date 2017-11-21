@@ -1,0 +1,21 @@
+{
+  "default": {
+    "title": {
+      "font": "./Fonts/OpenSans-Light.ttf",
+      "color": "#fff"
+    },
+    "background": "../background.png",
+    "padding": 50
+  },
+  "data": [
+    {
+      "filter": "01"
+    },
+    {
+      "filter": "02"
+    },
+    {
+      "filter": "03"
+    }
+  ]
+}

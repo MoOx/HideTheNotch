@@ -50,7 +50,10 @@ buck-out/
 
 */fastlane/report.xml
 */fastlane/Preview.html
-*/fastlane/screenshots
+*/fastlane/screenshots/*/*.png
+*/fastlane/screenshots/README.txt
+*/fastlane/screenshots/screenshots.html
+*/fastlane/background.png
 */fastlane/metadata
 */fastlane/Appfile
 */fastlane/Deliverfile

@@ -22,10 +22,10 @@ scheme "HideTheNotch"
 # Where should the resulting screenshots be stored?
 # output_directory "./screenshots"
 
-# clear_previous_screenshots true # remove the '#' to clear all previously generated screenshots before creating new ones
+clear_previous_screenshots true # remove the '#' to clear all previously generated screenshots before creating new ones
 
 # Choose which project/workspace to use
-# project "./Project.xcodeproj"
+project "./HideTheNotch.xcodeproj"
 # workspace "./Project.xcworkspace"
 
 # Arguments to pass to the app on launch. See https://docs.fastlane.tools/actions/snapshot/#launch-arguments

@@ -23,10 +23,10 @@
 		58511F5532C542919E00D465 /* libBVLinearGradient.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 0F839B9B8BDC4CABB0607DC9 /* libBVLinearGradient.a */; };
 		5E9157361DD0AC6A00FF2AA8 /* libRCTAnimation.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5E9157331DD0AC6500FF2AA8 /* libRCTAnimation.a */; };
 		784182B7257C48CBA74BD9FD /* libReactNativePermissions.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 85A52A1896EB47468A71AA77 /* libReactNativePermissions.a */; };
+		7E2841821FC47F940005A7CE /* SnapshotHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E2841811FC47F940005A7CE /* SnapshotHelper.swift */; };
 		7E36FBEA1FB9B0F300BF0646 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		7E9B633A1FC2C4BA00A9D4D0 /* libRCTCameraRoll.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 7E9B63181FC2C48D00A9D4D0 /* libRCTCameraRoll.a */; };
 		7E9E60EC1FBA005E005649AA /* HideTheNotch_UI_Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E9E60EB1FBA005E005649AA /* HideTheNotch_UI_Tests.swift */; };
-		7E9E611C1FBA0888005649AA /* SnapshotHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E9E611B1FBA0888005649AA /* SnapshotHelper.swift */; };
 		832341BD1AAA6AB300B99B32 /* libRCTText.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 832341B51AAA6A8300B99B32 /* libRCTText.a */; };
 		9D090465CA9341C4BD18DDC7 /* libRNImagePicker.a in Frameworks */ = {isa = PBXBuildFile; fileRef = F7DBA54773D641FA94BFCB00 /* libRNImagePicker.a */; };
 		9FFB35CD485742DDB22F541C /* libRNVectorIcons.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 1AD557578966498F806C6DA7 /* libRNVectorIcons.a */; };
@@ -359,11 +359,11 @@
 		721A921AA5564845ACABBD6B /* BVLinearGradient.xcodeproj */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = "wrapper.pb-project"; name = BVLinearGradient.xcodeproj; path = "../node_modules/react-native-linear-gradient/BVLinearGradient.xcodeproj"; sourceTree = "<group>"; };
 		78C398B01ACF4ADC00677621 /* RCTLinking.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = RCTLinking.xcodeproj; path = "../node_modules/react-native/Libraries/LinkingIOS/RCTLinking.xcodeproj"; sourceTree = "<group>"; };
 		7958524DDB16482BBF9EAAC0 /* RNVectorIcons.xcodeproj */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = "wrapper.pb-project"; name = RNVectorIcons.xcodeproj; path = "../node_modules/react-native-vector-icons/RNVectorIcons.xcodeproj"; sourceTree = "<group>"; };
+		7E2841811FC47F940005A7CE /* SnapshotHelper.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = SnapshotHelper.swift; path = ../../fastlane/SnapshotHelper.swift; sourceTree = "<group>"; };
 		7E9B630C1FC2C48C00A9D4D0 /* RCTCameraRoll.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = RCTCameraRoll.xcodeproj; path = "../node_modules/react-native/Libraries/CameraRoll/RCTCameraRoll.xcodeproj"; sourceTree = "<group>"; };
 		7E9E60E91FBA005E005649AA /* HideTheNotch-UI-Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "HideTheNotch-UI-Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		7E9E60EB1FBA005E005649AA /* HideTheNotch_UI_Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HideTheNotch_UI_Tests.swift; sourceTree = "<group>"; };
 		7E9E60ED1FBA005E005649AA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		7E9E611B1FBA0888005649AA /* SnapshotHelper.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = SnapshotHelper.swift; path = fastlane/SnapshotHelper.swift; sourceTree = SOURCE_ROOT; };
 		832341B01AAA6A8300B99B32 /* RCTText.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = RCTText.xcodeproj; path = "../node_modules/react-native/Libraries/Text/RCTText.xcodeproj"; sourceTree = "<group>"; };
 		85A52A1896EB47468A71AA77 /* libReactNativePermissions.a */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = archive.ar; path = libReactNativePermissions.a; sourceTree = "<group>"; };
 		8C8A65544F8F41199962A4CA /* libz.tbd */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.tbd; path = usr/lib/libz.tbd; sourceTree = SDKROOT; };
@@ -551,7 +551,7 @@
 		7E9E60EA1FBA005E005649AA /* HideTheNotch-UI-Tests */ = {
 			isa = PBXGroup;
 			children = (
-				7E9E611B1FBA0888005649AA /* SnapshotHelper.swift */,
+				7E2841811FC47F940005A7CE /* SnapshotHelper.swift */,
 				7E9E60EB1FBA005E005649AA /* HideTheNotch_UI_Tests.swift */,
 				7E9E60ED1FBA005E005649AA /* Info.plist */,
 			);
@@ -1203,7 +1203,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7E9E60EC1FBA005E005649AA /* HideTheNotch_UI_Tests.swift in Sources */,
-				7E9E611C1FBA0888005649AA /* SnapshotHelper.swift in Sources */,
+				7E2841821FC47F940005A7CE /* SnapshotHelper.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

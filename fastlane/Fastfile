@@ -1,0 +1,55 @@
+# https://docs.fastlane.tools/actions/
+
+fastlane_version "2.64.0"
+
+default_platform :ios
+
+platform :ios do
+  before_all do
+    # cocoapods
+    # carthage
+  end
+
+  desc "Runs all the tests"
+  lane :test do
+    scan
+  end
+
+  desc "Submit a new Beta Build to Apple TestFlight"
+  desc "This will also make sure the profile is up to date"
+  lane :beta do
+    cert
+    sigh
+    # match(type: "appstore") # more information: https://codesigning.guide
+    gym(
+      scheme: "HideTheNotch",
+      project: "./ios/HideTheNotch.xcodeproj"
+    )
+    pilot
+
+    # sh "your_script.sh"
+    # You can also use other beta testing services here (run `fastlane actions`)
+  end
+
+  desc "Deploy a new version to the App Store"
+  lane :release do
+    cert
+    sigh
+    # match(type: "appstore")
+    # snapshot
+    # frameit
+    gym(
+      scheme: "HideTheNotch",
+      project: "./ios/HideTheNotch.xcodeproj"
+    )
+    deliver()
+  end
+
+  # You can define as many lanes as you want
+
+  after_all do |lane|
+  end
+
+  error do |lane, exception|
+  end
+end

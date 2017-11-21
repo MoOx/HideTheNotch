@@ -38,11 +38,23 @@ platform :ios do
     # match(type: "appstore")
     # snapshot
     # frameit
+    
+    build_number = increment_build_number
+    version = increment_version_number(
+      version_number: JSON.parse(IO.read("../package.json"))["version"],
+    )
+    
     gym(
       scheme: "HideTheNotch",
       project: "./ios/HideTheNotch.xcodeproj"
     )
-    deliver()
+    
+    deliver
+    
+    commit_version_bump(
+      message:"#{version}"
+      include: %w[package.json]
+    )
   end
 
   # You can define as many lanes as you want

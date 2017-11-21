@@ -31,22 +31,23 @@ class HideTheNotch_UI_Tests: XCTestCase {
     func testExample() {
       let app = XCUIApplication()
       setupSnapshot(app)
-      snapshot("01HomeScreen")
+      app/*@START_MENU_TOKEN@*/.otherElements[""]/*[[".otherElements.matching(identifier: \"In progress     \")",".otherElements.matching(identifier: \"    \").otherElements[\"\"]",".otherElements[\"\"]"],[[[-1,2],[-1,1],[-1,0,1]],[[-1,2],[-1,1]]],[0]]@END_MENU_TOKEN@*/.tap()
+      snapshot("05Preview")
 
       app/*@START_MENU_TOKEN@*/.otherElements[""]/*[[".otherElements.matching(identifier: \"In progress     \")",".otherElements.matching(identifier: \"    \").otherElements[\"\"]",".otherElements[\"\"]"],[[[-1,2],[-1,1],[-1,0,1]],[[-1,2],[-1,1]]],[0]]@END_MENU_TOKEN@*/.tap()
-      snapshot("02Effect")
+      snapshot("01Effect")
 
       // default
       //app/*@START_MENU_TOKEN@*/.otherElements["Rounded Notch"]/*[[".otherElements.matching(identifier: \"In progress Rounded Notch Rounded Slim Notch Hard Notch Hard Slim Notch     \")",".otherElements[\"Rounded Notch Rounded Slim Notch Hard Notch Hard Slim Notch     \"]",".otherElements[\"Rounded Notch Rounded Slim Notch Hard Notch Hard Slim Notch\"].otherElements[\"Rounded Notch\"]",".otherElements[\"Rounded Notch\"]"],[[[-1,3],[-1,2],[-1,1,2],[-1,0,1]],[[-1,3],[-1,2],[-1,1,2]],[[-1,3],[-1,2]]],[0]]@END_MENU_TOKEN@*/.tap()
 
       app/*@START_MENU_TOKEN@*/.otherElements["Rounded Slim Notch"]/*[[".otherElements.matching(identifier: \"In progress Rounded Notch Rounded Slim Notch Hard Notch Hard Slim Notch     \")",".otherElements[\"Rounded Notch Rounded Slim Notch Hard Notch Hard Slim Notch     \"]",".otherElements[\"Rounded Notch Rounded Slim Notch Hard Notch Hard Slim Notch\"].otherElements[\"Rounded Slim Notch\"]",".otherElements[\"Rounded Slim Notch\"]"],[[[-1,3],[-1,2],[-1,1,2],[-1,0,1]],[[-1,3],[-1,2],[-1,1,2]],[[-1,3],[-1,2]]],[0]]@END_MENU_TOKEN@*/.tap()
-      snapshot("03Effect")
+      snapshot("02Effect")
 
       app/*@START_MENU_TOKEN@*/.otherElements["Hard Notch"]/*[[".otherElements.matching(identifier: \"In progress Rounded Notch Rounded Slim Notch Hard Notch Hard Slim Notch     \")",".otherElements[\"Rounded Notch Rounded Slim Notch Hard Notch Hard Slim Notch     \"]",".otherElements[\"Rounded Notch Rounded Slim Notch Hard Notch Hard Slim Notch\"].otherElements[\"Hard Notch\"]",".otherElements[\"Hard Notch\"]"],[[[-1,3],[-1,2],[-1,1,2],[-1,0,1]],[[-1,3],[-1,2],[-1,1,2]],[[-1,3],[-1,2]]],[0]]@END_MENU_TOKEN@*/.tap()
-      snapshot("04Effect")
+      snapshot("03Effect")
 
       app/*@START_MENU_TOKEN@*/.otherElements["Hard Slim Notch"]/*[[".otherElements.matching(identifier: \"In progress Rounded Notch Rounded Slim Notch Hard Notch Hard Slim Notch     \")",".otherElements[\"Rounded Notch Rounded Slim Notch Hard Notch Hard Slim Notch     \"]",".otherElements[\"Rounded Notch Rounded Slim Notch Hard Notch Hard Slim Notch\"].otherElements[\"Hard Slim Notch\"]",".otherElements[\"Hard Slim Notch\"]"],[[[-1,3],[-1,2],[-1,1,2],[-1,0,1]],[[-1,3],[-1,2],[-1,1,2]],[[-1,3],[-1,2]]],[0]]@END_MENU_TOKEN@*/.tap()
-      snapshot("05Effect")
+      snapshot("04Effect")
     }
 
 }

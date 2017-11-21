@@ -439,18 +439,22 @@ export default class App extends React.Component<void, StateType> {
                   }
                 >
                   <Text style={styles.helpText}>
-                    Website: https://moox.io/apps/hide-the-notch
+                    Website:{" "}
+                    <Text style={styles.link}>
+                      https://moox.io/apps/hide-the-notch
+                    </Text>
                   </Text>
                 </TouchableHighlight>
                 <TouchableHighlight
                   onPress={() =>
                     Linking.openURL(
-                      "mailto:apps+hide-the-notch@moox.io?subject=Support+request"
+                      "mailto:apps+hide-the-notch@moox.io?subject=Support request"
                     )
                   }
                 >
                   <Text style={styles.helpText}>
-                    Support email: apps+hide-the-notch@moox.io
+                    Support email:{" "}
+                    <Text style={styles.link}>apps+hide-the-notch@moox.io</Text>
                   </Text>
                 </TouchableHighlight>
               </View>
@@ -707,5 +711,8 @@ const styles = StyleSheet.create({
   credits: {
     paddingVertical: 10,
     paddingHorizontal: 10
+  },
+  link: {
+    color: "#3378F6"
   }
 });

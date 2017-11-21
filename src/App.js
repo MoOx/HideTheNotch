@@ -153,19 +153,19 @@ class Wallpaper extends React.Component<PropsType, void> {
               <ActivityIndicator size="large" color={"#fff"} />
             </View>
           )}
-        {imageAvailable &&
-          (preview ? (
+        {imageAvailable && (
+          <ImageBackground style={styles.image} source={image.file} />
+        )}
+        {/* {imageAvailable && (
+          <ScrollView
+            minimumZoomScale={1}
+            maximumZoomScale={10}
+            contentContainerStyle={styles.wallpaperImage}
+            centerContent={true}
+          >
             <ImageBackground style={styles.image} source={image.file} />
-          ) : (
-            <ScrollView
-              minimumZoomScale={1}
-              maximumZoomScale={10}
-              contentContainerStyle={styles.wallpaperImage}
-              centerContent={true}
-            >
-              <ImageBackground style={styles.image} source={image.file} />
-            </ScrollView>
-          ))}
+          </ScrollView>
+        )} */}
         {effects.map((effect, i) =>
           effect.map(imageEffect => {
             const imageEffectSource = Image.resolveAssetSource(

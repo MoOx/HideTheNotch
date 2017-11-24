@@ -5,7 +5,6 @@
 	};
 	objectVersion = 46;
 	objects = {
-
 /* Begin PBXBuildFile section */
 		00C302E51ABCBA2D00DB3ED1 /* libRCTActionSheet.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 00C302AC1ABCB8CE00DB3ED1 /* libRCTActionSheet.a */; };
 		00C302E71ABCBA2D00DB3ED1 /* libRCTGeolocation.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 00C302BA1ABCB90400DB3ED1 /* libRCTGeolocation.a */; };
@@ -21,10 +20,10 @@
 		1EAFCA9D0C454E2A8766F3BE /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 8C8A65544F8F41199962A4CA /* libz.tbd */; };
 		2C968069518044F5A092D63A /* Feather.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 6D7D24B2E7E14A25A6D10120 /* Feather.ttf */; };
 		58511F5532C542919E00D465 /* libBVLinearGradient.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 0F839B9B8BDC4CABB0607DC9 /* libBVLinearGradient.a */; };
-		5E9157361DD0AC6A00FF2AA8 /* libRCTAnimation.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5E9157331DD0AC6500FF2AA8 /* libRCTAnimation.a */; };
 		784182B7257C48CBA74BD9FD /* libReactNativePermissions.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 85A52A1896EB47468A71AA77 /* libReactNativePermissions.a */; };
 		7E2841821FC47F940005A7CE /* SnapshotHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E2841811FC47F940005A7CE /* SnapshotHelper.swift */; };
 		7E36FBEA1FB9B0F300BF0646 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
+		7E8F2E851FC8024F00E1645D /* libRCTAnimation.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5E9157331DD0AC6500FF2AA8 /* libRCTAnimation.a */; };
 		7E9B633A1FC2C4BA00A9D4D0 /* libRCTCameraRoll.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 7E9B63181FC2C48D00A9D4D0 /* libRCTCameraRoll.a */; };
 		7E9E60EC1FBA005E005649AA /* HideTheNotch_UI_Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E9E60EB1FBA005E005649AA /* HideTheNotch_UI_Tests.swift */; };
 		832341BD1AAA6AB300B99B32 /* libRCTText.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 832341B51AAA6A8300B99B32 /* libRCTText.a */; };
@@ -380,9 +379,8 @@
 			files = (
 				7E9B633A1FC2C4BA00A9D4D0 /* libRCTCameraRoll.a in Frameworks */,
 				ADBDB9381DFEBF1600ED6528 /* libRCTBlob.a in Frameworks */,
-				5E9157361DD0AC6A00FF2AA8 /* libRCTAnimation.a in Frameworks */,
+				7E8F2E851FC8024F00E1645D /* libRCTAnimation.a in Frameworks */,
 				146834051AC3E58100842450 /* libReact.a in Frameworks */,
-				5E9157361DD0AC6A00FF2AA8 /* libRCTAnimation.a in Frameworks */,
 				00C302E51ABCBA2D00DB3ED1 /* libRCTActionSheet.a in Frameworks */,
 				00C302E71ABCBA2D00DB3ED1 /* libRCTGeolocation.a in Frameworks */,
 				00C302E81ABCBA2D00DB3ED1 /* libRCTImage.a in Frameworks */,
@@ -689,6 +687,14 @@
 			name = Resources;
 			sourceTree = "<group>";
 		};
+		2CB9A52E415F4B0591F6F70A /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			path = Application;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -736,7 +742,7 @@
 			isa = PBXProject;
 			attributes = {
 				LastSwiftUpdateCheck = 910;
-				LastUpgradeCheck = 610;
+				LastUpgradeCheck = 910;
 				ORGANIZATIONNAME = Facebook;
 				TargetAttributes = {
 					13B07F861A680F5B00A75B9A = {

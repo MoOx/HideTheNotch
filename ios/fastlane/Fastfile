@@ -38,21 +38,28 @@ platform :ios do
     # snapshot
     # frameit
     
-    build_number = increment_build_number
-    version = increment_version_number(
-      version_number: JSON.parse(IO.read("../../package.json"))["version"],
+    version = JSON.parse(IO.read("../../package.json"))["version"]
+    scheme = JSON.parse(IO.read("../../app.json"))["name"]
+    xcodeproj = "./#{scheme}.xcodeproj"
+
+    increment_build_number
+    increment_version_number(
+      version_number: version,
     )
     
     gym(
-      scheme: JSON.parse(IO.read("../../app.json"))["name"],
+      scheme: scheme,
     )
     
     deliver
     
     commit_version_bump(
-      xcodeproj: "./#{JSON.parse(IO.read("../../app.json"))["name"]}.xcodeproj",
+      xcodeproj: xcodeproj,
       message: version,
       include: %w[package.json]
+    )
+    add_git_tag(
+      tag: "v#{version}",
     )
   end
 

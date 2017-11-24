@@ -15,9 +15,9 @@ languages([
   # ["pt", "pt_BR"] # Portuguese with Brazilian locale
 ])
 
-scheme "HideTheNotch"
-project "./ios/HideTheNotch.xcodeproj"
-# workspace "./Project.xcworkspace"
+scheme JSON.parse(IO.read("../../app.json"))["name"]
+project "./#{JSON.parse(IO.read("../../app.json"))["name"]}.xcodeproj"
+# workspace "./#{JSON.parse(IO.read("../../app.json"))["name"]}.xcworkspace"
 
 # output_directory "./screenshots"
 

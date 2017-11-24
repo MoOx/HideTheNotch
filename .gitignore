@@ -42,31 +42,26 @@ buck-out/
 *.keystore
 
 # fastlane
-#
-# It is recommended to not store the screenshots in the git repo. Instead, use fastlane to re-generate the
-# screenshots whenever they are needed.
-# For more information about the recommended setup visit:
-# https://docs.fastlane.tools/best-practices/source-control/
-
-fastlane/report.xml
-fastlane/Preview.html
-fastlane/screenshots/*/*.png
-fastlane/screenshots/README.txt
-fastlane/screenshots/screenshots.html
-fastlane/background.png
-fastlane/metadata
-fastlane/Appfile
-fastlane/Deliverfile
-fastlane/README.md
+**/fastlane/report.xml
+**/fastlane/Preview.html
+**/fastlane/screenshots/*/*.png
+**/fastlane/screenshots/README.txt
+**/fastlane/screenshots/screenshots.html
+**/fastlane/background.png
+**/fastlane/metadata
+**/fastlane/Appfile
+**/fastlane/Deliverfile
+**/fastlane/README.md
+**/Preview.html
 
 # custom
 assets/wallpapers
 assets/iOS
 assets/Android
 assets/website
-Preview.html
 website/*
 
+# sensible files
 *.zip
 *.p12
 *.cer
@@ -74,5 +69,7 @@ website/*
 *.mobileprovision
 */sentry.properties
 src/sentry.endpoint.js
+
+# heavy files
 ios/HideTheNotch/Images.xcassets/LaunchImage.launchimage/*
 ios/HideTheNotch/Images.xcassets/AppIcon.appiconset/*

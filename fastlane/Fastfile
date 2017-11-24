@@ -52,7 +52,7 @@ platform :ios do
     deliver
     
     commit_version_bump(
-      message:"#{version}"
+      message: version,
       include: %w[package.json]
     )
   end

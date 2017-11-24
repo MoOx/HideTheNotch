@@ -2,8 +2,8 @@
 
 import { Sentry } from "react-native-sentry";
 
-// Sentry.enableInExpoDevelopment = true;
+if (process.env.NODE_ENV === "production") {
+  Sentry.config("https://xxx:yyy@sentry.io/zzz").install();
+}
 
-Sentry.config(
-  "https://xxx:yyy@sentry.io/zzz"
-).install();
+export default Sentry;

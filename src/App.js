@@ -24,7 +24,7 @@ import { captureRef, releaseCapture } from "react-native-view-shot";
 import Permissions from "react-native-permissions";
 import Feather from "react-native-vector-icons/Feather";
 
-import "./sentry.js";
+import Sentry from "./sentry.js";
 import effectsList from "../assets/effects";
 import type { EffectStyleArguments } from "../assets/effects";
 import imagesList from "../assets/wallpapers";
@@ -77,7 +77,8 @@ type StateType = {
   image: ImageType,
   help: boolean,
   edit: boolean,
-  error?: Object,
+  error?: Error,
+  log?: any,
   saved?: string,
   cameraRoll?: boolean
 };
@@ -209,27 +210,38 @@ export default class App extends React.Component<void, StateType> {
     this._wallpaperView = ref;
   };
 
+  componentDidMount() {
+    if (process.env.NODE_ENV !== "production") {
+      setTimeout(() => this.setError(new Error("fail")), 1000);
+    }
+  }
+
   getCameraPermission = async () => {
     try {
       const response = await Permissions.request("photo");
       if (response === "authorized") {
         return true;
       }
-    } catch (error) {
-      this.setState({ error });
+    } catch (e) {
+      this.setError(e);
     }
     alertForSettings();
     return false;
   };
 
-  generateWallpaper = async () => {
-    return await captureRef(this._wallpaperView, {
-      width: windowWidth,
-      height: windowHeight,
-      // format: "png",
-      // quality: 1.0,
-      result: "tmpfile" // 'tmpfile' 'base64' 'data-uri'
-    });
+  generateWallpaper = async (): Promise<string> => {
+    try {
+      return captureRef(this._wallpaperView, {
+        width: windowWidth,
+        height: windowHeight,
+        // format: "png",
+        // quality: 1.0,
+        result: "tmpfile" // 'tmpfile' 'base64' 'data-uri'
+      });
+    } catch (e) {
+      this.setError(e);
+      return new Promise.reject();
+    }
   };
 
   handleCameraPress = async () => {
@@ -270,42 +282,60 @@ export default class App extends React.Component<void, StateType> {
   };
 
   handleSharePress = async () => {
-    const newWallpaper = await this.generateWallpaper();
-    // this.setState({ log: newWallpaper });
-    const result = await Share.share(
-      {
-        // title: "",
-        // message: "",
-        url: newWallpaper
-      },
-      {
-        excludedActivityTypes: [
-          // https://developer.apple.com/documentation/uikit/uiactivitytype
-          "com.apple.UIKit.activity.AddToReadingList",
-          // "com.apple.UIKit.activity.AirDrop",
-          "com.apple.UIKit.activity.AssignToContact",
-          // "com.apple.UIKit.activity.CopyToPasteboard",
-          // "com.apple.UIKit.activity.Mail",
-          // "com.apple.UIKit.activity.Message",
-          "com.apple.UIKit.activity.OpenInIBooks",
-          // "com.apple.UIKit.activity.PostToFacebook",
-          // "com.apple.UIKit.activity.PostToFlickr",
-          // "com.apple.UIKit.activity.PostToTencentWeibo",
-          // "com.apple.UIKit.activity.PostToTwitter",
-          // "com.apple.UIKit.activity.PostToVimeo",
-          // "com.apple.UIKit.activity.PostToWeibo",
-          "com.apple.UIKit.activity.Print",
-          // "com.apple.UIKit.activity.SaveToCameraRoll",
-          "com.apple.UIKit.activity.MarkupAsPDF",
-          "com.apple.mobilenotes.SharingExtension"
-        ]
+    let newWallpaper;
+    try {
+      newWallpaper = await this.generateWallpaper();
+      // this.setState({ log: newWallpaper });
+      const result = await Share.share(
+        {
+          // title: "",
+          // message: "",
+          url: newWallpaper
+        },
+        {
+          excludedActivityTypes: [
+            // https://developer.apple.com/documentation/uikit/uiactivitytype
+            "com.apple.UIKit.activity.AddToReadingList",
+            // "com.apple.UIKit.activity.AirDrop",
+            "com.apple.UIKit.activity.AssignToContact",
+            // "com.apple.UIKit.activity.CopyToPasteboard",
+            // "com.apple.UIKit.activity.Mail",
+            // "com.apple.UIKit.activity.Message",
+            "com.apple.UIKit.activity.OpenInIBooks",
+            // "com.apple.UIKit.activity.PostToFacebook",
+            // "com.apple.UIKit.activity.PostToFlickr",
+            // "com.apple.UIKit.activity.PostToTencentWeibo",
+            // "com.apple.UIKit.activity.PostToTwitter",
+            // "com.apple.UIKit.activity.PostToVimeo",
+            // "com.apple.UIKit.activity.PostToWeibo",
+            "com.apple.UIKit.activity.Print",
+            // "com.apple.UIKit.activity.SaveToCameraRoll",
+            "com.apple.UIKit.activity.MarkupAsPDF",
+            "com.apple.mobilenotes.SharingExtension"
+          ]
+        }
+      );
+      // this.setState({ log: result });
+      if (result.action === Share.sharedAction) {
+        this.savedFeedback(result.activityType);
       }
-    );
-    // this.setState({ log: result });
-    if (result.action === Share.sharedAction) {
-      this.savedFeedback(result.activityType);
+      releaseCapture(newWallpaper);
+    } catch (e) {
+      this.setError(e);
     }
-    releaseCapture(newWallpaper);
+  };
+
+  handleExportPress = async () => {
+    try {
+      if (await this.getCameraPermission()) {
+        const newWallpaper = await this.generateWallpaper();
+        // this.setState({ log: newWallpaper });
+        await CameraRoll.saveToCameraRoll(newWallpaper);
+        this.savedFeedback("com.apple.UIKit.activity.SaveToCameraRoll");
+      }
+    } catch (e) {
+      this.setError(e);
+    }
   };
 
   savedFeedback = (type: string) => {
@@ -320,18 +350,17 @@ export default class App extends React.Component<void, StateType> {
     );
   };
 
-  handleExportPress = async () => {
-    if (await this.getCameraPermission()) {
-      const newWallpaper = await this.generateWallpaper();
-      // this.setState({ log: newWallpaper });
-      try {
-        await CameraRoll.saveToCameraRoll(newWallpaper);
-        this.savedFeedback("com.apple.UIKit.activity.SaveToCameraRoll");
-      } catch (error) {
-        this.setState({ error });
-      }
+  setError(error: Error) {
+    this.setState({ error });
+    if (process.env.NODE_ENV === "production") {
+      Sentry.captureException(error);
     }
-  };
+    Alert.alert(
+      "Oooops, we just detected a problem!",
+      "A report has been sent directly to our developers. " +
+        "We will try to fix this as soon as possible!"
+    );
+  }
 
   render() {
     const { state } = this;
@@ -371,21 +400,25 @@ export default class App extends React.Component<void, StateType> {
             )}
         </View>
         <View style={styles.toolbarWrapper}>
-          {/* {process.env.NODE_ENV !== "production" && (
-            <View style={[styles.toolbar, { opacity: 0.5 }]}>
-              <Text style={[styles.debugText]}>
-                Debug: {JSON.stringify(Constants.platform.ios)}
-              </Text>
-              {state.error && (
-                <Text style={[styles.debugText]}>{state.error.toString()}</Text>
-              )}
-              {state.log && (
+          {process.env.NODE_ENV !== "production" &&
+            (state.error || state.log) && (
+              <View
+                style={[styles.toolbar, styles.toolbarBlack, styles.credits]}
+              >
+                {state.error && (
+                  <View>
+                    <Text style={[styles.debugText]}>
+                      {state.error.toString()}
+                    </Text>
+                  </View>
+                )}
+                {/* {state.log && (
                 <Text style={[styles.debugText]}>
                   {JSON.stringify(state.log, null, 2)}
                 </Text>
-              )}
-            </View>
-          )} */}
+              )} */}
+              </View>
+            )}
           {state.help && (
             <View>
               <View
@@ -664,8 +697,7 @@ const styles = StyleSheet.create({
     lineHeight: 20 * 1.5
   },
   debugText: {
-    fontSize: 10,
-    color: "#fff"
+    color: "red"
   },
   maskButton: {
     width: previewWidth,

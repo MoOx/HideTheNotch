@@ -45,10 +45,10 @@
 	<string>Actually not used.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Actually not used.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>We need the permission to be able to import and export wallpapers.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>We need the permission to be able to export wallpapers.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>We need the permission to be able to import and export wallpapers.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Actually not used.</string>
 	<key>UIAppFonts</key>

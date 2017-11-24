@@ -50,6 +50,7 @@ platform :ios do
     deliver
     
     commit_version_bump(
+      xcodeproj: "./#{JSON.parse(IO.read("../../app.json"))["name"]}.xcodeproj",
       message: version,
       include: %w[package.json]
     )

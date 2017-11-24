@@ -73,6 +73,6 @@ website/*
 *.certSigningRequest
 *.mobileprovision
 */sentry.properties
-src/sentry.js
+src/sentry.endpoint.js
 ios/HideTheNotch/Images.xcassets/LaunchImage.launchimage/*
 ios/HideTheNotch/Images.xcassets/AppIcon.appiconset/*

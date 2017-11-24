@@ -23,12 +23,19 @@ import LinearGradient from "react-native-linear-gradient";
 import { captureRef, releaseCapture } from "react-native-view-shot";
 import Permissions from "react-native-permissions";
 import Feather from "react-native-vector-icons/Feather";
+import { Sentry } from "react-native-sentry";
 
-import Sentry from "./sentry.js";
+import sentryEndpoint from "./sentry.endpoint.js";
 import effectsList from "../assets/effects";
 import type { EffectStyleArguments } from "../assets/effects";
 import imagesList from "../assets/wallpapers";
 import { windowHeight, windowWidth, hasInsetBottom } from "./platform.js";
+
+const enableSentry = process.env.NODE_ENV === "production";
+// const enableSentry = true;
+if (enableSentry) {
+  Sentry.config(sentryEndpoint).install();
+}
 
 const ImagePicker = require("react-native-image-picker");
 
@@ -87,30 +94,20 @@ export const alertForSettings = (
   title: string = "Photos Permissions required",
   description: string = "We require permissions to your photos to import and export wallpapers"
 ) =>
-  new Promise((resolve, reject) => {
-    Alert.alert(
-      title,
-      description,
-      [
-        ...(!Permissions.canOpenSettings()
-          ? []
-          : [
-              {
-                text: "Go to Settings",
-                onPress: () => Permissions.openSettings().then(resolve)
-              }
-            ]),
-        {
-          text: "OK",
-          style: "cancel",
-          onPress: reject
-        }
-      ],
-      {
-        cancelable: false
-      }
-    );
-  });
+  Alert.alert(title, description, [
+    ...(!Permissions.canOpenSettings()
+      ? []
+      : [
+          {
+            text: "OK",
+            style: "cancel",
+            onPress: () => Permissions.openSettings()
+          }
+        ]),
+    {
+      text: "Not interested"
+    }
+  ]);
 
 class Wallpaper extends React.Component<PropsType, void> {
   render() {
@@ -211,21 +208,20 @@ export default class App extends React.Component<void, StateType> {
   };
 
   componentDidMount() {
+    /*
     if (process.env.NODE_ENV !== "production") {
       setTimeout(() => this.setError(new Error("fail")), 1000);
     }
+    */
   }
 
   getCameraPermission = async () => {
     try {
       const response = await Permissions.request("photo");
-      if (response === "authorized") {
-        return true;
-      }
+      return response === "authorized";
     } catch (e) {
       this.setError(e);
     }
-    alertForSettings();
     return false;
   };
 
@@ -246,7 +242,12 @@ export default class App extends React.Component<void, StateType> {
 
   handleCameraPress = async () => {
     this.setState({ cameraRoll: true });
-    if (await this.getCameraPermission()) {
+    try {
+      if (!await this.getCameraPermission()) {
+        this.setState({ cameraRoll: false });
+        alertForSettings();
+        return;
+      }
       ImagePicker.launchImageLibrary(
         {
           mediaType: "photo"
@@ -262,6 +263,9 @@ export default class App extends React.Component<void, StateType> {
           this.setState({ cameraRoll: false });
         }
       );
+    } catch (e) {
+      this.setState({ cameraRoll: false });
+      this.setError(e);
     }
   };
 
@@ -327,12 +331,14 @@ export default class App extends React.Component<void, StateType> {
 
   handleExportPress = async () => {
     try {
-      if (await this.getCameraPermission()) {
-        const newWallpaper = await this.generateWallpaper();
-        // this.setState({ log: newWallpaper });
-        await CameraRoll.saveToCameraRoll(newWallpaper);
-        this.savedFeedback("com.apple.UIKit.activity.SaveToCameraRoll");
+      if (!await this.getCameraPermission()) {
+        alertForSettings();
+        return;
       }
+      const newWallpaper = await this.generateWallpaper();
+      // this.setState({ log: newWallpaper });
+      await CameraRoll.saveToCameraRoll(newWallpaper);
+      this.savedFeedback("com.apple.UIKit.activity.SaveToCameraRoll");
     } catch (e) {
       this.setError(e);
     }
@@ -352,7 +358,7 @@ export default class App extends React.Component<void, StateType> {
 
   setError(error: Error) {
     this.setState({ error });
-    if (process.env.NODE_ENV === "production") {
+    if (enableSentry) {
       Sentry.captureException(error);
     }
     Alert.alert(

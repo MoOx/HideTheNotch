@@ -1,0 +1,1030 @@
+<title>Hide The Notch — pistes de refonte visuelle</title>
+<style>
+  /* ── Tokens : design sombre par défaut (le sujet, c'est le pixel éteint) ── */
+  :root {
+    --ground:      #131110;
+    --surface:     #1C1917;
+    --surface-2:   #241F1C;
+    --line:        #38312D;
+    --line-soft:   #2A2421;
+    --text:        #EFE9E4;
+    --text-2:      #A69B93;
+    --text-3:      #776C65;
+    --accent:      #F0533A;   /* rubylith — le film de masquage de la photogravure */
+    --accent-dim:  #8C3223;
+    --accent-wash: rgba(240, 83, 58, 0.10);
+    --signal:      #6FD3B8;
+    --warn:        #E8A33D;
+    --shadow:      0 1px 0 rgba(255,255,255,0.03), 0 8px 30px rgba(0,0,0,0.45);
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --ground:      #F3F0EE;
+      --surface:     #FFFFFF;
+      --surface-2:   #F8F5F3;
+      --line:        #DED6D1;
+      --line-soft:   #EAE3DF;
+      --text:        #1E1917;
+      --text-2:      #5F544E;
+      --text-3:      #8B7F78;
+      --accent:      #C93A22;
+      --accent-dim:  #E8907E;
+      --accent-wash: rgba(201, 58, 34, 0.07);
+      --signal:      #1E7F66;
+      --warn:        #9B6410;
+      --shadow:      0 1px 0 rgba(255,255,255,0.6), 0 6px 24px rgba(60,40,32,0.10);
+    }
+  }
+  :root[data-theme="light"] {
+    --ground:      #F3F0EE;
+    --surface:     #FFFFFF;
+    --surface-2:   #F8F5F3;
+    --line:        #DED6D1;
+    --line-soft:   #EAE3DF;
+    --text:        #1E1917;
+    --text-2:      #5F544E;
+    --text-3:      #8B7F78;
+    --accent:      #C93A22;
+    --accent-dim:  #E8907E;
+    --accent-wash: rgba(201, 58, 34, 0.07);
+    --signal:      #1E7F66;
+    --warn:        #9B6410;
+    --shadow:      0 1px 0 rgba(255,255,255,0.6), 0 6px 24px rgba(60,40,32,0.10);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 17px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px 96px; }
+  .prose { max-width: 68ch; }
+
+  /* ── Typo ── */
+  h1, h2, h3, .eyebrow, .mono, code, th, .num {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  h1 {
+    font-size: clamp(30px, 5.2vw, 50px);
+    line-height: 1.06;
+    letter-spacing: -0.035em;
+    font-weight: 600;
+    margin: 0 0 18px;
+    text-wrap: balance;
+  }
+  h2 {
+    font-size: clamp(20px, 2.6vw, 26px);
+    line-height: 1.2;
+    letter-spacing: -0.025em;
+    font-weight: 600;
+    margin: 0;
+    text-wrap: balance;
+  }
+  h3 {
+    font-size: 15px;
+    letter-spacing: -0.01em;
+    font-weight: 600;
+    margin: 0;
+  }
+  p { margin: 0 0 16px; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+  strong { font-weight: 650; color: var(--text); }
+
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    font-weight: 600;
+    margin: 0 0 10px;
+  }
+
+  /* ── En-tête ── */
+  .masthead {
+    border-bottom: 1px solid var(--line);
+    padding: 64px 0 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .lede {
+    font-size: clamp(17px, 2vw, 20px);
+    line-height: 1.55;
+    color: var(--text-2);
+    max-width: 62ch;
+    margin: 0;
+  }
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    margin-top: 22px;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px;
+    color: var(--text-3);
+    letter-spacing: 0.02em;
+  }
+
+  /* ── Sections ── */
+  section { padding-top: 64px; }
+  .sec-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 24px;
+    border-top: 1px solid var(--line-soft);
+    padding-top: 18px;
+  }
+  .sec-head .tag {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    text-transform: uppercase;
+    flex: none;
+    padding-top: 4px;
+  }
+
+  /* ── Blocs ── */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 22px 24px;
+    box-shadow: var(--shadow);
+  }
+  .panel + .panel { margin-top: 14px; }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 14px;
+    align-items: start;
+  }
+  .note {
+    border-left: 2px solid var(--accent);
+    background: var(--accent-wash);
+    padding: 14px 18px;
+    border-radius: 0 6px 6px 0;
+    font-size: 15.5px;
+    color: var(--text-2);
+  }
+  .note strong { color: var(--text); }
+  .note p:last-child { margin-bottom: 0; }
+
+  ul.tight { margin: 0; padding-left: 20px; }
+  ul.tight li { margin-bottom: 9px; }
+  ul.tight li::marker { color: var(--text-3); }
+
+  code {
+    font-size: 0.88em;
+    background: var(--surface-2);
+    border: 1px solid var(--line-soft);
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--text);
+  }
+
+  /* ── Tableau specs ── */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 620px;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 14px 10px 0;
+    border-bottom: 1px solid var(--line-soft);
+    vertical-align: top;
+  }
+  th {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    font-weight: 600;
+    border-bottom-color: var(--line);
+  }
+  td.n { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; color: var(--text-2); }
+
+  /* ── Contrôles du catalogue ── */
+  .controls {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: var(--ground);
+    background: color-mix(in srgb, var(--ground) 92%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--line);
+    padding: 12px 0;
+    margin-bottom: 26px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 22px;
+  }
+  .seg {
+    display: inline-flex;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--surface);
+  }
+  .seg button {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px;
+    letter-spacing: 0.01em;
+    padding: 8px 13px;
+    background: transparent;
+    color: var(--text-2);
+    border: 0;
+    border-right: 1px solid var(--line);
+    cursor: pointer;
+    transition: background 0.14s ease, color 0.14s ease;
+  }
+  .seg button:last-child { border-right: 0; }
+  .seg button:hover { color: var(--text); background: var(--surface-2); }
+  .seg button[aria-pressed="true"] {
+    background: var(--accent);
+    color: #FFF3F0;
+  }
+  .toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px;
+    color: var(--text-2);
+    cursor: pointer;
+    user-select: none;
+  }
+  .toggle input { accent-color: var(--accent); width: 15px; height: 15px; }
+  .devspec {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11.5px;
+    color: var(--text-3);
+    letter-spacing: 0.01em;
+  }
+
+  /* ── Cartes techniques ── */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+    gap: 16px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow);
+  }
+  .stage {
+    background: #0A0908;
+    padding: 18px 0 16px;
+    display: flex;
+    justify-content: center;
+    border-bottom: 1px solid var(--line);
+    background-image: radial-gradient(circle at 50% 0%, #1a1614 0%, #0A0908 70%);
+  }
+  .stage svg {
+    width: 132px;
+    height: auto;
+    display: block;
+    filter: drop-shadow(0 10px 22px rgba(0,0,0,0.7));
+  }
+  .card-body {
+    padding: 15px 16px 17px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    flex: 1;
+  }
+  .card-body p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-2);
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 4px; }
+  .chip {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.03em;
+    padding: 3px 7px;
+    border-radius: 4px;
+    border: 1px solid var(--line);
+    color: var(--text-3);
+    white-space: nowrap;
+  }
+  .chip.gen { color: var(--signal); border-color: color-mix(in srgb, var(--signal) 40%, transparent); }
+  .chip.hard { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
+
+  /* ── Étapes du pipeline ── */
+  .flow { display: flex; flex-direction: column; gap: 0; }
+  .step {
+    display: grid;
+    grid-template-columns: 92px 1fr;
+    gap: 20px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--line-soft);
+    align-items: start;
+  }
+  .step:last-child { border-bottom: 0; }
+  .step .k {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    padding-top: 3px;
+  }
+  .step .v { font-size: 15px; color: var(--text-2); }
+  .step .v strong { display: block; color: var(--text); font-size: 15.5px; margin-bottom: 3px; font-weight: 600; }
+
+  .verdict {
+    border: 1px solid var(--accent-dim);
+    background: var(--accent-wash);
+    border-radius: 12px;
+    padding: 26px 28px;
+  }
+  .verdict h2 { margin-bottom: 12px; }
+
+  @media (max-width: 620px) {
+    body { font-size: 16px; }
+    .wrap { padding: 0 18px 72px; }
+    .step { grid-template-columns: 1fr; gap: 4px; }
+    .controls { gap: 10px 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Note de recherche · Août 2026</p>
+    <h1>Masquer l'encoche, neuf ans après</h1>
+    <p class="lede">
+      Autopsie de HideTheNotch (2017), inventaire des techniques de masquage visuel qui existent
+      aujourd'hui, et treize familles de solutions à trancher avant d'écrire la moindre ligne de code.
+    </p>
+    <div class="meta-row">
+      <span>Repo · MoOx/HideTheNotch</span>
+      <span>v1 · RN 0.49 · nov. 2017</span>
+      <span>Cible · Expo SDK 56 / RN 0.85</span>
+    </div>
+  </header>
+
+  <!-- ══════════════════ 1. AUTOPSIE ══════════════════ -->
+  <section>
+    <div class="sec-head">
+      <span class="tag">01</span>
+      <h2>Ce que faisait la v1</h2>
+    </div>
+
+    <div class="prose">
+      <p>
+        L'app de 2017 tient en 789 lignes. Un <code>ImageBackground</code> plein écran, une pile de PNG
+        posés en <code>position:&nbsp;absolute&nbsp;/&nbsp;top:&nbsp;0</code> par-dessus, et
+        <code>captureRef()</code> de <em>react-native-view-shot</em> pour photographier cette vue et la
+        pousser dans la pellicule. Quatre masques : <em>Rounded Notch</em>, <em>Rounded Slim Notch</em>,
+        <em>Hard Notch</em>, <em>Hard Slim Notch</em> — quatre bitmaps, aucun paramètre.
+      </p>
+      <p>
+        C'était la bonne réponse à l'époque : un seul appareil au monde avait une encoche, et il était
+        entièrement décrit par <code>src/platform.js</code> en huit lignes —
+        <code>isIPhoneX = height === 812 &amp;&amp; width === 375</code>.
+      </p>
+    </div>
+
+    <div class="grid-2" style="margin-top: 24px;">
+      <div class="panel">
+        <h3 style="margin-bottom:10px">Ce qui a bien vieilli</h3>
+        <ul class="tight" style="font-size:15px;color:var(--text-2)">
+          <li>L'intuition de base : sur OLED, du <code>#000000</code> posé à côté d'une découpe la fait littéralement disparaître.</li>
+          <li>Le geste produit : on n'installe pas un « thème », on <strong>exporte une image</strong> que l'utilisateur pose lui-même.</li>
+          <li>Le catalogue de fonds embarqués + import photo perso, avec crédit auteur affiché.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3 style="margin-bottom:10px">Les cinq plafonds de verre</h3>
+        <ul class="tight" style="font-size:15px;color:var(--text-2)">
+          <li><strong>Un seul appareil connu.</strong> Chaque nouvel iPhone désalignait le masque.</li>
+          <li><strong>Masques bitmap.</strong> Non paramétrables : pas de hauteur, pas de rayon, pas de couleur.</li>
+          <li><strong>Export = capture d'écran.</strong> La photo source est réduite à la taille de l'écran <em>avant</em> d'être capturée. Pas de recadrage, pas de zoom (le <code>ScrollView</code> pinch est commenté dans le code).</li>
+          <li><strong>Aucune Dynamic Island</strong> — elle n'existait pas.</li>
+          <li><strong>Le dernier kilomètre non traité :</strong> rien n'empêche iOS de re-zoomer le fond au moment de le poser, ce qui casse l'alignement au pixel.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ 2. PHYSIQUE ══════════════════ -->
+  <section>
+    <div class="sec-head">
+      <span class="tag">02</span>
+      <h2>Pourquoi l'astuce marche (et quand elle casse)</h2>
+    </div>
+
+    <div class="prose">
+      <p>
+        Tous les iPhone à découpe sont OLED : un pixel noir est un pixel <em>éteint</em>, optiquement
+        identique à la dalle autour de la caméra. C'est la seule raison pour laquelle le masquage
+        fonctionne — et ça impose trois règles non négociables.
+      </p>
+    </div>
+
+    <div class="note prose" style="margin: 20px 0 28px;">
+      <p><strong>1. Noir absolu, pas « presque noir ».</strong> <code>#010101</code> se voit sur OLED en pièce sombre.</p>
+      <p><strong>2. PNG obligatoire.</strong> Le JPEG produit des artefacts de bloc autour d'une frontière noir&nbsp;/&nbsp;image : la découpe redevient visible.</p>
+      <p style="margin-bottom:0"><strong>3. Dégradés dithérés.</strong> Un fondu vers le noir sur 8&nbsp;bits fait du <em>banding</em> franc sur OLED. Il faut injecter un bruit de ±1&nbsp;LSB.</p>
+    </div>
+
+    <p class="eyebrow">Géométrie des découpes</p>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Génération</th><th>Écran (pt)</th><th>Découpe</th><th>Position</th><th>Safe area haute</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Encoche — iPhone X → 11 Pro</td>
+            <td class="n">375 × 812 @3x</td>
+            <td class="n">≈ 209 × 30 pt</td>
+            <td class="n">collée au bord</td>
+            <td class="n">44 pt</td>
+          </tr>
+          <tr>
+            <td>Encoche — iPhone 12 → 14 Plus</td>
+            <td class="n">390 × 844 @3x</td>
+            <td class="n">≈ 209 × 32 pt</td>
+            <td class="n">collée au bord</td>
+            <td class="n">47 pt</td>
+          </tr>
+          <tr>
+            <td>Dynamic Island — 14 Pro → 17</td>
+            <td class="n">393 × 852 @3x</td>
+            <td class="n">≈ 125 × 37 pt</td>
+            <td class="n">flottante, ≈ 11 pt du bord</td>
+            <td class="n">59 pt</td>
+          </tr>
+          <tr>
+            <td>Poinçon — iPhone 18 Pro <em>(rumeur)</em></td>
+            <td class="n">—</td>
+            <td class="n">≈ 13,5 mm de large</td>
+            <td class="n">décalé vers la gauche</td>
+            <td class="n">—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:13.5px;color:var(--text-3);margin-top:12px;max-width:68ch">
+      Valeurs à considérer comme des ordres de grandeur : Apple ne publie pas la géométrie exacte des
+      découpes. En pratique l'app doit <strong>mesurer</strong> l'appareil courant (safe area + modèle)
+      et garder une table de secours pour générer un fond destiné à un <em>autre</em> téléphone.
+    </p>
+  </section>
+
+  <!-- ══════════════════ 3. CATALOGUE ══════════════════ -->
+  <section>
+    <div class="sec-head">
+      <span class="tag">03</span>
+      <h2>Treize familles de masquage</h2>
+    </div>
+
+    <div class="prose" style="margin-bottom: 8px;">
+      <p>
+        Chaque famille est un <em>générateur</em>, pas une image : une fonction qui prend la géométrie de
+        la découpe et rend une pile de calques. Change d'appareil ci-dessous — les treize aperçus se
+        recalculent. C'est exactement le modèle que l'app devrait implémenter.
+      </p>
+    </div>
+
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Type de découpe">
+        <button type="button" data-dev="notch" aria-pressed="false">Encoche</button>
+        <button type="button" data-dev="island" aria-pressed="true">Dynamic Island</button>
+        <button type="button" data-dev="punch" aria-pressed="false">Poinçon</button>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="showCut">
+        Révéler la découpe physique
+      </label>
+      <span class="devspec" id="devspec"></span>
+    </div>
+
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <!-- ══════════════════ 4. PIPELINE ══════════════════ -->
+  <section>
+    <div class="sec-head">
+      <span class="tag">04</span>
+      <h2>Le pipeline qu'il faut pour rendre ça possible</h2>
+    </div>
+
+    <div class="prose">
+      <p>
+        Sept de ces treize familles sont infaisables avec l'architecture de 2017 : elles demandent des
+        dégradés dithérés, des modes de fusion, du bruit procédural et un export à une résolution
+        supérieure à celle de l'écran. Le changement structurant est simple à énoncer :
+        <strong>arrêter de photographier une vue React Native</strong>.
+      </p>
+    </div>
+
+    <div class="panel" style="margin-top:20px">
+      <div class="flow">
+        <div class="step">
+          <span class="k">Modèle</span>
+          <span class="v"><strong>Une recette, pas une image</strong>
+            Un objet JSON décrit tout : source (photo, dégradé, procédural), transformation (recadrage,
+            zoom, rotation), pile de masques paramétrés, géométrie de l'appareil cible. Sérialisable :
+            partageable, versionnable, re-générable pour un autre téléphone.</span>
+        </div>
+        <div class="step">
+          <span class="k">Aperçu</span>
+          <span class="v"><strong>Canvas Skia à l'échelle écran</strong>
+            <code>@shopify/react-native-skia</code> rend la recette à 120 fps, avec pincer-glisser sur la
+            photo via Reanimated&nbsp;4 et Gesture Handler. Les dégradés, le bruit fractal et les shaders
+            personnalisés sont natifs.</span>
+        </div>
+        <div class="step">
+          <span class="k">Export</span>
+          <span class="v"><strong>Surface hors écran en pixels natifs</strong>
+            <code>Skia.Surface.MakeOffscreen(1290, 2796)</code> rejoue la <em>même</em> recette à la
+            résolution réelle de l'appareil, puis <code>makeImageSnapshot()</code> →
+            <code>encodeToBytes(PNG)</code> → <code>expo-media-library</code>. Qualité 1:1, indépendante de
+            l'écran d'aperçu.</span>
+        </div>
+        <div class="step">
+          <span class="k">Coque</span>
+          <span class="v"><strong>Expo SDK 56, nouvelle archi</strong>
+            RN 0.85, Hermes v1. <code>expo-glass-effect</code> donne la vraie barre d'outils Liquid Glass
+            (UIVisualEffectView natif) sur iOS 26+, avec repli <code>expo-blur</code> en dessous.
+            <code>@expo/ui</code> pour les feuilles et sélecteurs SwiftUI, <code>expo-haptics</code> pour
+            le retour tactile au calage.</span>
+        </div>
+        <div class="step">
+          <span class="k">Android</span>
+          <span class="v"><strong>Plus simple qu'iOS, en fait</strong>
+            Même moteur Skia, mêmes recettes. Et surtout <code>WallpaperManager.setBitmap()</code> pose le
+            fond d'écran <em>directement</em>, sans passer par la galerie ni par un recadrage — l'obstacle
+            principal d'iOS n'existe pas.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ 5. DERNIER KILOMÈTRE ══════════════════ -->
+  <section>
+    <div class="sec-head">
+      <span class="tag">05</span>
+      <h2>Le vrai problème : poser le fond d'écran</h2>
+    </div>
+
+    <div class="prose">
+      <p>
+        Un masque au pixel près ne sert à rien si iOS le décale de quatre pour cent en le posant. C'est là
+        que la v1 s'arrêtait — l'aide disait « mets-le en <em>Still</em> et aligne-le en bas » — et c'est
+        là que se joue la différence entre un jouet et un outil.
+      </p>
+    </div>
+
+    <div class="grid-2" style="margin-top:20px">
+      <div class="panel">
+        <h3 style="margin-bottom:10px;color:var(--warn)">Ce qui casse l'alignement</h3>
+        <ul class="tight" style="font-size:15px;color:var(--text-2)">
+          <li><strong>Zoom de perspective</strong> — iOS agrandit le fond d'environ 4&nbsp;% pour la parallaxe au gyroscope.</li>
+          <li><strong>Scènes spatiales (iOS 26)</strong> — sépare le sujet du fond et le fait bouger : désalignement garanti.</li>
+          <li><strong>Effet de profondeur</strong> sur l'écran verrouillé.</li>
+          <li><strong>L'éditeur de recadrage</strong> qui s'ouvre à chaque « Choisir une photo » et invite au pincement.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3 style="margin-bottom:10px;color:var(--signal)">Les parades</h3>
+        <ul class="tight" style="font-size:15px;color:var(--text-2)">
+          <li><strong>Exporter à la résolution native exacte</strong> — iOS affiche alors l'image 1:1 par défaut, sans recadrage.</li>
+          <li><strong>Une App Intent + un Raccourci fourni</strong> : l'action <em>Définir le fond d'écran</em> de Raccourcis pose l'image sans ouvrir l'éditeur. Un seul geste. À valider en conditions réelles, mais c'est le différenciateur le plus fort du projet.</li>
+          <li><strong>Une mire de calibration</strong> : un fond de test qui laisse l'utilisateur mesurer et corriger un décalage résiduel, mémorisé ensuite pour tous ses exports.</li>
+          <li><strong>Des instructions ciblées par version d'iOS</strong>, pas un texte générique.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ 6. VERDICT ══════════════════ -->
+  <section>
+    <div class="sec-head">
+      <span class="tag">06</span>
+      <h2>Est-ce que ça vaut le coup ?</h2>
+    </div>
+
+    <div class="verdict prose">
+      <p>
+        <strong>Le calendrier joue pour toi.</strong> L'iPhone 18 Pro est attendu en septembre 2026 avec
+        une découpe nettement réduite et, selon les fuites, <em>décalée vers la gauche</em>. Un bandeau
+        noir centré devient absurde sur une découpe asymétrique : toute la catégorie « wallpaper qui cache
+        le trou » redevient un problème de design ouvert, exactement au moment où une app bien faite peut
+        se replacer.
+      </p>
+      <p>
+        <strong>La concurrence est faible mais installée.</strong> Le App Store est plein de galeries de
+        fonds pour Dynamic Island — abonnement, pubs, 90&nbsp;% du contenu payant, aucune notion de
+        géométrie réelle. Aucune ne propose un <em>générateur</em> : recette paramétrée, export en
+        résolution native, ta photo à toi. C'est le créneau, et il est cohérent avec ce que HideTheNotch
+        était déjà en 2017.
+      </p>
+      <p style="margin-bottom:0">
+        <strong>La question à trancher d'abord.</strong> Pas « quel framework », mais
+        <em>combien de familles au lancement</em>. Trois bien faites (bandeau paramétrique, fondu dithéré,
+        génératif) valent mieux que treize approximatives — et les familles 05 à 09, celles qui demandent
+        du dessin, sont ce qui fera parler de l'app. Dis-moi lesquelles t'intéressent et je pousse un
+        prototype de l'aperçu Skia + export sur la branche.
+      </p>
+    </div>
+  </section>
+
+  <p style="margin-top:56px;font-size:13px;color:var(--text-3);max-width:68ch">
+    Sources principales : documentation Expo (GlassEffect, SDK 55/56), React Native Skia (offscreen,
+    shaders), specs écrans Apple, fuites iPhone 18 Pro (AppleInsider, Macworld, GSMArena), et le code de
+    <code>MoOx/HideTheNotch</code> à la révision courante.
+  </p>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ── Géométrie des appareils (points logiques) ── */
+  var DEVICES = {
+    notch: {
+      label: "Encoche", W: 375, H: 812, R: 42, safeTop: 47,
+      spec: "375 × 812 pt @3x · découpe 209 × 32 pt, collée au bord · safe area 47 pt",
+      cut: { kind: "notch", w: 209, h: 32, r: 20 }
+    },
+    island: {
+      label: "Dynamic Island", W: 393, H: 852, R: 52, safeTop: 59,
+      spec: "393 × 852 pt @3x · pilule 125 × 37 pt, flottante à 11 pt · safe area 59 pt",
+      cut: { kind: "pill", w: 125, h: 37, top: 11 }
+    },
+    punch: {
+      label: "Poinçon", W: 393, H: 852, R: 52, safeTop: 54,
+      spec: "hypothèse iPhone 18 Pro / Android · poinçon ⌀ 26 pt, décalé à 30 % de la largeur",
+      cut: { kind: "circle", d: 26, top: 16, cxRatio: 0.30 }
+    }
+  };
+
+  /* Boîte englobante de la découpe */
+  function box(d) {
+    var c = d.cut;
+    if (c.kind === "notch") return { x: (d.W - c.w) / 2, y: 0, w: c.w, h: c.h };
+    if (c.kind === "pill")  return { x: (d.W - c.w) / 2, y: c.top, w: c.w, h: c.h };
+    return { x: d.W * c.cxRatio - c.d / 2, y: c.top, w: c.d, h: c.d };
+  }
+
+  /* Forme exacte de la découpe */
+  function cutShape(d, attrs) {
+    var c = d.cut, b = box(d), a = attrs || 'fill="#000"';
+    if (c.kind === "notch") {
+      var r = c.r;
+      return '<path d="M' + b.x + ',0 H' + (b.x + b.w) + ' V' + (b.h - r) +
+             ' a' + r + ',' + r + ' 0 0 1 -' + r + ',' + r +
+             ' H' + (b.x + r) + ' a' + r + ',' + r + ' 0 0 1 -' + r + ',-' + r + ' Z" ' + a + '/>';
+    }
+    if (c.kind === "pill") {
+      return '<rect x="' + b.x + '" y="' + b.y + '" width="' + b.w + '" height="' + b.h +
+             '" rx="' + (b.h / 2) + '" ' + a + '/>';
+    }
+    return '<circle cx="' + (b.x + b.w / 2) + '" cy="' + (b.y + b.h / 2) + '" r="' + (b.w / 2) + '" ' + a + '/>';
+  }
+
+  /* Bandeau supérieur à coins bas arrondis */
+  function band(W, h, r) {
+    if (!r) return '<rect x="0" y="0" width="' + W + '" height="' + h + '" fill="#000"/>';
+    return '<path d="M0,0 H' + W + ' V' + (h - r) + ' a' + r + ',' + r + ' 0 0 1 -' + r + ',' + r +
+           ' H' + r + ' a' + r + ',' + r + ' 0 0 1 -' + r + ',-' + r + ' Z" fill="#000"/>';
+  }
+
+  /* ── Fonds simulant des photos ── */
+  var BG = {
+    dusk:   [["#F7B267", 0], ["#D6456E", 0.45], ["#331B4D", 1]],
+    forest: [["#4C7F63", 0], ["#1D3B2E", 0.55], ["#0A1611", 1]],
+    ocean:  [["#8FC7E8", 0], ["#2C6E9B", 0.5], ["#0E2A44", 1]],
+    dune:   [["#EFC08A", 0], ["#C4784A", 0.5], ["#5E3320", 1]],
+    night:  [["#0B1220", 0], ["#1E3457", 0.5], ["#4E7BA8", 1]],
+    plum:   [["#E7A6C4", 0], ["#8E4D86", 0.5], ["#2C1A38", 1]]
+  };
+
+  function bgDefs(uid, key) {
+    var stops = BG[key].map(function (s) {
+      return '<stop offset="' + s[1] + '" stop-color="' + s[0] + '"/>';
+    }).join("");
+    return '<linearGradient id="bg' + uid + '" x1="0" y1="0" x2="0.25" y2="1">' + stops + '</linearGradient>';
+  }
+
+  function bgLayer(uid, d) {
+    return '<g id="bgg' + uid + '"><rect width="' + d.W + '" height="' + d.H + '" fill="url(#bg' + uid + ')"/>' +
+           '<ellipse cx="' + (d.W * 0.7) + '" cy="' + (d.H * 0.22) + '" rx="' + (d.W * 0.55) +
+           '" ry="' + (d.H * 0.18) + '" fill="#fff" opacity="0.13" filter="url(#soft' + uid + ')"/></g>';
+  }
+
+  /* ── Les treize générateurs ── */
+  var TECHNIQUES = [
+    {
+      id: "bar", name: "Bandeau plein", bg: "dusk",
+      chips: ["universel", "trivial"],
+      desc: "L'original. Un aplat noir jusque sous la découpe. Le seul vrai paramètre à ouvrir : la hauteur (juste la découpe, ou toute la safe area) et le rayon des coins intérieurs.",
+      draw: function (d, b) { return band(d.W, Math.max(b.y + b.h, d.safeTop - 6), 0); }
+    },
+    {
+      id: "bezel", name: "Faux cadre", bg: "ocean",
+      chips: ["universel", "trivial"],
+      desc: "On prolonge le bandeau : fine bordure noire en bas et sur les côtés. L'écran se lit comme une image encadrée, la découpe devient de la bordure. Cohérent, et ça rachète l'espace perdu.",
+      draw: function (d, b) {
+        var t = Math.max(b.y + b.h + 4, d.safeTop);
+        return band(d.W, t, 0) +
+          '<rect x="0" y="' + (d.H - 40) + '" width="' + d.W + '" height="40" fill="#000"/>' +
+          '<rect x="0" y="0" width="9" height="' + d.H + '" fill="#000"/>' +
+          '<rect x="' + (d.W - 9) + '" y="0" width="9" height="' + d.H + '" fill="#000"/>';
+      }
+    },
+    {
+      id: "fade", name: "Fondu dithéré", bg: "dune",
+      chips: ["universel", "dithering requis"], hard: 1,
+      desc: "Aplat noir sur la découpe, puis fondu progressif vers la photo. Impossible sans injecter un bruit de ±1 niveau : sinon le dégradé fait des bandes franches sur OLED.",
+      draw: function (d, b, uid) {
+        var solid = b.y + b.h + 6, fh = 130;
+        return '<defs><linearGradient id="fg' + uid + '" x1="0" y1="0" x2="0" y2="1">' +
+               '<stop offset="0" stop-color="#000" stop-opacity="1"/>' +
+               '<stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>' +
+               '<filter id="nz' + uid + '"><feTurbulence baseFrequency="0.85" numOctaves="2" stitchTiles="stitch"/>' +
+               '<feColorMatrix type="saturate" values="0"/></filter></defs>' +
+               '<rect x="0" y="0" width="' + d.W + '" height="' + solid + '" fill="#000"/>' +
+               '<rect x="0" y="' + solid + '" width="' + d.W + '" height="' + fh + '" fill="url(#fg' + uid + ')"/>' +
+               '<rect x="0" y="' + solid + '" width="' + d.W + '" height="' + fh +
+               '" filter="url(#nz' + uid + ')" opacity="0.16" style="mix-blend-mode:overlay"/>';
+      }
+    },
+    {
+      id: "dome", name: "Dôme", bg: "forest",
+      chips: ["universel", "paramétrique"],
+      desc: "Le bandeau se creuse : plus haut sur les bords, il descend en cloche là où se trouve la découpe. On ne perd de l'image que là où c'est nécessaire, et la forme se lit comme intentionnelle.",
+      draw: function (d, b) {
+        var cx = b.x + b.w / 2, top = Math.max(b.y + b.h - 6, 22), deep = b.y + b.h + 52;
+        return '<path d="M0,0 H' + d.W + ' V' + top +
+               ' C' + (cx + 130) + ',' + top + ' ' + (cx + 74) + ',' + deep + ' ' + cx + ',' + deep +
+               ' C' + (cx - 74) + ',' + deep + ' ' + (cx - 130) + ',' + top + ' 0,' + top + ' Z" fill="#000"/>';
+      }
+    },
+    {
+      id: "pill", name: "Pilule étendue", bg: "plum",
+      chips: ["île / poinçon", "paramétrique"],
+      desc: "On ne cache pas la découpe, on l'agrandit : une pilule noire plus large, centrée dessus. L'œil lit un composant d'interface, pas un défaut. Ne marche que sur une découpe flottante.",
+      draw: function (d, b) {
+        if (d.cut.kind === "notch") return '<rect x="' + (b.x - 46) + '" y="-30" width="' + (b.w + 92) +
+          '" height="' + (b.h + 52) + '" rx="' + ((b.h + 22) / 2) + '" fill="#000"/>';
+        var pw = Math.min(b.w + 108, d.W - 34), ph = b.h + 16;
+        return '<rect x="' + (b.x + b.w / 2 - pw / 2) + '" y="' + (b.y - 8) + '" width="' + pw +
+               '" height="' + ph + '" rx="' + (ph / 2) + '" fill="#000"/>';
+      }
+    },
+    {
+      id: "mirror", name: "Écho symétrique", bg: "night",
+      chips: ["universel", "malin"],
+      desc: "On duplique la découpe en bas de l'écran. Le cerveau lit une composition volontaire — deux marques identiques — au lieu d'un accident matériel. Coût visuel minimal.",
+      draw: function (d, b) {
+        var pad = 7, ph = b.h + pad * 2, pw = b.w + pad * 2;
+        var topPill = (d.cut.kind === "notch")
+          ? '<rect x="' + (b.x - pad) + '" y="' + (b.y - 30) + '" width="' + pw +
+            '" height="' + (b.h + 30 + pad) + '" rx="' + (ph / 2) + '" fill="#000"/>'
+          : '<rect x="' + (b.x - pad) + '" y="' + (b.y - pad) + '" width="' + pw + '" height="' + ph +
+            '" rx="' + (ph / 2) + '" fill="#000"/>';
+        return topPill +
+          '<rect x="' + (b.x - pad) + '" y="' + (d.H - 34 - ph) + '" width="' + pw + '" height="' + ph +
+          '" rx="' + (ph / 2) + '" fill="#000"/>';
+      }
+    },
+    {
+      id: "object", name: "Objet suspendu", bg: "dusk",
+      chips: ["île / poinçon", "dessin"], hard: 1,
+      desc: "La découpe devient un objet : tête de périscope, abat-jour, nacelle de montgolfière. Une tige part du bord haut, le corps noir enveloppe la découpe. Le masque disparaît dans la fiction.",
+      draw: function (d, b) {
+        var cx = b.x + b.w / 2, hw = b.w + 24, hh = b.h + 16;
+        return '<rect x="' + (cx - 7) + '" y="0" width="14" height="' + (b.y + 8) + '" fill="#000"/>' +
+               '<rect x="' + (cx - hw / 2) + '" y="' + (b.y - 8) + '" width="' + hw + '" height="' + hh +
+               '" rx="11" fill="#000"/>' +
+               '<rect x="' + (cx + hw / 2 - 4) + '" y="' + (b.y + b.h / 2 - 6) + '" width="46" height="13" rx="6.5" fill="#000"/>' +
+               '<circle cx="' + (cx + hw / 2 + 46) + '" cy="' + (b.y + b.h / 2) + '" r="11" fill="#000"/>';
+      }
+    },
+    {
+      id: "scenic", name: "Décor organique", bg: "ocean",
+      chips: ["universel", "génératif"], gen: 1,
+      desc: "Branche, feuillage, nuée d'oiseaux, câble électrique, coulure de peinture. Une silhouette noire dont la masse couvre la découpe et dont le reste déborde librement. Variations procédurales : chaque fond est unique.",
+      draw: function (d, b) {
+        var cx = b.x + b.w / 2, cy = b.y + b.h / 2, s = "";
+        function leaf(x, y, rx, ry, rot) {
+          return '<ellipse cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" rx="' + rx + '" ry="' + ry +
+                 '" fill="#000" transform="rotate(' + rot + ' ' + x.toFixed(1) + ' ' + y.toFixed(1) + ')"/>';
+        }
+        /* La branche traverse tout l'écran, elle passe par la découpe */
+        s += '<path d="M-10,' + (cy - 30) + ' C' + (d.W * 0.24) + ',' + (cy + 26) + ' ' + (d.W * 0.62) + ',' +
+             (cy - 16) + ' ' + (d.W + 10) + ',' + (cy + 22) +
+             '" stroke="#000" stroke-width="8" fill="none" stroke-linecap="round"/>';
+        /* Le socle noir : juste ce qu'il faut pour couvrir la découpe */
+        s += '<rect x="' + (b.x - 4) + '" y="' + Math.max(b.y - 6, -10) + '" width="' + (b.w + 8) +
+             '" height="' + (b.h + 12) + '" rx="' + ((b.h + 12) / 2) + '" fill="#000"/>';
+        /* Feuillage : n feuilles qui recouvrent le socle et débordent en désordre */
+        var n = Math.max(3, Math.round(b.w / 44));
+        for (var i = 0; i <= n; i++) {
+          var t = i / n;
+          var lx = b.x - 12 + t * (b.w + 24);
+          var ly = cy + ((i % 2) ? 13 : -13) + ((i % 3) - 1) * 5;
+          s += leaf(lx, ly, 32, 19, (i % 2 ? 24 : -28) + (i % 3) * 11);
+        }
+        /* Quelques feuilles isolées ailleurs sur la branche */
+        var stray = [[-0.62, 34, -44], [-0.34, -30, 18], [0.42, 30, -20], [0.72, -26, 52], [0.9, 26, -8]];
+        for (var j = 0; j < stray.length; j++) {
+          s += leaf(cx + stray[j][0] * d.W * 0.55, cy + stray[j][1], 26, 14, stray[j][2]);
+        }
+        return s;
+      }
+    },
+    {
+      id: "content", name: "Camouflage par contenu", bg: "night",
+      chips: ["universel", "analyse d'image"], hard: 1,
+      desc: "Aucun aplat ajouté : on analyse la luminance de la photo, on choisit le recadrage qui amène sa zone la plus sombre sous la découpe, puis on n'assombrit localement que le delta. Le masque cesse d'exister.",
+      draw: function (d, b, uid) {
+        var cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+        return '<defs><radialGradient id="lb' + uid + '" cx="0.5" cy="0.5" r="0.5">' +
+               '<stop offset="0" stop-color="#000" stop-opacity="1"/>' +
+               '<stop offset="0.55" stop-color="#000" stop-opacity="1"/>' +
+               '<stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient></defs>' +
+               '<ellipse cx="' + cx + '" cy="' + cy + '" rx="' + (d.W * 0.8) + '" ry="' + (b.h + 80) +
+               '" fill="url(#lb' + uid + ')"/>';
+      }
+    },
+    {
+      id: "glass", name: "Lentille Liquid Glass", bg: "plum",
+      chips: ["île / poinçon", "shader"], hard: 1,
+      desc: "On n'efface pas la découpe : on l'habille en composant système iOS 26. Une lentille de verre — flou, réfraction, liseré spéculaire — l'entoure. Elle passe pour une fonctionnalité, pas pour un trou.",
+      draw: function (d, b, uid) {
+        var pad = 15, x = b.x - pad, y = b.y - pad, w = b.w + pad * 2, h = b.h + pad * 2, r = h / 2;
+        return '<defs><clipPath id="lc' + uid + '"><rect x="' + x + '" y="' + y + '" width="' + w +
+               '" height="' + h + '" rx="' + r + '"/></clipPath>' +
+               '<filter id="bl' + uid + '"><feGaussianBlur stdDeviation="11"/></filter>' +
+               '<linearGradient id="gs' + uid + '" x1="0" y1="0" x2="0" y2="1">' +
+               '<stop offset="0" stop-color="#fff" stop-opacity="0.42"/>' +
+               '<stop offset="0.5" stop-color="#fff" stop-opacity="0.08"/>' +
+               '<stop offset="1" stop-color="#fff" stop-opacity="0.24"/></linearGradient></defs>' +
+               '<g clip-path="url(#lc' + uid + ')"><use href="#bgg' + uid + '" filter="url(#bl' + uid + ')"/>' +
+               '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="#fff" opacity="0.14"/></g>' +
+               '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="' + r +
+               '" fill="none" stroke="url(#gs' + uid + ')" stroke-width="1.6"/>';
+      }
+    },
+    {
+      id: "stripes", name: "Trame dégressive", bg: "dune",
+      chips: ["universel", "génératif"], gen: 1,
+      desc: "Des bandes noires régulières s'espacent en descendant. La découpe tombe dans la première bande et devient une cellule du motif. Très lisible, entièrement procédural, décliné en rayures, grille ou trame de points.",
+      draw: function (d, b) {
+        var s = '<rect x="0" y="0" width="' + d.W + '" height="' + (b.y + b.h + 8) + '" fill="#000"/>';
+        var yy = b.y + b.h + 8, hgt = 26, gap = 10;
+        for (var i = 0; i < 7 && yy < d.H * 0.55; i++) {
+          yy += gap;
+          s += '<rect x="0" y="' + yy.toFixed(1) + '" width="' + d.W + '" height="' + hgt.toFixed(1) + '" fill="#000"/>';
+          yy += hgt; hgt *= 0.72; gap *= 1.22;
+        }
+        return s;
+      }
+    },
+    {
+      id: "generative", name: "Génératif pur", bg: "forest",
+      chips: ["universel", "sans asset"], gen: 1,
+      desc: "Pas de photo du tout : dégradé maillé, bruit fractal, grain — et un puits de noir placé exactement sur la découpe. Galerie infinie, zéro asset embarqué, zéro question de droits d'image.",
+      draw: function (d, b, uid) {
+        var cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+        var s = '<defs><filter id="mb' + uid + '"><feGaussianBlur stdDeviation="58"/></filter>' +
+                '<radialGradient id="wl' + uid + '" cx="0.5" cy="0.5" r="0.5">' +
+                '<stop offset="0" stop-color="#000" stop-opacity="1"/>' +
+                '<stop offset="0.62" stop-color="#000" stop-opacity="1"/>' +
+                '<stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient></defs>';
+        s += '<rect width="' + d.W + '" height="' + d.H + '" fill="#101826"/>';
+        s += '<g filter="url(#mb' + uid + ')">' +
+             '<ellipse cx="' + (d.W * 0.2) + '" cy="' + (d.H * 0.3) + '" rx="150" ry="180" fill="#4B2E83"/>' +
+             '<ellipse cx="' + (d.W * 0.85) + '" cy="' + (d.H * 0.52) + '" rx="160" ry="170" fill="#0F6E7A"/>' +
+             '<ellipse cx="' + (d.W * 0.45) + '" cy="' + (d.H * 0.82) + '" rx="180" ry="160" fill="#B8446B"/>' +
+             '<ellipse cx="' + (d.W * 0.62) + '" cy="' + (d.H * 0.12) + '" rx="130" ry="120" fill="#1F4FA8"/></g>';
+        s += '<ellipse cx="' + cx + '" cy="' + cy + '" rx="' + (b.w * 0.9 + 90) + '" ry="' + (b.h + 62) +
+             '" fill="url(#wl' + uid + ')"/>';
+        return s;
+      },
+      replacesBg: true
+    },
+    {
+      id: "highlight", name: "Contour assumé", bg: "night",
+      chips: ["universel", "anti-masque"],
+      desc: "L'inverse du projet : un liseré lumineux souligne la découpe au lieu de la nier. Gratuit à produire, ça double la taille du catalogue et ça parle à ceux qui aiment leur Dynamic Island.",
+      draw: function (d, b, uid) {
+        var pad = 6, x = b.x - pad, y = b.y - pad, w = b.w + pad * 2, h = b.h + pad * 2;
+        return '<defs><filter id="gl' + uid + '" x="-60%" y="-60%" width="220%" height="220%">' +
+               '<feGaussianBlur stdDeviation="7"/></filter></defs>' +
+               '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="' + (h / 2) +
+               '" fill="none" stroke="#6FE3FF" stroke-width="5" filter="url(#gl' + uid + ')" opacity="0.85"/>' +
+               '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="' + (h / 2) +
+               '" fill="none" stroke="#CFF6FF" stroke-width="1.8"/>';
+      }
+    }
+  ];
+
+  /* ── Rendu ── */
+  var state = { dev: "island", reveal: false };
+  var cardsEl = document.getElementById("cards");
+  var specEl = document.getElementById("devspec");
+
+  function svgFor(t, i) {
+    var d = DEVICES[state.dev], b = box(d), uid = t.id + i + state.dev;
+    var out = '<svg viewBox="0 0 ' + d.W + ' ' + d.H + '" role="img" aria-label="Aperçu : ' + t.name + '">';
+    out += '<defs>' + bgDefs(uid, t.bg) +
+           '<filter id="soft' + uid + '"><feGaussianBlur stdDeviation="46"/></filter>' +
+           '<clipPath id="scr' + uid + '"><rect width="' + d.W + '" height="' + d.H + '" rx="' + d.R + '"/></clipPath></defs>';
+    out += '<g clip-path="url(#scr' + uid + ')">';
+    out += '<rect width="' + d.W + '" height="' + d.H + '" fill="#000"/>';
+    if (!t.replacesBg) out += bgLayer(uid, d);
+    out += t.draw(d, b, uid);
+    /* La découpe est du matériel : toujours dessinée par-dessus tout */
+    out += cutShape(d, 'fill="#000"');
+    if (state.reveal) {
+      out += cutShape(d, 'fill="none" stroke="#F0533A" stroke-width="2.5" stroke-dasharray="7 5"');
+    }
+    out += '</g></svg>';
+    return out;
+  }
+
+  function render() {
+    var d = DEVICES[state.dev];
+    specEl.textContent = d.spec;
+    var html = "";
+    for (var i = 0; i < TECHNIQUES.length; i++) {
+      var t = TECHNIQUES[i];
+      var chips = t.chips.map(function (c, ci) {
+        var cls = "chip";
+        if (t.gen && ci === 1) cls += " gen";
+        if (t.hard && ci === 1) cls += " hard";
+        return '<span class="' + cls + '">' + c + "</span>";
+      }).join("");
+      var num = (i + 1) < 10 ? "0" + (i + 1) : String(i + 1);
+      html += '<article class="card">' +
+                '<div class="stage">' + svgFor(t, i) + "</div>" +
+                '<div class="card-body">' +
+                  '<h3>' + num + " · " + t.name + "</h3>" +
+                  "<p>" + t.desc + "</p>" +
+                  '<div class="chips">' + chips + "</div>" +
+                "</div>" +
+              "</article>";
+    }
+    cardsEl.innerHTML = html;
+  }
+
+  var btns = document.querySelectorAll(".seg button[data-dev]");
+  Array.prototype.forEach.call(btns, function (btn) {
+    btn.addEventListener("click", function () {
+      state.dev = btn.getAttribute("data-dev");
+      Array.prototype.forEach.call(btns, function (b2) {
+        b2.setAttribute("aria-pressed", String(b2 === btn));
+      });
+      render();
+    });
+  });
+
+  document.getElementById("showCut").addEventListener("change", function (e) {
+    state.reveal = e.target.checked;
+    render();
+  });
+
+  render();
+})();
+</script>

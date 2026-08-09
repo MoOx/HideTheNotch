@@ -3,10 +3,13 @@ import { StyleSheet, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 
+import { BUTTON } from "./CornerButton";
 import { Glass } from "./Glass";
 import { T } from "./theme";
 
-export const SLIDER_W = 58;
+// The same width as the button below it: two shapes on the same edge that are
+// nearly but not quite aligned read as a mistake.
+export const SLIDER_W = BUTTON;
 export const SLIDER_H = 196;
 
 type Props = {

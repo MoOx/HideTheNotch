@@ -6,6 +6,17 @@ import { Glass } from "./Glass";
 export const BUTTON = 54;
 
 /**
+ * Two thirds of the button, and semibold.
+ *
+ * The first pass used 23 pt, which was not chosen so much as assumed. The
+ * system's own round glass buttons put the glyph at close to two thirds of the
+ * circle, and they use the semibold weight: at this size a regular weight
+ * symbol on translucent glass loses its thin strokes against a bright
+ * wallpaper.
+ */
+const ICON_SIZE = Math.round(BUTTON * 0.66);
+
+/**
  * The icons, named once per platform.
  *
  * `expo-symbols` draws an SF Symbol on iOS and a Material Symbol on Android
@@ -40,7 +51,7 @@ export function CornerButton({ icon, label, onPress }: Props) {
         style={styles.hit}
         onPress={onPress}
       >
-        <SymbolView name={ICON[icon]} size={23} tintColor="#FFFFFF" />
+        <SymbolView name={ICON[icon]} size={ICON_SIZE} weight="semibold" tintColor="#FFFFFF" />
       </Pressable>
     </Glass>
   );

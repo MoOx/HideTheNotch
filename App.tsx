@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, StyleSheet, View } from "react-native";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { GestureDetector, GestureHandlerRootView, Gesture } from "react-native-gesture-handler";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { useImage } from "@shopify/react-native-skia";
 import * as ImagePicker from "expo-image-picker";
 import * as Sharing from "expo-sharing";
 import * as Haptics from "expo-haptics";
 
-import { DEVICE_PRESETS, geometryFromPreset, type Geometry } from "./src/geometry/devices";
+import type { Geometry } from "./src/geometry/devices";
 import { useDeviceGeometry } from "./src/geometry/useGeometry";
 import { defaultMask } from "./src/recipe/defaults";
 import {
@@ -19,18 +19,14 @@ import {
   type Recipe,
   type Source,
 } from "./src/recipe/types";
-import {
-  barMaxHeight,
-  barMinHeight,
-  fadeSolidEnd,
-  type DrawContext,
-} from "./src/render/draw";
+import { barMaxHeight, barMinHeight, fadeSolidEnd, type DrawContext } from "./src/render/draw";
 import { renderToFile, saveToPhotos } from "./src/render/export";
+import { useSourceImage } from "./src/render/useSourceImage";
 import { BUTTON, CornerButton } from "./src/ui/CornerButton";
 import { CurvePicker, type CurveId } from "./src/ui/CurvePicker";
 import { FamilyDots } from "./src/ui/FamilyDots";
 import { MainSlider } from "./src/ui/MainSlider";
-import { Preview } from "./src/ui/Preview";
+import { HomeScreenLayer, Preview } from "./src/ui/Preview";
 import { ExportSheet, SourceSheet, SupportSheet } from "./src/ui/sheets";
 import { useShake } from "./src/hooks/useShake";
 
@@ -49,7 +45,10 @@ function slider(mask: Mask, g: Geometry) {
       return {
         label: "Height",
         value: (mask.height - min) / (max - min),
-        apply: (v: number): Mask => ({ ...mask, height: min + v * (max - min) }),
+        apply: (v: number): Mask => ({
+          ...mask,
+          height: min + v * (max - min),
+        }),
       };
     }
     case "stripes":
@@ -64,7 +63,10 @@ function slider(mask: Mask, g: Geometry) {
       return {
         label: "Fade",
         value: (mask.fadeEnd - min) / (max - min),
-        apply: (v: number): Mask => ({ ...mask, fadeEnd: min + v * (max - min) }),
+        apply: (v: number): Mask => ({
+          ...mask,
+          fadeEnd: min + v * (max - min),
+        }),
       };
     }
   }
@@ -74,14 +76,9 @@ function Editor() {
   const insets = useSafeAreaInsets();
   const detected = useDeviceGeometry();
 
-  const [targetId, setTargetId] = useState("auto");
-  const geometry: Geometry = useMemo(() => {
-    if (targetId === "auto") return detected;
-    const p = DEVICE_PRESETS.find((d) => d.id === targetId);
-    return p ? geometryFromPreset(p) : detected;
-  }, [targetId, detected]);
+  const geometry: Geometry = detected;
 
-  const [family, setFamily] = useState<MaskFamily>("bar");
+  const [family, setFamily] = useState<MaskFamily>(FAMILY_ORDER[0]);
   const [masks, setMasks] = useState<Record<MaskFamily, Mask>>(() => ({
     bar: defaultMask("bar", detected),
     stripes: defaultMask("stripes", detected),
@@ -109,25 +106,41 @@ function Editor() {
   const [exportOpen, setExportOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [bare, setBare] = useState(false);
+
+  // Pressing the wallpaper swaps one view for the other: the sketched home
+  // screen appears, the interface gets out of the way. Holding is how you ask
+  // "what will this actually look like", and the answer should not have buttons
+  // on top of it.
+  const [peeking, setPeeking] = useState(false);
+  const peekT = useSharedValue(0);
+  useEffect(() => {
+    peekT.value = withTiming(peeking ? 1 : 0, { duration: 170 });
+  }, [peeking, peekT]);
+  const chromeStyle = useAnimatedStyle(() => ({ opacity: 1 - peekT.value }));
+  const homeStyle = useAnimatedStyle(() => ({ opacity: peekT.value }));
 
   useShake(() => setSupportOpen(true), !busy);
 
-  const image = useImage(source.type === "photo" ? source.uri : null);
-
-  const recipe: Recipe = useMemo(
-    () => ({ source, mask: masks[family] }),
-    [source, masks, family]
+  const { image, error: imageError } = useSourceImage(
+    source.type === "photo" ? source.uri : null,
   );
+
+  // A photo that fails to load used to leave the screen unchanged, which reads
+  // as the app ignoring the tap. Say so instead, and fall back to where we were.
+  useEffect(() => {
+    if (imageError) {
+      Alert.alert("That photo could not be opened", imageError);
+      setSource({ type: "gradient", preset: "aurora", seed: 1 });
+    }
+  }, [imageError]);
+
+  const recipe: Recipe = useMemo(() => ({ source, mask: masks[family] }), [source, masks, family]);
   const ctx: DrawContext = useMemo(
-    () => ({ recipe, geometry, image: image ?? null }),
-    [recipe, geometry, image]
+    () => ({ recipe, geometry, image }),
+    [recipe, geometry, image],
   );
 
-  const setMask = useCallback(
-    (m: Mask) => setMasks((prev) => ({ ...prev, [m.type]: m })),
-    []
-  );
+  const setMask = useCallback((m: Mask) => setMasks((prev) => ({ ...prev, [m.type]: m })), []);
 
   const step = useCallback((dir: 1 | -1) => {
     setFamily((f) => {
@@ -137,9 +150,9 @@ function Editor() {
     void Haptics.selectionAsync();
   }, []);
 
-  // Swiping left and right changes family. A long press strips the screen back
-  // to the wallpaper alone, interface and sketched icons included, which is the
-  // only way to judge the result on its own.
+  // Swiping left and right changes family. Pressing shows the wallpaper as a
+  // home screen, which is the only way to judge whether the mask reads as
+  // hardware, and lets go of it again on release.
   const swipe = useMemo(
     () =>
       Gesture.Pan()
@@ -149,16 +162,16 @@ function Editor() {
         .onEnd((e) => {
           if (Math.abs(e.translationX) > 48) step(e.translationX < 0 ? 1 : -1);
         }),
-    [step]
+    [step],
   );
   const peek = useMemo(
     () =>
       Gesture.LongPress()
         .runOnJS(true)
-        .minDuration(280)
-        .onStart(() => setBare(true))
-        .onFinalize(() => setBare(false)),
-    []
+        .minDuration(150)
+        .onStart(() => setPeeking(true))
+        .onFinalize(() => setPeeking(false)),
+    [],
   );
   const canvasGestures = useMemo(() => Gesture.Race(swipe, peek), [swipe, peek]);
 
@@ -174,10 +187,30 @@ function Editor() {
       exif: false,
     });
     if (!res.canceled && res.assets[0]) {
-      setSource({ type: "photo", uri: res.assets[0].uri, dx: 0, dy: 0, zoom: 1 });
-      setSourceOpen(false);
+      setSource({
+        type: "photo",
+        uri: res.assets[0].uri,
+        dx: 0,
+        dy: 0,
+        zoom: 1,
+      });
     }
   }, []);
+
+  // The picker is a presented controller and so is the sheet. Asking for one
+  // while the other is up is the kind of thing that works until it does not, so
+  // the sheet closes first and the picker follows once it is out of the way.
+  const [pendingPick, setPendingPick] = useState(false);
+  useEffect(() => {
+    if (!pendingPick || sourceOpen) {
+      return;
+    }
+    const t = setTimeout(() => {
+      setPendingPick(false);
+      void pickPhoto();
+    }, 320);
+    return () => clearTimeout(t);
+  }, [pendingPick, sourceOpen, pickPhoto]);
 
   const save = useCallback(async () => {
     setBusy(true);
@@ -189,7 +222,7 @@ function Editor() {
       Alert.alert(
         "Saved",
         `${outcome.result.widthPx} x ${outcome.result.heightPx} px in your photos.\n\n` +
-          "Settings, then Wallpaper. Do not crop, and leave perspective zoom off."
+          "Settings, then Wallpaper. Do not crop, and leave perspective zoom off.",
       );
     } else if (outcome.reason === "permission") {
       Alert.alert("Photo access denied", "Allow access in Settings to save.");
@@ -223,51 +256,60 @@ function Editor() {
     <View style={styles.root}>
       <GestureDetector gesture={canvasGestures}>
         <View style={StyleSheet.absoluteFill}>
-          <Preview ctx={ctx} homeScreen={!bare} />
+          <Preview ctx={ctx} />
+          <Animated.View style={[StyleSheet.absoluteFill, homeStyle]} pointerEvents="none">
+            <HomeScreenLayer geometry={geometry} />
+          </Animated.View>
         </View>
       </GestureDetector>
 
-      {!bare && (
-        <>
-          <View style={[styles.dots, { bottom: bottom + BUTTON / 2 - 4 }]}>
-            <FamilyDots family={family} />
-          </View>
+      <Animated.View
+        style={[StyleSheet.absoluteFill, chromeStyle]}
+        pointerEvents={peeking ? "none" : "box-none"}
+      >
+        <View style={[styles.dots, { bottom: bottom + BUTTON / 2 - 4 }]}>
+          <FamilyDots family={family} />
+        </View>
 
-          <View style={[styles.slider, { bottom: secondRow }]}>
-            <MainSlider
-              label={control.label}
-              value={control.value}
-              onChange={(v) => setMask(control.apply(v))}
+        <View style={[styles.slider, { bottom: secondRow }]}>
+          <MainSlider
+            label={control.label}
+            value={control.value}
+            onChange={(v) => setMask(control.apply(v))}
+          />
+        </View>
+
+        {mask.type === "fade" && (
+          <View style={[styles.left, { bottom: secondRow }]}>
+            <CurvePicker
+              value={mask.curve as CurveId}
+              onChange={(curve) => setMask({ ...mask, curve })}
             />
           </View>
+        )}
 
-          {mask.type === "fade" && (
-            <View style={[styles.left, { bottom: secondRow }]}>
-              <CurvePicker
-                value={mask.curve as CurveId}
-                onChange={(curve) => setMask({ ...mask, curve })}
-              />
-            </View>
-          )}
-
-          <View style={[styles.left, { bottom }]}>
-            <CornerButton icon="photo" label="Source" onPress={() => setSourceOpen(true)} />
-          </View>
-          <View style={[styles.right, { bottom }]}>
-            <CornerButton icon="save" label="Save" onPress={() => setExportOpen(true)} />
-          </View>
-        </>
-      )}
+        <View style={[styles.left, { bottom }]}>
+          <CornerButton icon="photo" label="Source" onPress={() => setSourceOpen(true)} />
+        </View>
+        <View style={[styles.right, { bottom }]}>
+          <CornerButton icon="save" label="Save" onPress={() => setExportOpen(true)} />
+        </View>
+      </Animated.View>
 
       <SourceSheet
         visible={sourceOpen}
         onClose={() => setSourceOpen(false)}
-        onPickPhoto={() => void pickPhoto()}
+        onPickPhoto={() => {
+          setPendingPick(true);
+          setSourceOpen(false);
+        }}
         onPickPalette={(preset: GradientPresetId) => {
           setSource({ type: "gradient", preset, seed: 1 });
           setSourceOpen(false);
         }}
         current={source.type === "photo" ? "photo" : source.preset}
+        geometry={geometry}
+        mask={mask}
       />
 
       <ExportSheet
@@ -276,9 +318,6 @@ function Editor() {
         onSave={() => void save()}
         onShare={() => void share()}
         target={geometry}
-        targetId={targetId}
-        onPickTarget={setTargetId}
-        detectedLabel={`${detected.label}, ${detected.width}x${detected.height}`}
         busy={busy}
       />
 

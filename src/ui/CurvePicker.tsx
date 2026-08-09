@@ -12,13 +12,14 @@ export type CurveId = 0 | 1 | 2;
  * The three curves, drawn.
  *
  * "Linear", "eased" and "S curve" are the names of the maths, not of what the
- * user sees. A 20 point sketch of the ramp says the same thing without needing
- * to be read, and survives translation.
+ * user sees. A small sketch of the ramp says the same thing without needing to
+ * be read, and survives translation. Drawn on a 26 unit box, to match the
+ * glyph size below.
  */
 const SHAPE: Record<CurveId, string> = {
-  0: "M2 18 L18 2",
-  1: "M2 18 C 10 18, 16 12, 18 2",
-  2: "M2 18 C 8 18, 12 2, 18 2",
+  0: "M3 23 L23 3",
+  1: "M3 23 C 13 23, 21 15, 23 3",
+  2: "M3 23 C 11 23, 15 3, 23 3",
 };
 
 const LABEL: Record<CurveId, string> = {
@@ -28,12 +29,14 @@ const LABEL: Record<CurveId, string> = {
 };
 
 /**
- * Three buttons behaving as a radio group.
+ * Three buttons behaving as a radio group, stacked.
  *
- * Both platforms answer a short exclusive choice with the same shape: a row of
- * equal cells where the chosen one is filled. Sitting in glass over the
- * wallpaper, that reads as the system control it echoes without pretending to
- * be a component it is not.
+ * Vertical rather than horizontal: it sits against the left edge under the
+ * thumb, mirroring the slider on the right, and a column leaves the middle of
+ * the screen clear. Both platforms answer a short exclusive choice with the
+ * same shape, a set of equal cells where the chosen one is filled, and in glass
+ * over the wallpaper that reads as the system control it echoes without
+ * pretending to be a component it is not.
  */
 export function CurvePicker({
   value,
@@ -49,7 +52,7 @@ export function CurvePicker({
   );
 
   return (
-    <Glass style={styles.row} radius={22}>
+    <Glass style={styles.column} radius={CELL / 2 + 4}>
       {([0, 1, 2] as CurveId[]).map((id) => {
         const on = id === value;
         const path = paths[id];
@@ -72,9 +75,9 @@ export function CurvePicker({
                 <Path
                   path={path}
                   style="stroke"
-                  strokeWidth={2.2}
+                  strokeWidth={2}
                   strokeCap="round"
-                  color={on ? "#141110" : T.textDim}
+                  color={on ? "#141110" : T.text}
                 />
               </Canvas>
             )}
@@ -85,15 +88,19 @@ export function CurvePicker({
   );
 }
 
+/** Cells sized like the corner buttons, so the whole chrome is on one scale. */
+const CELL = 44;
+const GLYPH = 26;
+
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", padding: 4, gap: 2 },
+  column: { flexDirection: "column", padding: 4, gap: 2 },
   cell: {
-    width: 40,
-    height: 36,
+    width: CELL,
+    height: CELL,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 18,
+    borderRadius: CELL / 2,
   },
   cellOn: { backgroundColor: "rgba(255,255,255,0.92)" },
-  glyph: { width: 20, height: 20 },
+  glyph: { width: GLYPH, height: GLYPH },
 });

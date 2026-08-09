@@ -22,14 +22,16 @@ export function defaultMask(family: MaskFamily, g: Geometry): Mask {
       return { type: "stripes", density: 0.45 };
 
     case "fade":
-      return { type: "fade", fadeEnd: fadeSolidEnd(g) + 130, curve: 1 };
+      // The S curve: it leaves the black flat under the cutout and meets the
+      // wallpaper without a corner, so it is the one that never shows a seam.
+      return { type: "fade", fadeEnd: fadeSolidEnd(g) + 130, curve: 2 };
   }
 }
 
 export function defaultRecipe(g: Geometry): Recipe {
   return {
     source: { type: "gradient", preset: "aurora", seed: 1 },
-    mask: defaultMask("bar", g),
+    mask: defaultMask("fade", g),
   };
 }
 

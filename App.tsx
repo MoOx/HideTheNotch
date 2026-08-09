@@ -8,12 +8,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as Sharing from "expo-sharing";
 import * as Haptics from "expo-haptics";
 
-import {
-  cutoutBottom,
-  DEVICE_PRESETS,
-  geometryFromPreset,
-  type Geometry,
-} from "./src/geometry/devices";
+import { DEVICE_PRESETS, geometryFromPreset, type Geometry } from "./src/geometry/devices";
 import { useDeviceGeometry } from "./src/geometry/useGeometry";
 import { defaultMask } from "./src/recipe/defaults";
 import {
@@ -24,7 +19,12 @@ import {
   type Recipe,
   type Source,
 } from "./src/recipe/types";
-import { fadeSolidEnd, type DrawContext } from "./src/render/draw";
+import {
+  barMaxHeight,
+  barMinHeight,
+  fadeSolidEnd,
+  type DrawContext,
+} from "./src/render/draw";
 import { renderToFile, saveToPhotos } from "./src/render/export";
 import { BUTTON, CornerButton } from "./src/ui/CornerButton";
 import { CurvePicker, type CurveId } from "./src/ui/CurvePicker";
@@ -44,8 +44,8 @@ import { useShake } from "./src/hooks/useShake";
 function slider(mask: Mask, g: Geometry) {
   switch (mask.type) {
     case "bar": {
-      const min = Math.max(cutoutBottom(g), 1);
-      const max = g.height * 0.45;
+      const min = barMinHeight(g);
+      const max = barMaxHeight(g);
       return {
         label: "Height",
         value: (mask.height - min) / (max - min),

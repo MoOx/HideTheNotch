@@ -64,7 +64,9 @@ export async function saveToPhotos(ctx: DrawContext): Promise<SaveOutcome> {
       return { ok: false, reason: "permission" };
     }
     const result = renderToFile(ctx);
-    await MediaLibrary.saveToLibraryAsync(result.uri);
+    // `saveToLibraryAsync` is the deprecated API and says so in a thrown error.
+    // The class based one is the current way to add a file to the library.
+    await MediaLibrary.Asset.create(result.uri);
     return { ok: true, result };
   } catch (e) {
     return { ok: false, reason: "error", message: e instanceof Error ? e.message : String(e) };

@@ -9,7 +9,7 @@ import {
   type SkShader,
 } from "@shopify/react-native-skia";
 
-import { cutoutBottom, ISLAND, type Geometry } from "../geometry/devices";
+import { cutoutBottom, ISLAND, screenCorner, type Geometry } from "../geometry/devices";
 import type { Mask, Recipe, Source } from "../recipe/types";
 import { paletteById } from "./palettes";
 import { fadeEffect } from "./shaders";
@@ -131,20 +131,43 @@ function drawMask(canvas: SkCanvas, mask: Mask, g: Geometry, source: SkShader) {
 }
 
 /**
- * The corner radius is not a setting.
+ * How far the bar can be dragged.
  *
- * It starts matched to the island radius, so the bar reads as an extension of
- * the hardware, and eases down slightly as the bar grows: on a tall bar a large
- * flare starts reading as a shape laid on top of the wallpaper instead of as
- * part of the panel.
+ * Past an eighth of the screen the bar stops being a way to hide the cutout and
+ * becomes a letterbox: there is nothing to gain above it, and every point of
+ * height is a point of wallpaper lost.
+ */
+export const BAR_MAX_FRACTION = 1 / 8;
+
+export function barMinHeight(g: Geometry): number {
+  return Math.max(cutoutBottom(g), 1);
+}
+
+export function barMaxHeight(g: Geometry): number {
+  return Math.max(g.height * BAR_MAX_FRACTION, barMinHeight(g) + 1);
+}
+
+/**
+ * The corner radius is not a setting: it follows the height.
+ *
+ * At the bottom of the range the bar is barely taller than the cutout, and a
+ * tight radius makes it read as an extension of the hardware. As it grows it
+ * stops being a cutout cover and becomes a band across the screen, and a band
+ * that meets the edge squarely looks wrong next to a display whose own corners
+ * are round. So the radius opens up towards the display's own corner radius,
+ * and the shape stays of a piece with the panel at either end.
  */
 export function barRadius(height: number, g: Geometry): number {
   if (g.kind === "none") {
     return 0;
   }
-  const floor = Math.max(cutoutBottom(g), 1);
-  const t = Math.min(1, Math.max(0, (height - floor) / Math.max(g.height * 0.32, 1)));
-  return Math.min(ISLAND.r * (1 - 0.3 * t), height / 2);
+  const min = barMinHeight(g);
+  const max = barMaxHeight(g);
+  const t = Math.min(1, Math.max(0, (height - min) / (max - min)));
+  const r = ISLAND.r + t * (screenCorner(g) - ISLAND.r);
+  // The arc has to fit: it descends by r at the edges, and the two of them must
+  // not meet in the middle.
+  return Math.min(r, height / 2, g.width / 2);
 }
 
 /**
@@ -185,47 +208,95 @@ function drawBar(canvas: SkCanvas, height: number, g: Geometry) {
 }
 
 /**
- * The two numbers the stripes actually need, from the one the user sets.
- *
- * The pairing is the whole design of this family. Turning it up has to make the
- * pattern bolder *and* slower to die, because the two failures are at opposite
- * corners of the square: thin bands that decay slowly look like a printing
- * fault, thick bands that decay slowly are just a black screen. Moving along
- * this line, neither happens.
- *
- * The floor on the band height is what keeps the second band, the one right
- * under the cutout, from collapsing into a hairline.
+ * Where the stripes start: below a head band forced to contain the cutout.
  */
-export function stripeGeometry(density: number) {
+export function stripeHead(g: Geometry): number {
+  return Math.max(g.cutout.y + g.cutout.h + 6, 8);
+}
+
+/** How far down the screen the pattern runs. */
+const STRIPE_SPAN = 0.42;
+/** The grid opens downward, which is what gives the pattern its direction. */
+const STRIPE_GROWTH = 1.09;
+/** Coverage of the first band, as a fraction of its period. */
+const STRIPE_START_COVER = 0.85;
+/**
+ * 2.2 because the eye integrates the bands spatially: mean luminance is
+ * `1 - coverage`, and lightness goes as luminance to the power 1/2.2. Ramping
+ * the coverage on that law is what makes the dissolve look even instead of
+ * dropping off a cliff halfway down, exactly as in the fade shader.
+ */
+const STRIPE_GAMMA = 2.2;
+/** No slit of wallpaper thinner than this: below it, it reads as a seam. */
+const STRIPE_MIN_GAP = 5;
+/** No band thinner than this: below it, it reads as a scanline. */
+const STRIPE_MIN_BAND = 1;
+
+export type StripeBand = { y: number; h: number };
+
+/**
+ * The bands, from the one number the user sets.
+ *
+ * The previous version ran two independent geometric series, one shrinking the
+ * bands and one growing the gaps. They drift apart: by the fifth band the
+ * period had more than doubled while the band had halved, so the eye never
+ * found a rhythm and the tail was a scatter of hairlines that simply stopped.
+ *
+ * This is a halftone ramp instead. The bands sit on one grid, so there is a
+ * rhythm; the coverage falls from `STRIPE_START_COVER` to zero along that grid,
+ * so the pattern dissolves rather than stopping; and the grid itself opens
+ * gently downward, which gives the dissolve a direction.
+ *
+ * Density then means one thing only: how fine the pattern is. Coarse and
+ * graphic at 0, close to a dither at 1. Neither end is wrong, which is the
+ * point of there being a single control.
+ */
+export function stripeBands(density: number, g: Geometry): StripeBand[] {
   const d = Math.min(1, Math.max(0, density));
-  return { period: 14 + 20 * d, decay: 0.62 - 0.22 * d };
+  const count = Math.round(7 + 6 * d);
+  const span = g.height * STRIPE_SPAN;
+  // A geometric grid summing to `span`.
+  const first = (span * (STRIPE_GROWTH - 1)) / (Math.pow(STRIPE_GROWTH, count) - 1);
+
+  // The starting coverage is capped so the first slit of wallpaper is at least
+  // `STRIPE_MIN_GAP`, and it is capped *once*, here, rather than per band.
+  // Clamping each band instead lets the clamp bind on the first few, and since
+  // the grid grows those bands come out thicker than the one above: the pattern
+  // reads as swelling before it dissolves, which is exactly what it must not do.
+  const startCover = Math.min(STRIPE_START_COVER, 1 - STRIPE_MIN_GAP / first);
+  if (startCover <= 0) {
+    return [];
+  }
+
+  const bands: StripeBand[] = [];
+  let y = stripeHead(g);
+  let period = first;
+
+  for (let i = 0; i < count; i += 1) {
+    const h = startCover * Math.pow(1 - i / count, STRIPE_GAMMA) * period;
+    y += period - h;
+    if (h >= STRIPE_MIN_BAND) {
+      bands.push({ y, h });
+    }
+    y += h;
+    period *= STRIPE_GROWTH;
+  }
+
+  return bands;
 }
 
 /**
  * 11, decaying stripes. Lines only.
  *
  * The geometry does not start at the top of the screen but at the cutout: the
- * first band is forced to contain it and everything else follows from there.
+ * head band is forced to contain it and everything else follows from there.
  */
 function drawStripes(canvas: SkCanvas, mask: { density: number }, g: Geometry) {
   const paint = black();
-  const head = Math.max(g.cutout.y + g.cutout.h + 6, 8);
-  canvas.drawRect(Skia.XYWHRect(0, 0, g.width, head), paint);
+  canvas.drawRect(Skia.XYWHRect(0, 0, g.width, stripeHead(g)), paint);
 
-  const { period, decay } = stripeGeometry(mask.density);
-  const shrink = 1 - 0.55 * decay;
-  const grow = 1 + 0.55 * decay;
-
-  let y = head;
-  let h = period;
-  let gap = period * 0.42;
-
-  for (let i = 0; i < 24 && y < g.height * 0.62 && h > 1.2; i += 1) {
-    y += gap;
-    canvas.drawRect(Skia.XYWHRect(0, y, g.width, h), paint);
-    y += h;
-    h *= shrink;
-    gap *= grow;
+  for (const band of stripeBands(mask.density, g)) {
+    canvas.drawRect(Skia.XYWHRect(0, band.y, g.width, band.h), paint);
   }
 }
 

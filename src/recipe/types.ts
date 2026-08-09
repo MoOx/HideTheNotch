@@ -70,7 +70,11 @@ export type Recipe = {
   mask: Mask;
 };
 
-export const FAMILY_ORDER: MaskFamily[] = ["bar", "stripes", "fade"];
+/**
+ * The fade comes first: it is the one that reads as intentional on any
+ * wallpaper, so it is what the app should open on.
+ */
+export const FAMILY_ORDER: MaskFamily[] = ["fade", "bar", "stripes"];
 
 export const FAMILY_LABEL: Record<MaskFamily, string> = {
   bar: "Bar",

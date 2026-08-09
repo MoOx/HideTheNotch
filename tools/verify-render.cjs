@@ -28,7 +28,9 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
   };
   global.__DEV__ = false;
 
-  const { drawRecipe, barRadius, stripeGeometry, fadeSolidEnd } = require(path.join(HARNESS, "render/draw.js"));
+  const {
+    drawRecipe, barRadius, stripeBands, stripeHead, fadeSolidEnd,
+  } = require(path.join(HARNESS, "render/draw.js"));
   const { defaultMask } = require(path.join(HARNESS, "recipe/defaults.js"));
   const { ISLAND, NOTCH_WIDE } = require(path.join(HARNESS, "geometry/devices.js"));
 
@@ -133,41 +135,35 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
 
   // -- 3. No ugly position on the stripes slider -----------------------------
   //
-  // Band height and decay used to be two free settings, and most of that square
-  // was bad: a second band collapsed to a hairline at one corner, a screen half
-  // filled with solid black at another. One value now drives both, so the check
-  // is that the whole travel is usable, at both ends and in the middle.
+  // The pattern is a halftone ramp on one grid, and what makes it read as one
+  // are properties the eye notices immediately when they break: a slit of
+  // wallpaper too thin to be intentional, a band too thin to be a band, a run
+  // so black it is the solid bar again, or a band that gets *thicker* going
+  // down, which reads as a mistake rather than as a dissolve. Every position of
+  // the slider has to hold all four.
   console.log("\n-- Stripes, over the whole travel --");
-  {
-    const g = devices["Dynamic Island"];
-    const head = Math.max(g.cutout.y + g.cutout.h + 6, 8);
-    const limit = g.height * 0.62;
+  for (const [devName, g] of Object.entries(devices)) {
+    for (const density of [0, 0.5, 1]) {
+      const bands = stripeBands(density, g);
+      const head = stripeHead(g);
 
-    for (const density of [0, 0.45, 1]) {
-      const { period } = stripeGeometry(density);
-      const { px, wPx } = render(g, { type: "stripes", density }, "ember");
-      const x = Math.round((g.width / 2) * g.scale);
-
-      let black = 0;
-      let rows = 0;
-      for (let y = Math.ceil(head * g.scale); y < Math.floor(limit * g.scale); y += 1) {
-        const i = (y * wPx + x) * 4;
-        rows += 1;
-        if (px[i] === 0 && px[i + 1] === 0 && px[i + 2] === 0) black += 1;
+      const firstGap = bands.length ? bands[0].y - head : 0;
+      const thinnest = Math.min(...bands.map((b) => b.h));
+      let monotonic = true;
+      for (let i = 1; i < bands.length; i += 1) {
+        if (bands[i].h > bands[i - 1].h + 0.01) monotonic = false;
       }
-      const cover = black / rows;
+      const run = bands[bands.length - 1].y + bands[bands.length - 1].h - head;
+      const cover = bands.reduce((a, b) => a + b.h, 0) / run;
 
-      // 12 pt is about where a band stops reading as a band and starts reading
-      // as a printing fault.
-      const thickEnough = period >= 12;
-      // Past roughly two thirds the pattern stops being a pattern: it is the
-      // solid bar again, with extra steps.
-      const notASlab = cover < 0.7;
-      const ok = thickEnough && notASlab;
+      const ok =
+        bands.length >= 6 && firstGap >= 4 && thinnest >= 1 && monotonic && cover < 0.7;
       if (!ok) failures += 1;
       console.log(
-        `  ${ok ? "ok  " : "FAIL"} density ${density.toFixed(2)}  ` +
-          `first band ${period.toFixed(1)} pt, black covers ${(cover * 100).toFixed(0)} % of the run`
+        `  ${ok ? "ok  " : "FAIL"} ${devName.padEnd(15)} density ${density.toFixed(1)}  ` +
+          `${String(bands.length).padStart(2)} bands, first slit ${firstGap.toFixed(1)} pt, ` +
+          `thinnest ${thinnest.toFixed(1)} pt, ${monotonic ? "dissolving" : "NOT dissolving"}, ` +
+          `${(cover * 100).toFixed(0)} % black`
       );
     }
   }

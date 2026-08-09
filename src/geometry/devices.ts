@@ -84,6 +84,25 @@ export function inferCutout(
 }
 
 /** Bottom of the cutout: nothing above this line can be masked. */
+/**
+ * Radius of the display's own bottom corners, in points.
+ *
+ * Apple does not publish it and it is not a fixed fraction of the width: the
+ * notch era phones are noticeably squarer than the current ones. These are the
+ * measured values, and they matter because a black shape that meets the screen
+ * edge is read against them.
+ */
+export function screenCorner(g: Geometry): number {
+  switch (g.kind) {
+    case "island":
+      return 55;
+    case "notch":
+      return 47.33;
+    default:
+      return g.width * 0.12;
+  }
+}
+
 export function cutoutBottom(g: Geometry): number {
   return g.kind === "none" ? 0 : g.cutout.y + g.cutout.h;
 }

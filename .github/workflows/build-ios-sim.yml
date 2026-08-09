@@ -1,0 +1,67 @@
+name: Build iOS simulateur
+
+# Build pour le simulateur iOS, sans signature donc sans compte Apple. À
+# télécharger depuis l'onglet Actions et glisser sur un simulateur ouvert.
+# Un build installable sur un vrai iPhone demande, lui, le programme
+# développeur Apple — voir v2/README.md.
+on:
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: v2
+
+jobs:
+  simulator:
+    name: xcodebuild -sdk iphonesimulator
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: v2/package-lock.json
+
+      - run: npm ci
+
+      - name: Générer le projet natif
+        run: npx expo prebuild --platform ios --no-install
+
+      - name: CocoaPods
+        run: npx pod-install
+
+      # Le nom du projet est dérivé du nom de l'app : on le lit plutôt que de
+      # le coder en dur, pour ne pas casser à chaque renommage.
+      - name: Compiler
+        run: |
+          set -eo pipefail
+          WORKSPACE=$(ls -d ios/*.xcworkspace | head -1)
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          echo "workspace=$WORKSPACE scheme=$SCHEME"
+          xcodebuild \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Empaqueter le .app
+        run: |
+          set -eo pipefail
+          APP=$(ls -d build/Build/Products/Release-iphonesimulator/*.app | head -1)
+          cd "$(dirname "$APP")"
+          zip -qry "$GITHUB_WORKSPACE/v2/simulator-app.zip" "$(basename "$APP")"
+
+      - name: Nom de l'artefact
+        id: name
+        run: echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hidethenotch-${{ steps.name.outputs.sha }}-ios-simulator
+          path: v2/simulator-app.zip
+          if-no-files-found: error

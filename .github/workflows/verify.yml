@@ -1,0 +1,52 @@
+name: Vérification
+
+on:
+  push:
+    paths: ["v2/**", ".github/workflows/verify.yml"]
+  pull_request:
+    paths: ["v2/**", ".github/workflows/verify.yml"]
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: v2
+
+jobs:
+  verify:
+    name: Types, rendu, bundles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: v2/package-lock.json
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # Exécute le vrai code de rendu contre CanvasKit et contrôle les pixels :
+      # noir absolu sous la découpe, fondu effectivement dithéré.
+      - name: Vérification du rendu
+        run: npm run verify
+
+      - name: Bundle iOS
+        run: npx expo export --platform ios --output-dir /tmp/export-ios
+
+      - name: Bundle Android
+        run: npx expo export --platform android --output-dir /tmp/export-android
+
+      # Des images à regarder directement depuis l'onglet Actions, sans rien
+      # installer : c'est le retour visuel le plus court sur une branche.
+      - name: Rendus d'exemple
+        run: npm run samples
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rendus
+          path: v2/.renders/*.png
+          if-no-files-found: error

@@ -1,0 +1,51 @@
+name: APK Android
+
+# Construit l'APK entièrement sur GitHub : ni compte Expo, ni crédits EAS, ni
+# compte Google. Le repo étant public, les runners standard sont gratuits.
+on:
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: v2
+
+jobs:
+  apk:
+    name: assembleRelease
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: v2/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - run: npm ci
+
+      - name: Générer le projet natif
+        run: npx expo prebuild --platform android --no-install
+
+      # Le gabarit Expo signe le build release avec le keystore de debug : rien
+      # à fournir pour un APK installable en test.
+      - name: Compiler
+        working-directory: v2/android
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Nom de l'artefact
+        id: name
+        run: echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hidethenotch-${{ steps.name.outputs.sha }}-apk
+          path: v2/android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error

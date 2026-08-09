@@ -10,14 +10,22 @@ const { withProjectBuildGradle } = require("expo/config-plugins");
  *
  * Le projet natif étant régénéré par `expo prebuild` à chaque build, patcher le
  * `build.gradle` à la main n'aurait aucun effet durable : d'où ce plugin.
+ *
+ * On réagit à l'application du plugin Android (`plugins.withId`) plutôt que de
+ * passer par `afterEvaluate`. Le bloc est ajouté à la fin du `build.gradle`
+ * racine, donc après `expo-root-project` et `com.facebook.react.rootproject`
+ * qui évaluent déjà des sous-projets : à ce moment-là `afterEvaluate` lève
+ * « Cannot run Project.afterEvaluate(Closure) when the project is already
+ * evaluated ». `plugins.withId`, lui, se déclenche immédiatement si le plugin
+ * est déjà appliqué, et plus tard sinon — les deux ordres fonctionnent.
  */
 const MARKER = "with-android-lint-off";
 
 const SNIPPET = `
 // ${MARKER}
 subprojects { subproject ->
-  subproject.afterEvaluate {
-    if (subproject.hasProperty("android")) {
+  ["com.android.application", "com.android.library"].each { pluginId ->
+    subproject.plugins.withId(pluginId) {
       subproject.android {
         lint {
           checkReleaseBuilds false

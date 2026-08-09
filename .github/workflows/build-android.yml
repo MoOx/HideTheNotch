@@ -4,6 +4,9 @@ name: APK Android
 # compte Google. Le repo étant public, les runners standard sont gratuits.
 on:
   workflow_dispatch:
+  # `workflow_dispatch` n'est déclenchable que depuis la branche par défaut.
+  # En attendant la fusion, un marqueur dans le message de commit suffit.
+  push:
 
 defaults:
   run:
@@ -13,6 +16,7 @@ jobs:
   apk:
     name: assembleRelease
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[build-apk]')
     steps:
       - uses: actions/checkout@v5
 

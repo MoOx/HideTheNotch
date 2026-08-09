@@ -6,6 +6,9 @@ name: Build iOS simulateur
 # développeur Apple — voir v2/README.md.
 on:
   workflow_dispatch:
+  # `workflow_dispatch` n'est déclenchable que depuis la branche par défaut.
+  # En attendant la fusion, un marqueur dans le message de commit suffit.
+  push:
 
 defaults:
   run:
@@ -15,6 +18,7 @@ jobs:
   simulator:
     name: xcodebuild -sdk iphonesimulator
     runs-on: macos-latest
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[build-ios]')
     steps:
       - uses: actions/checkout@v5
 

@@ -1,5 +1,4 @@
 import { cutoutBottom, type Geometry } from "../geometry/devices";
-import { ISLAND } from "../geometry/devices";
 import type { Mask, MaskFamily, Recipe } from "./types";
 
 /**
@@ -16,9 +15,6 @@ export function defaultMask(family: MaskFamily, g: Geometry): Mask {
       return {
         type: "bar",
         height: g.kind === "island" ? Math.max(floor, g.insetTop) : Math.max(floor, 1),
-        // Matched to the island radius, so the bar reads as an extension of the
-        // hardware rather than something added on top.
-        radius: g.kind === "none" ? 0 : ISLAND.r,
       };
 
     case "stripes":

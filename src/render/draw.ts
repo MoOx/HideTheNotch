@@ -9,7 +9,7 @@ import {
   type SkShader,
 } from "@shopify/react-native-skia";
 
-import type { Geometry } from "../geometry/devices";
+import { cutoutBottom, ISLAND, type Geometry } from "../geometry/devices";
 import type { Mask, Recipe, Source } from "../recipe/types";
 import { paletteById } from "./palettes";
 import { fadeEffect } from "./shaders";
@@ -122,7 +122,7 @@ function black() {
 function drawMask(canvas: SkCanvas, mask: Mask, g: Geometry, source: SkShader) {
   switch (mask.type) {
     case "bar":
-      return drawBar(canvas, mask.height, mask.radius, g);
+      return drawBar(canvas, mask.height, g);
     case "stripes":
       return drawStripes(canvas, mask, g);
     case "fade":
@@ -131,13 +131,57 @@ function drawMask(canvas: SkCanvas, mask: Mask, g: Geometry, source: SkShader) {
 }
 
 /**
- * 01, solid bar. The top corners are rounded too, but placed above the screen
- * edge, so only the bottom ones are visible.
+ * The corner radius is not a setting.
+ *
+ * It starts matched to the island radius, so the bar reads as an extension of
+ * the hardware, and eases down slightly as the bar grows: on a tall bar a large
+ * flare starts reading as a shape laid on top of the wallpaper instead of as
+ * part of the panel.
  */
-function drawBar(canvas: SkCanvas, height: number, radius: number, g: Geometry) {
-  const r = Math.max(0, Math.min(radius, height / 2));
-  const rect = Skia.XYWHRect(0, -r - 1, g.width, height + r + 1);
-  canvas.drawRRect(Skia.RRectXY(rect, r, r), black());
+export function barRadius(height: number, g: Geometry): number {
+  if (g.kind === "none") {
+    return 0;
+  }
+  const floor = Math.max(cutoutBottom(g), 1);
+  const t = Math.min(1, Math.max(0, (height - floor) / Math.max(g.height * 0.32, 1)));
+  return Math.min(ISLAND.r * (1 - 0.3 * t), height / 2);
+}
+
+/**
+ * 01, solid bar.
+ *
+ * The corners are **inverted**. A plain rounded rectangle curves its bottom
+ * corners upward, away from the screen edges, and the bar then reads as a black
+ * card placed on the wallpaper. The cutout itself does the opposite where it
+ * meets the top edge: the black runs further down at the sides and curves back
+ * in. Following that gives a bar that reads as panel rather than as overlay.
+ *
+ * So the outline is a rectangle whose bottom edge sinks by `r` at each end,
+ * joined to the bar line by a quarter circle turning the other way.
+ */
+function drawBar(canvas: SkCanvas, height: number, g: Geometry) {
+  const r = barRadius(height, g);
+  if (r <= 0) {
+    canvas.drawRect(Skia.XYWHRect(0, 0, g.width, height), black());
+    return;
+  }
+
+  const W = g.width;
+  const path = Skia.PathBuilder.Make()
+    // Starting above the top edge keeps the join with the screen border clean at
+    // any density, since nothing is drawn exactly on row zero.
+    .moveTo(0, -1)
+    .lineTo(W, -1)
+    .lineTo(W, height + r)
+    // Right corner: from (W, height + r) round to (W - r, height).
+    .arcToOval(Skia.XYWHRect(W - 2 * r, height, 2 * r, 2 * r), 0, -90, false)
+    .lineTo(r, height)
+    // Left corner: from (r, height) round to (0, height + r).
+    .arcToOval(Skia.XYWHRect(0, height, 2 * r, 2 * r), 270, -90, false)
+    .close()
+    .detach();
+
+  canvas.drawPath(path, black());
 }
 
 /**

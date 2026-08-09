@@ -23,13 +23,14 @@ export type Source =
 
 export type MaskFamily = "bar" | "stripes" | "fade";
 
-/** 01, solid bar. */
+/**
+ * 01, solid bar. Height is the only setting: the corner radius is derived from
+ * it, see `barRadius` in `../render/draw`.
+ */
 export type BarMask = {
   type: "bar";
   /** Bar height, in points, measured from the top edge. */
   height: number;
-  /** Radius of the bottom corners, in points. */
-  radius: number;
 };
 
 /** 11, decaying stripes. */

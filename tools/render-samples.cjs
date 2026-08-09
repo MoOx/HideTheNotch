@@ -44,7 +44,7 @@ const { JsiSkApi } = require(path.join(
   const { defaultMask } = require(path.join(HARNESS, "recipe/defaults.js"));
   const { ISLAND, NOTCH_WIDE } = require(path.join(HARNESS, "geometry/devices.js"));
 
-  console.log("fade shader compiled:", fadeEffect ? "oui" : "NON");
+  console.log("fade shader compiled:", fadeEffect ? "yes" : "NO");
 
   const devices = {
     island: {
@@ -81,20 +81,20 @@ const { JsiSkApi } = require(path.join(
   }
   // A few variants, to judge the settings
   jobs.push({
-    devName: "island", g: devices.island, family: "stripes", tag: "points",
+    devName: "island", g: devices.island, family: "stripes", tag: "dots",
     mask: { type: "stripes", variant: "dots", period: 24, decay: 0.5 }, palette: "ember",
   });
   jobs.push({
-    devName: "island", g: devices.island, family: "stripes", tag: "grille",
+    devName: "island", g: devices.island, family: "stripes", tag: "grid",
     mask: { type: "stripes", variant: "grid", period: 28, decay: 0.35 }, palette: "moss",
   });
   jobs.push({
-    devName: "island", g: devices.island, family: "fade", tag: "long-lineaire",
+    devName: "island", g: devices.island, family: "fade", tag: "long-linear",
     mask: { type: "fade", solidEnd: 48, fadeEnd: 320, curve: 0 }, palette: "haze",
   });
   jobs.push({
-    devName: "island", g: devices.island, family: "bar", tag: "haut-rayon0",
-    mask: { type: "bar", height: 120, radius: 0 }, palette: "ink",
+    devName: "island", g: devices.island, family: "bar", tag: "tall",
+    mask: { type: "bar", height: 120 }, palette: "ink",
   });
 
   for (const job of jobs) {

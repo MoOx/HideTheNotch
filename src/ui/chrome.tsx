@@ -48,17 +48,15 @@ export function ControlStrip({
   mask: Mask;
   onChange: (m: Mask) => void;
 }) {
+  // The bar has nothing left to show: height is dragged on the wallpaper and
+  // the corner radius follows from it. An empty strip would be a floating
+  // rectangle of glass with no reason to exist.
+  if (mask.type === "bar") {
+    return null;
+  }
+
   return (
     <Glass style={styles.controls} radius={18}>
-      {mask.type === "bar" && (
-        <Row label="Radius">
-          <MiniSlider
-            value={mask.radius / 30}
-            onChange={(v) => onChange({ ...mask, radius: v * 30 })}
-          />
-        </Row>
-      )}
-
       {mask.type === "stripes" && (
         <>
           <Row label="Pattern">

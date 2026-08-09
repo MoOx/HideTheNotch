@@ -28,7 +28,7 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
   };
   global.__DEV__ = false;
 
-  const { drawRecipe } = require(path.join(HARNESS, "render/draw.js"));
+  const { drawRecipe, barRadius } = require(path.join(HARNESS, "render/draw.js"));
   const { defaultMask } = require(path.join(HARNESS, "recipe/defaults.js"));
   const { ISLAND, NOTCH_WIDE } = require(path.join(HARNESS, "geometry/devices.js"));
 
@@ -99,7 +99,39 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
     }
   }
 
-  // -- 2. Fade dithering -----------------------------------------------------
+  // -- 2. The bar corner turns the right way ---------------------------------
+  //
+  // A plain rounded rectangle curves its bottom corners upward, so the black
+  // stops *higher* at the screen edges than in the middle. The bar has to do the
+  // opposite. Sampling one point on each side of the bar line settles it without
+  // knowing the radius: just below the bar line the edge must still be black
+  // while the middle is not, and just above it everything must be black.
+  console.log("\n-- Inverted bar corner --");
+  for (const [devName, g] of Object.entries(devices)) {
+    const mask = defaultMask("bar", g);
+    const { px, wPx } = render(g, mask, "ember");
+    const isBlack = (xPt, yPt) => {
+      const i = (Math.round(yPt * g.scale) * wPx + Math.round(xPt * g.scale)) * 4;
+      return px[i] === 0 && px[i + 1] === 0 && px[i + 2] === 0;
+    };
+    const r = barRadius(mask.height, g);
+    const below = mask.height + r * 0.4;
+    const above = mask.height - 2;
+
+    const edgeBelow = isBlack(1, below) && isBlack(g.width - 1, below);
+    const middleBelow = isBlack(g.width / 2, below);
+    const edgeAbove = isBlack(1, above) && isBlack(g.width - 1, above);
+
+    const ok = r > 0 && edgeBelow && !middleBelow && edgeAbove;
+    if (!ok) failures += 1;
+    console.log(
+      `  ${ok ? "ok  " : "FAIL"} ${devName.padEnd(15)} radius = ${r.toFixed(2)} pt  ` +
+        `edge below the bar line ${edgeBelow ? "black" : "NOT black"}, ` +
+        `middle ${middleBelow ? "BLACK" : "not black"}`
+    );
+  }
+
+  // -- 3. Fade dithering -----------------------------------------------------
   //
   // Measuring the longest vertical run of a constant value says nothing: at the
   // end of the fade the curve meets the source, its slope tends to zero, and a

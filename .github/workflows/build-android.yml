@@ -16,6 +16,7 @@ jobs:
   apk:
     name: assembleRelease
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[build-apk]')
     steps:
       - uses: actions/checkout@v5
@@ -40,9 +41,13 @@ jobs:
 
       # Le gabarit Expo signe le build release avec le keystore de debug : rien
       # à fournir pour un APK installable en test.
+      # RN 0.86 en nouvelle architecture compile du C++ pour les quatre ABI, ce
+      # qui dépasse 45 minutes sur un runner deux cœurs. Un APK de test n'a
+      # besoin que d'arm64 : c'est ce que fait tout téléphone réel depuis des
+      # années, et le build passe sous les dix minutes.
       - name: Compiler
         working-directory: v2/android
-        run: ./gradlew assembleRelease --no-daemon
+        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
 
       - name: Nom de l'artefact
         id: name

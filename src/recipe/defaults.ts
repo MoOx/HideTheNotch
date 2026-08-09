@@ -1,4 +1,5 @@
 import { cutoutBottom, type Geometry } from "../geometry/devices";
+import { fadeSolidEnd } from "../render/draw";
 import type { Mask, MaskFamily, Recipe } from "./types";
 
 /**
@@ -18,15 +19,10 @@ export function defaultMask(family: MaskFamily, g: Geometry): Mask {
       };
 
     case "stripes":
-      return { type: "stripes", variant: "lines", period: 26, decay: 0.45 };
+      return { type: "stripes", density: 0.45 };
 
     case "fade":
-      return {
-        type: "fade",
-        solidEnd: Math.max(floor + 4, g.insetTop * 0.6),
-        fadeEnd: Math.max(floor + 4, g.insetTop * 0.6) + 130,
-        curve: 1,
-      };
+      return { type: "fade", fadeEnd: fadeSolidEnd(g) + 130, curve: 1 };
   }
 }
 

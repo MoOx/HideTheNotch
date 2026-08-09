@@ -185,60 +185,76 @@ function drawBar(canvas: SkCanvas, height: number, g: Geometry) {
 }
 
 /**
- * 11, decaying stripes. The geometry does not start at the top of the screen
- * but at the cutout: the first band is forced to contain it and everything else
- * follows from there.
+ * The two numbers the stripes actually need, from the one the user sets.
+ *
+ * The pairing is the whole design of this family. Turning it up has to make the
+ * pattern bolder *and* slower to die, because the two failures are at opposite
+ * corners of the square: thin bands that decay slowly look like a printing
+ * fault, thick bands that decay slowly are just a black screen. Moving along
+ * this line, neither happens.
+ *
+ * The floor on the band height is what keeps the second band, the one right
+ * under the cutout, from collapsing into a hairline.
  */
-function drawStripes(
-  canvas: SkCanvas,
-  mask: { variant: "lines" | "grid" | "dots"; period: number; decay: number },
-  g: Geometry
-) {
+export function stripeGeometry(density: number) {
+  const d = Math.min(1, Math.max(0, density));
+  return { period: 14 + 20 * d, decay: 0.62 - 0.22 * d };
+}
+
+/**
+ * 11, decaying stripes. Lines only.
+ *
+ * The geometry does not start at the top of the screen but at the cutout: the
+ * first band is forced to contain it and everything else follows from there.
+ */
+function drawStripes(canvas: SkCanvas, mask: { density: number }, g: Geometry) {
   const paint = black();
   const head = Math.max(g.cutout.y + g.cutout.h + 6, 8);
   canvas.drawRect(Skia.XYWHRect(0, 0, g.width, head), paint);
 
-  const shrink = 1 - 0.55 * mask.decay;
-  const grow = 1 + 0.55 * mask.decay;
+  const { period, decay } = stripeGeometry(mask.density);
+  const shrink = 1 - 0.55 * decay;
+  const grow = 1 + 0.55 * decay;
 
   let y = head;
-  let h = mask.period;
-  let gap = mask.period * 0.42;
+  let h = period;
+  let gap = period * 0.42;
 
   for (let i = 0; i < 24 && y < g.height * 0.62 && h > 1.2; i += 1) {
     y += gap;
-    if (mask.variant === "dots") {
-      const r = h / 2;
-      const step = r * 2.6;
-      for (let x = step / 2; x < g.width + step; x += step) {
-        canvas.drawCircle(x, y + r, r, paint);
-      }
-    } else if (mask.variant === "grid") {
-      const cell = g.width / 6;
-      for (let c = 0; c < 6; c += 1) {
-        canvas.drawRect(Skia.XYWHRect(c * cell + cell * 0.08, y, cell * 0.84, h), paint);
-      }
-    } else {
-      canvas.drawRect(Skia.XYWHRect(0, y, g.width, h), paint);
-    }
+    canvas.drawRect(Skia.XYWHRect(0, y, g.width, h), paint);
     y += h;
     h *= shrink;
     gap *= grow;
   }
 }
 
+/**
+ * Where the absolute black ends, which is not a setting.
+ *
+ * It has one correct place, just under the cutout, and a handle for it can only
+ * be dragged to somewhere worse. On an island the safe area matters more than
+ * the cutout itself, otherwise a strip of photo stays stranded beside the
+ * status bar.
+ */
+export function fadeSolidEnd(g: Geometry): number {
+  return Math.max(cutoutBottom(g) + 4, g.kind === "island" ? g.insetTop : 0, 1);
+}
+
 /** 03, dithered fade. See `shaders.ts` for why it needs a shader. */
 function drawFade(
   canvas: SkCanvas,
-  mask: { solidEnd: number; fadeEnd: number; curve: 0 | 1 | 2 },
+  mask: { fadeEnd: number; curve: 0 | 1 | 2 },
   g: Geometry,
   source: SkShader
 ) {
+  const solidEnd = fadeSolidEnd(g);
+
   // Absolute black above `solidEnd` is painted separately: the shader only
   // handles the transition, and this band must never be dithered.
-  canvas.drawRect(Skia.XYWHRect(0, 0, g.width, mask.solidEnd), black());
+  canvas.drawRect(Skia.XYWHRect(0, 0, g.width, solidEnd), black());
 
-  const span = Math.max(0, mask.fadeEnd - mask.solidEnd);
+  const span = Math.max(0, mask.fadeEnd - solidEnd);
   if (span <= 0) {
     return;
   }
@@ -249,23 +265,23 @@ function drawFade(
     const p = Skia.Paint();
     p.setShader(
       Skia.Shader.MakeLinearGradient(
-        { x: 0, y: mask.solidEnd },
+        { x: 0, y: solidEnd },
         { x: 0, y: mask.fadeEnd },
         [Skia.Color("#000000"), Skia.Color("#00000000")],
         null,
         TileMode.Clamp
       )
     );
-    canvas.drawRect(Skia.XYWHRect(0, mask.solidEnd, g.width, span), p);
+    canvas.drawRect(Skia.XYWHRect(0, solidEnd, g.width, span), p);
     return;
   }
 
   const paint = Skia.Paint();
   paint.setShader(
     fadeEffect.makeShaderWithChildren(
-      [mask.solidEnd, mask.fadeEnd, mask.curve, g.scale],
+      [solidEnd, mask.fadeEnd, mask.curve, g.scale],
       [source]
     )
   );
-  canvas.drawRect(Skia.XYWHRect(0, mask.solidEnd, g.width, span), paint);
+  canvas.drawRect(Skia.XYWHRect(0, solidEnd, g.width, span), paint);
 }

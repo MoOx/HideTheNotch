@@ -33,21 +33,30 @@ export type BarMask = {
   height: number;
 };
 
-/** 11, decaying stripes. */
+/**
+ * 11, decaying stripes.
+ *
+ * Band height and decay rate are not two settings. Left free they produce
+ * results that are simply bad: a second band too thin to read, or bands so
+ * regular that the top half of the screen becomes solid black for no reason.
+ * One value drives both, along a line where every position works. See
+ * `stripeGeometry` in `../render/draw`.
+ */
 export type StripesMask = {
   type: "stripes";
-  variant: "lines" | "grid" | "dots";
-  /** Height of the first band after the head band, in points. */
-  period: number;
-  /** Decay rate: 0 keeps bands constant, 1 makes them vanish quickly. */
-  decay: number;
+  /** 0 fine and quickly gone, 1 bolder and reaching further down. */
+  density: number;
 };
 
-/** 03, dithered fade. */
+/**
+ * 03, dithered fade.
+ *
+ * The end of absolute black is not a setting either: it has to sit just under
+ * the cutout, which is where the geometry already puts it. See `fadeSolidEnd`
+ * in `../render/draw`.
+ */
 export type FadeMask = {
   type: "fade";
-  /** End of absolute black, in points. Cannot rise above the cutout. */
-  solidEnd: number;
   /** End of the fade, in points. */
   fadeEnd: number;
   /** 0 linear, 1 eased, 2 S curve. */

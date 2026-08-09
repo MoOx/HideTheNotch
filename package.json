@@ -3,6 +3,7 @@
   "version": "2.0.0",
   "main": "index.ts",
   "dependencies": {
+    "@expo/ui": "~57.0.9",
     "@shopify/react-native-skia": "^2.6.2",
     "expo": "~57.0.11",
     "expo-application": "~57.0.1",
@@ -16,6 +17,7 @@
     "expo-sensors": "~57.0.2",
     "expo-sharing": "~57.0.1",
     "expo-status-bar": "~57.0.1",
+    "expo-symbols": "~57.0.2",
     "expo-system-ui": "~57.0.2",
     "expo-updates": "~57.0.12",
     "react": "19.2.3",
@@ -36,7 +38,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "typecheck": "tsc --noEmit",
-    "build:harness": "tsc --ignoreConfig src/render/draw.ts src/render/shaders.ts src/render/palettes.ts src/geometry/devices.ts src/recipe/defaults.ts --outDir .harness --module commonjs --target es2020 --skipLibCheck --esModuleInterop",
+    "build:harness": "tsc --ignoreConfig src/render/draw.ts src/render/shaders.ts src/render/palettes.ts src/render/homescreen.ts src/geometry/devices.ts src/recipe/defaults.ts --outDir .harness --module commonjs --target es2020 --skipLibCheck --esModuleInterop",
     "verify": "npm run build:harness && node tools/verify-render.cjs",
     "samples": "npm run build:harness && node tools/render-samples.cjs"
   },

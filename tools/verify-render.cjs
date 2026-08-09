@@ -28,7 +28,7 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
   };
   global.__DEV__ = false;
 
-  const { drawRecipe, barRadius } = require(path.join(HARNESS, "render/draw.js"));
+  const { drawRecipe, barRadius, stripeGeometry, fadeSolidEnd } = require(path.join(HARNESS, "render/draw.js"));
   const { defaultMask } = require(path.join(HARNESS, "recipe/defaults.js"));
   const { ISLAND, NOTCH_WIDE } = require(path.join(HARNESS, "geometry/devices.js"));
 
@@ -131,7 +131,48 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
     );
   }
 
-  // -- 3. Fade dithering -----------------------------------------------------
+  // -- 3. No ugly position on the stripes slider -----------------------------
+  //
+  // Band height and decay used to be two free settings, and most of that square
+  // was bad: a second band collapsed to a hairline at one corner, a screen half
+  // filled with solid black at another. One value now drives both, so the check
+  // is that the whole travel is usable, at both ends and in the middle.
+  console.log("\n-- Stripes, over the whole travel --");
+  {
+    const g = devices["Dynamic Island"];
+    const head = Math.max(g.cutout.y + g.cutout.h + 6, 8);
+    const limit = g.height * 0.62;
+
+    for (const density of [0, 0.45, 1]) {
+      const { period } = stripeGeometry(density);
+      const { px, wPx } = render(g, { type: "stripes", density }, "ember");
+      const x = Math.round((g.width / 2) * g.scale);
+
+      let black = 0;
+      let rows = 0;
+      for (let y = Math.ceil(head * g.scale); y < Math.floor(limit * g.scale); y += 1) {
+        const i = (y * wPx + x) * 4;
+        rows += 1;
+        if (px[i] === 0 && px[i + 1] === 0 && px[i + 2] === 0) black += 1;
+      }
+      const cover = black / rows;
+
+      // 12 pt is about where a band stops reading as a band and starts reading
+      // as a printing fault.
+      const thickEnough = period >= 12;
+      // Past roughly two thirds the pattern stops being a pattern: it is the
+      // solid bar again, with extra steps.
+      const notASlab = cover < 0.7;
+      const ok = thickEnough && notASlab;
+      if (!ok) failures += 1;
+      console.log(
+        `  ${ok ? "ok  " : "FAIL"} density ${density.toFixed(2)}  ` +
+          `first band ${period.toFixed(1)} pt, black covers ${(cover * 100).toFixed(0)} % of the run`
+      );
+    }
+  }
+
+  // -- 4. Fade dithering -----------------------------------------------------
   //
   // Measuring the longest vertical run of a constant value says nothing: at the
   // end of the fade the curve meets the source, its slope tends to zero, and a
@@ -144,9 +185,9 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
   //      would be visible.
   console.log("\n-- Dithered fade --");
   const g = devices["Dynamic Island"];
-  const solidEnd = 52;
+  const solidEnd = fadeSolidEnd(g);
   const fadeEnd = 420;
-  const { px, wPx } = render(g, { type: "fade", solidEnd, fadeEnd, curve: 0 }, "haze");
+  const { px, wPx } = render(g, { type: "fade", fadeEnd, curve: 0 }, "haze");
   const x = Math.floor(wPx / 2);
 
   let differing = 0;

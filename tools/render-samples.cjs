@@ -81,16 +81,16 @@ const { JsiSkApi } = require(path.join(
   }
   // A few variants, to judge the settings
   jobs.push({
-    devName: "island", g: devices.island, family: "stripes", tag: "dots",
-    mask: { type: "stripes", variant: "dots", period: 24, decay: 0.5 }, palette: "ember",
+    devName: "island", g: devices.island, family: "stripes", tag: "loose",
+    mask: { type: "stripes", density: 0 }, palette: "ember",
   });
   jobs.push({
-    devName: "island", g: devices.island, family: "stripes", tag: "grid",
-    mask: { type: "stripes", variant: "grid", period: 28, decay: 0.35 }, palette: "moss",
+    devName: "island", g: devices.island, family: "stripes", tag: "dense",
+    mask: { type: "stripes", density: 1 }, palette: "moss",
   });
   jobs.push({
     devName: "island", g: devices.island, family: "fade", tag: "long-linear",
-    mask: { type: "fade", solidEnd: 48, fadeEnd: 320, curve: 0 }, palette: "haze",
+    mask: { type: "fade", fadeEnd: 320, curve: 0 }, palette: "haze",
   });
   jobs.push({
     devName: "island", g: devices.island, family: "bar", tag: "tall",

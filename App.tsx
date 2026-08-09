@@ -24,13 +24,51 @@ import {
   type Recipe,
   type Source,
 } from "./src/recipe/types";
-import type { DrawContext } from "./src/render/draw";
+import { fadeSolidEnd, type DrawContext } from "./src/render/draw";
 import { renderToFile, saveToPhotos } from "./src/render/export";
-import { ActionBar, ControlStrip } from "./src/ui/chrome";
-import { DragHandle } from "./src/ui/DragHandle";
+import { BUTTON, CornerButton } from "./src/ui/CornerButton";
+import { CurvePicker, type CurveId } from "./src/ui/CurvePicker";
+import { FamilyDots } from "./src/ui/FamilyDots";
+import { MainSlider } from "./src/ui/MainSlider";
 import { Preview } from "./src/ui/Preview";
 import { ExportSheet, SourceSheet, SupportSheet } from "./src/ui/sheets";
 import { useShake } from "./src/hooks/useShake";
+
+/**
+ * What the one slider drives, per family, and the range it drives it over.
+ *
+ * Everything the user can set now goes through here. A family that cannot state
+ * its setting as a single number between two bounds does not get a second
+ * control, it gets a better setting.
+ */
+function slider(mask: Mask, g: Geometry) {
+  switch (mask.type) {
+    case "bar": {
+      const min = Math.max(cutoutBottom(g), 1);
+      const max = g.height * 0.45;
+      return {
+        label: "Height",
+        value: (mask.height - min) / (max - min),
+        apply: (v: number): Mask => ({ ...mask, height: min + v * (max - min) }),
+      };
+    }
+    case "stripes":
+      return {
+        label: "Density",
+        value: mask.density,
+        apply: (v: number): Mask => ({ ...mask, density: v }),
+      };
+    case "fade": {
+      const min = fadeSolidEnd(g) + 40;
+      const max = g.height * 0.8;
+      return {
+        label: "Fade",
+        value: (mask.fadeEnd - min) / (max - min),
+        apply: (v: number): Mask => ({ ...mask, fadeEnd: min + v * (max - min) }),
+      };
+    }
+  }
+}
 
 function Editor() {
   const insets = useSafeAreaInsets();
@@ -71,7 +109,7 @@ function Editor() {
   const [exportOpen, setExportOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [chromeHidden, setChromeHidden] = useState(false);
+  const [bare, setBare] = useState(false);
 
   useShake(() => setSupportOpen(true), !busy);
 
@@ -99,8 +137,9 @@ function Editor() {
     void Haptics.selectionAsync();
   }, []);
 
-  // Swiping left and right changes family, a long press hides the interface so
-  // the wallpaper can be judged on its own.
+  // Swiping left and right changes family. A long press strips the screen back
+  // to the wallpaper alone, interface and sketched icons included, which is the
+  // only way to judge the result on its own.
   const swipe = useMemo(
     () =>
       Gesture.Pan()
@@ -117,8 +156,8 @@ function Editor() {
       Gesture.LongPress()
         .runOnJS(true)
         .minDuration(280)
-        .onStart(() => setChromeHidden(true))
-        .onFinalize(() => setChromeHidden(false)),
+        .onStart(() => setBare(true))
+        .onFinalize(() => setBare(false)),
     []
   );
   const canvasGestures = useMemo(() => Gesture.Race(swipe, peek), [swipe, peek]);
@@ -174,57 +213,50 @@ function Editor() {
   }, [ctx]);
 
   const mask = masks[family];
-  const floor = cutoutBottom(geometry);
-  const snaps = [floor, geometry.insetTop].filter((v) => v > 0);
+  const control = slider(mask, geometry);
+  const bottom = Math.max(insets.bottom, 14);
+  // The second row sits directly above the buttons: main control on the right,
+  // whatever the family needs on the left, family dots between them.
+  const secondRow = bottom + BUTTON + 16;
 
   return (
     <View style={styles.root}>
       <GestureDetector gesture={canvasGestures}>
         <View style={StyleSheet.absoluteFill}>
-          <Preview ctx={ctx} />
+          <Preview ctx={ctx} homeScreen={!bare} />
         </View>
       </GestureDetector>
 
-      {!chromeHidden && mask.type === "bar" && (
-        <DragHandle
-          y={mask.height}
-          label="Height"
-          min={Math.max(floor, 1)}
-          max={geometry.height * 0.45}
-          snaps={snaps}
-          onChange={(height) => setMask({ ...mask, height })}
-        />
-      )}
-
-      {!chromeHidden && mask.type === "fade" && (
+      {!bare && (
         <>
-          <DragHandle
-            y={mask.solidEnd}
-            label="End of black"
-            min={Math.max(floor, 1)}
-            max={mask.fadeEnd - 20}
-            snaps={snaps}
-            onChange={(solidEnd) => setMask({ ...mask, solidEnd })}
-          />
-          <DragHandle
-            y={mask.fadeEnd}
-            label="End of fade"
-            min={mask.solidEnd + 20}
-            max={geometry.height * 0.8}
-            onChange={(fadeEnd) => setMask({ ...mask, fadeEnd })}
-          />
-        </>
-      )}
+          <View style={[styles.dots, { bottom: bottom + BUTTON / 2 - 4 }]}>
+            <FamilyDots family={family} />
+          </View>
 
-      {!chromeHidden && (
-        <View style={[styles.chrome, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-          <ControlStrip mask={mask} onChange={setMask} />
-          <ActionBar
-            family={family}
-            onSource={() => setSourceOpen(true)}
-            onExport={() => setExportOpen(true)}
-          />
-        </View>
+          <View style={[styles.slider, { bottom: secondRow }]}>
+            <MainSlider
+              label={control.label}
+              value={control.value}
+              onChange={(v) => setMask(control.apply(v))}
+            />
+          </View>
+
+          {mask.type === "fade" && (
+            <View style={[styles.left, { bottom: secondRow }]}>
+              <CurvePicker
+                value={mask.curve as CurveId}
+                onChange={(curve) => setMask({ ...mask, curve })}
+              />
+            </View>
+          )}
+
+          <View style={[styles.left, { bottom }]}>
+            <CornerButton icon="photo" label="Source" onPress={() => setSourceOpen(true)} />
+          </View>
+          <View style={[styles.right, { bottom }]}>
+            <CornerButton icon="save" label="Save" filled onPress={() => setExportOpen(true)} />
+          </View>
+        </>
       )}
 
       <SourceSheet
@@ -273,11 +305,8 @@ export default function App() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#000" },
-  chrome: {
-    position: "absolute",
-    left: 12,
-    right: 12,
-    bottom: 0,
-    gap: 8,
-  },
+  left: { position: "absolute", left: 16 },
+  right: { position: "absolute", right: 16 },
+  slider: { position: "absolute", right: 16 },
+  dots: { position: "absolute", left: 0, right: 0, alignItems: "center" },
 });

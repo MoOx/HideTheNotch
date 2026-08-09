@@ -254,7 +254,7 @@ function Editor() {
             <CornerButton icon="photo" label="Source" onPress={() => setSourceOpen(true)} />
           </View>
           <View style={[styles.right, { bottom }]}>
-            <CornerButton icon="save" label="Save" filled onPress={() => setExportOpen(true)} />
+            <CornerButton icon="save" label="Save" onPress={() => setExportOpen(true)} />
           </View>
         </>
       )}

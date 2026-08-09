@@ -21,44 +21,26 @@ type Props = {
   icon: keyof typeof ICON;
   label: string;
   onPress: () => void;
-  /** The save button is solid: it is the one action the screen exists for. */
-  filled?: boolean;
 };
 
 /**
  * One of the two buttons left in the interface, in a bottom corner.
  *
- * Icon only, no caption: with two buttons in fixed corners there is nothing to
- * disambiguate, and a caption only makes the glass bigger. On iOS 26 the
- * material is a real `UIVisualEffectView`, so the button belongs to the system
- * instead of imitating it.
+ * Icon only, no caption, and both alike: with two buttons in fixed corners
+ * there is nothing to disambiguate, and a caption only makes the glass bigger.
+ * On iOS 26 the material is a real `UIVisualEffectView`, so the button belongs
+ * to the system instead of imitating it.
  */
-export function CornerButton({ icon, label, onPress, filled }: Props) {
-  const tint = filled ? "#141110" : "#FFFFFF";
-  const glyph = <SymbolView name={ICON[icon]} size={23} tintColor={tint} />;
-
-  if (filled) {
-    return (
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={label}
-        style={[styles.button, styles.solid]}
-        onPress={onPress}
-      >
-        {glyph}
-      </Pressable>
-    );
-  }
-
+export function CornerButton({ icon, label, onPress }: Props) {
   return (
-    <Glass style={styles.button} radius={BUTTON / 2}>
+    <Glass style={styles.button} radius={BUTTON / 2} interactive>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={label}
         style={styles.hit}
         onPress={onPress}
       >
-        {glyph}
+        <SymbolView name={ICON[icon]} size={23} tintColor="#FFFFFF" />
       </Pressable>
     </Glass>
   );
@@ -72,6 +54,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  solid: { backgroundColor: "rgba(255,255,255,0.94)" },
   hit: { width: BUTTON, height: BUTTON, alignItems: "center", justifyContent: "center" },
 });

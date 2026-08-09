@@ -9,6 +9,11 @@ type Props = {
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
   radius?: number;
+  /**
+   * Buttons, as opposed to panels. Liquid glass reacts to the touch itself,
+   * which is most of what makes a real one feel real.
+   */
+  interactive?: boolean;
 };
 
 /**
@@ -16,11 +21,12 @@ type Props = {
  * The app should never look like it is imitating the system: either it is the
  * real material, or it is plainly something else.
  */
-export function Glass({ children, style, radius = T.radius }: Props) {
+export function Glass({ children, style, radius = T.radius, interactive }: Props) {
   if (isLiquidGlassAvailable()) {
     return (
       <GlassView
         glassEffectStyle="regular"
+        isInteractive={interactive}
         style={[styles.base, { borderRadius: radius }, style]}
       >
         {children}

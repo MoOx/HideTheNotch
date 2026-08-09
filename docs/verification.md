@@ -17,7 +17,21 @@ npm run samples   # writes native resolution PNGs into renders/
 cutout box must be exactly `0,0,0`. This is the property the whole app rests on:
 on OLED, only absolute black merges with the panel.
 
-**2. Fade dithering.** Two measurements, because the obvious one is misleading:
+**2. The bar corner turns the right way.** A plain rounded rectangle curves its
+bottom corners upward, so the black stops *higher* at the screen edges than in
+the middle, and the bar reads as a card laid on the wallpaper. It has to do the
+opposite. Sampling one point on each side of the bar line settles the direction
+without the test needing to know the radius: just below the bar line the edge
+must still be black while the middle is not.
+
+**3. No ugly position on the stripes slider.** Band height and decay used to be
+two free settings, and most of that square was bad. One value now drives both,
+so the check walks the whole travel and asserts, at each end and in the middle,
+that the first band stays thick enough to read as a band and that the black
+never covers more than 70 percent of the run, which is where the pattern stops
+being a pattern and becomes the solid bar with extra steps.
+
+**4. Fade dithering.** Two measurements, because the obvious one is misleading:
 
 - *the noise reaches the output*, measured as the share of horizontally adjacent
   pixel pairs that differ. Without dithering it would be zero; we expect more

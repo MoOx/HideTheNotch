@@ -174,26 +174,34 @@ at the hard stops. No number displayed.
 
 Each step leaves the app working and `npm run verify` green.
 
-- [ ] **T1. Add `@expo/ui`**, wrap one control in `Host` as a spike, confirm it
-      builds on both platforms in CI. Blocks everything else. ~0.5 d
-- [ ] **T2. Fix the bar corner.** Inverted fillet with two corner modules,
-      radius derived from height. Add a coverage case to `verify`. ~0.5 d
-- [ ] **T3. The main slider.** One component, volume shaped, glass on iOS and
-      Material on Android, used by all three families. ~1 d
-- [ ] **T4. Retire the handles** and wire each family to the slider. Bar loses
-      its radius control, fade loses `solidEnd`. ~0.5 d
-- [ ] **T5. Stripes to lines only**, single density value, floors so no position
-      is ugly. ~0.5 d
-- [ ] **T6. Curve as a segmented control** with drawn icons, bottom left. ~0.5 d
-- [ ] **T7. The two corner buttons**, glass, icon only, and remove the toolbar.
-      ~0.5 d
-- [ ] **T8. Family dots** above the buttons, swipe unchanged. ~0.25 d
-- [ ] **T9. Icon grid preview backdrop**, drawn, preview only. ~0.5 d
-- [ ] **T10. Sheets to `BottomSheet` / `ModalBottomSheet`** with detents,
-      replacing the hand built `Sheet`. ~0.5 d
+- [x] **T1. Add `@expo/ui`** and confirm it builds on both platforms.
+- [x] **T2. Fix the bar corner.** Inverted fillet with two corner modules,
+      radius derived from height. `verify` now checks the direction.
+- [x] **T3. The main slider.** One component, volume shaped, used by all three
+      families.
+- [x] **T4. Retire the handles** and wire each family to the slider. Bar loses
+      its radius control, fade loses `solidEnd`.
+- [x] **T5. Stripes to lines only**, single density value, floors so no position
+      is ugly. `verify` walks the whole travel.
+- [x] **T6. Curve as a radio row** with drawn icons, bottom left.
+- [x] **T7. The two corner buttons**, glass, icon only, and no toolbar.
+- [x] **T8. Family dots** between the buttons, swipe unchanged.
+- [x] **T9. Icon grid preview backdrop**, drawn, preview only.
+- [x] **T10. Sheets to `BottomSheet` / `ModalBottomSheet`** with detents,
+      replacing the hand built `Sheet`.
 
-About 5 days. T1 to T4 already give the app its shape; the rest can land one
-commit at a time.
+### Where the build differs from this plan
+
+- **Icons come from `expo-symbols`, not `@expo/ui`'s `Icon`.** The latter wants
+  a vector drawable per icon on Android; `expo-symbols` takes a name on both
+  sides, SF Symbol or Material Symbol, with the font bundled rather than
+  fetched. One icon system for the whole app, no assets.
+- **The curve row is not a native segmented control.** `Picker` takes strings,
+  and the three values are curves: a drawn ramp says in one look what "eased"
+  and "S curve" only say to someone who already knows. The row keeps the shape
+  both platforms use for a short exclusive choice, in glass.
+- **Both corner buttons are plain glass**, with no filled variant. Two buttons
+  in fixed corners need no hierarchy invented for them.
 
 ### Parked, deliberately
 

@@ -1,0 +1,70 @@
+# Signature et envoi TestFlight depuis GitHub Actions, avec votre compte Apple.
+#
+# Deux principes qui évitent les pièges classiques en CI :
+#
+#  * on s'authentifie par **clé d'API App Store Connect**, jamais par identifiant
+#    Apple : pas de 2FA à contourner, pas de session à rafraîchir ;
+#  * les certificats viennent de **match**, c'est-à-dire d'un dépôt privé chiffré.
+#    La tentation est d'appeler `cert` + `sigh` pour éviter ce dépôt, mais un
+#    runner est éphémère : `cert` n'y retrouve jamais la clé privée existante et
+#    recrée donc un certificat de distribution à chaque exécution — or Apple en
+#    limite le nombre par compte, et le pipeline casse au bout de deux ou trois
+#    builds. C'est exactement le problème que match existe pour résoudre.
+
+default_platform(:ios)
+
+APP_IDENTIFIER = "io.moox.hidethenotch"
+
+platform :ios do
+  desc "Build signé et envoi sur TestFlight"
+  lane :beta do |options|
+    # fastlane passe les paramètres en chaînes : `seed:false` vaut "false",
+    # qui est vrai en Ruby. Sans cette conversion, le CI recréerait les
+    # certificats à chaque exécution.
+    seed = options[:seed].to_s == "true"
+
+    api_key = app_store_connect_api_key(
+      key_id: ENV.fetch("ASC_KEY_ID"),
+      issuer_id: ENV.fetch("ASC_ISSUER_ID"),
+      key_content: ENV.fetch("ASC_KEY_P8_BASE64"),
+      is_key_content_base64: true,
+      in_house: false
+    )
+
+    # Crée un trousseau temporaire sur le runner. Sans ça, l'import du
+    # certificat échoue : une machine CI n'a pas de trousseau déverrouillé.
+    setup_ci if ENV["CI"]
+
+    # `readonly` par défaut : le CI consomme les certificats, il ne les fabrique
+    # pas. La première fois, lancer le workflow avec seed_signing = true pour
+    # qu'il les crée et les dépose dans le dépôt privé.
+    match(
+      type: "appstore",
+      app_identifier: APP_IDENTIFIER,
+      api_key: api_key,
+      readonly: !seed
+    )
+
+    workspace = Dir[File.join(__dir__, "..", "ios", "*.xcworkspace")].first
+    UI.user_error!("Aucun workspace Xcode : `expo prebuild` a-t-il tourné ?") if workspace.nil?
+    scheme = File.basename(workspace, ".xcworkspace")
+
+    build_app(
+      workspace: workspace,
+      scheme: scheme,
+      configuration: "Release",
+      export_method: "app-store",
+      output_directory: File.join(__dir__, "..", "build"),
+      clean: true
+    )
+
+    # Sans cette option, le job attend qu'Apple ait fini de traiter le build,
+    # ce qui consomme des minutes de runner macOS pour rien.
+    upload_to_testflight(
+      api_key: api_key,
+      app_identifier: APP_IDENTIFIER,
+      skip_waiting_for_build_processing: true,
+      distribute_external: false
+    )
+  end
+end

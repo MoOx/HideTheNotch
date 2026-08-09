@@ -48,5 +48,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: rendus
-          path: v2/.renders/*.png
+          path: v2/renders/*.png
           if-no-files-found: error

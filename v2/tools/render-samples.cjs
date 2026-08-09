@@ -10,7 +10,7 @@ const Module = require("module");
 
 const APP = path.join(__dirname, "..");
 const HARNESS = path.join(APP, ".harness");
-const OUT = path.join(APP, ".renders");
+const OUT = path.join(APP, "renders");
 
 const CanvasKitInit = require(path.join(APP, "node_modules/canvaskit-wasm/bin/canvaskit.js"));
 const { JsiSkApi } = require(path.join(

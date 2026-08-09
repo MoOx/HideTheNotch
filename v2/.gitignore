@@ -42,4 +42,13 @@ yarn-error.*
 
 # harnais de vérification hors appareil
 .harness/
-.renders/
+renders/
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+build/
+*.ipa
+*.dSYM.zip

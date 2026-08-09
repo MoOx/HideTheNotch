@@ -186,3 +186,78 @@ plus juste que sur iPhone.
 - Module natif Android pour lire `DisplayCutout.getBoundingRects()`.
 - Recadrage de la photo au pincement (le modèle le prévoit : `dx`, `dy`, `zoom`).
 - Familles 12 (génératif), 08 (décor), 07 (objet), 09 (camouflage) — cf. `docs/2026-feasibility-and-ui.md`.
+
+---
+
+## Construire soi-même, sans EAS
+
+Le dépôt est public : les runners GitHub standard y sont gratuits et non
+décomptés, **macOS compris**. Les quotas EAS (15 builds par OS et par mois sur le
+plan gratuit) cessent donc d'être une contrainte — on peut ne jamais s'en servir.
+
+| Workflow | Runner | Déclencheur | Résultat |
+| -------- | ------ | ----------- | -------- |
+| `verify.yml` | ubuntu | push sur `v2/**` | types, contrôles pixels, bundles, et les PNG d'exemple en artefact |
+| `build-android.yml` | ubuntu | manuel ou `[build-apk]` | APK installable |
+| `build-ios-sim.yml` | macos | manuel ou `[build-ios]` | `.app` simulateur, non signé |
+| `build-ios-testflight.yml` | macos | manuel | build signé envoyé sur TestFlight |
+
+`workflow_dispatch` n'est déclenchable qu'une fois le fichier sur la branche par
+défaut : c'est pourquoi les deux workflows de build acceptent aussi un marqueur
+dans le message de commit, `[build-apk]` ou `[build-ios]`.
+
+### iOS signé avec votre compte Apple
+
+`build-ios-testflight.yml` fait le travail complet — `expo prebuild`, CocoaPods,
+signature, envoi TestFlight — sur un runner macOS de GitHub.
+
+Deux choix structurants :
+
+**L'authentification passe par une clé d'API App Store Connect**, jamais par un
+identifiant Apple : pas de double authentification à contourner, pas de session à
+rafraîchir.
+
+**Les certificats viennent de `match`**, c'est-à-dire d'un dépôt privé chiffré.
+La tentation est d'appeler `cert` + `sigh` pour éviter ce second dépôt, mais un
+runner est éphémère : `cert` n'y retrouve jamais la clé privée existante et
+recrée donc un certificat de distribution à chaque exécution — or Apple en limite
+le nombre par compte, et le pipeline casse au bout de deux ou trois builds. C'est
+exactement le problème que `match` existe pour résoudre.
+
+#### Mise en place
+
+1. Créer un dépôt GitHub **privé** pour les certificats, par exemple
+   `MoOx/certificates`. Il doit être séparé : celui-ci est public.
+2. App Store Connect ▸ Utilisateurs et accès ▸ Intégrations ▸ App Store Connect
+   API : générer une clé, télécharger le `.p8` (une seule fois), noter l'ID de la
+   clé et celui de l'émetteur.
+3. Créer l'app dans App Store Connect avec l'identifiant `io.moox.hidethenotch`,
+   sinon l'envoi TestFlight n'a pas de destination.
+4. Renseigner les secrets du dépôt :
+
+   | Secret | Contenu |
+   | ------ | ------- |
+   | `ASC_KEY_ID` | l'ID de la clé |
+   | `ASC_ISSUER_ID` | l'ID de l'émetteur |
+   | `ASC_KEY_P8_BASE64` | `base64 -i AuthKey_XXXX.p8` |
+   | `MATCH_GIT_URL` | l'URL HTTPS du dépôt privé |
+   | `MATCH_PASSWORD` | une phrase secrète à inventer, qui chiffre le dépôt |
+   | `MATCH_GIT_AUTH` | `echo -n 'MoOx:<jeton>' \| base64` |
+
+5. Lancer le workflow **une première fois avec `seed_signing` coché** : `match`
+   crée les certificats et les dépose dans le dépôt privé. Ensuite, laisser
+   décoché — le CI ne fait plus que les consommer.
+
+Le numéro de build vient de `github.run_number` et est écrit dans `app.json`
+avant `expo prebuild`, parce que le projet Xcode est régénéré à chaque fois : y
+incrémenter quoi que ce soit n'aurait aucun effet durable.
+
+> Ce workflow n'a pas pu être exécuté ici, faute de compte Apple. Le reste de la
+> chaîne l'a été.
+
+### Ce qui reste utile chez EAS
+
+Rien pour les builds. En revanche `eas update` reste le moyen le plus court de
+pousser un changement purement JS sur un build déjà installé, sans reconstruire —
+et le plan gratuit (1 000 utilisateurs actifs) est très au-delà d'un usage de
+test.

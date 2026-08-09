@@ -200,7 +200,7 @@ plan gratuit) cessent donc d'être une contrainte — on peut ne jamais s'en ser
 | `verify.yml` | ubuntu | push sur `v2/**` | types, contrôles pixels, bundles, et les PNG d'exemple en artefact |
 | `build-android.yml` | ubuntu | manuel ou `[build-apk]` | APK installable (~10 min) |
 | `build-ios-sim.yml` | macos | manuel ou `[build-ios]` | `.app` simulateur, non signé |
-| `build-ios-testflight.yml` | macos | manuel | build signé envoyé sur TestFlight |
+| `ios-testflight.yml` | macos | manuel, tag `v*` | build signé envoyé sur TestFlight |
 
 `workflow_dispatch` n'est déclenchable qu'une fois le fichier sur la branche par
 défaut : c'est pourquoi les deux workflows de build acceptent aussi un marqueur
@@ -224,52 +224,35 @@ cd android && ./gradlew assembleRelease -x lintVitalRelease
 
 ### iOS signé avec votre compte Apple
 
-`build-ios-testflight.yml` fait le travail complet — `expo prebuild`, CocoaPods,
-signature, envoi TestFlight — sur un runner macOS de GitHub.
+Le dépôt privé `MoOx/certificates` porte toute la matière de signature et fournit
+les gabarits. `.github/workflows/ios-testflight.yml`, `v2/fastlane/*` et
+`v2/Gemfile` en sont des copies, adaptées sur deux points seulement : l'app Expo
+vit dans `v2/`, et `APPLE_TEAM_ID` vient d'une variable de dépôt au lieu d'être
+écrit en dur.
 
-Deux choix structurants :
+Trois secrets et une variable, à créer dans *Settings ▸ Secrets and variables ▸
+Actions* :
 
-**L'authentification passe par une clé d'API App Store Connect**, jamais par un
-identifiant Apple : pas de double authentification à contourner, pas de session à
-rafraîchir.
+| Nom | Onglet | Contenu |
+| --- | ------ | ------- |
+| `CERTIFICATES_DEPLOY_KEY` | Secrets | clé de déploiement ed25519, lecture seule sur `MoOx/certificates` |
+| `MATCH_PASSWORD` | Secrets | phrase secrète match |
+| `SECRETS_PASSPHRASE` | Secrets | phrase secrète du dossier `secrets/` du dépôt de certificats |
+| `APPLE_TEAM_ID` | Variables | developer.apple.com ▸ Membership |
 
-**Les certificats viennent de `match`**, c'est-à-dire d'un dépôt privé chiffré.
-La tentation est d'appeler `cert` + `sigh` pour éviter ce second dépôt, mais un
-runner est éphémère : `cert` n'y retrouve jamais la clé privée existante et
-recrée donc un certificat de distribution à chaque exécution — or Apple en limite
-le nombre par compte, et le pipeline casse au bout de deux ou trois builds. C'est
-exactement le problème que `match` existe pour résoudre.
+La création de la clé de déploiement est décrite dans `docs/03-sharing-access.md`
+du dépôt de certificats, le reste dans `docs/04-consumer-projects.md`.
 
-#### Mise en place
+Le profil `AppStore_io.moox.HideTheNotch` existe déjà dans le dépôt de
+certificats, donc aucun amorçage `match` n'est nécessaire. En revanche l'app doit
+exister sur App Store Connect avec ce bundle ID **avant** le premier envoi.
 
-1. Créer un dépôt GitHub **privé** pour les certificats, par exemple
-   `MoOx/certificates`. Il doit être séparé : celui-ci est public.
-2. App Store Connect ▸ Utilisateurs et accès ▸ Intégrations ▸ App Store Connect
-   API : générer une clé, télécharger le `.p8` (une seule fois), noter l'ID de la
-   clé et celui de l'émetteur.
-3. Créer l'app dans App Store Connect avec l'identifiant `io.moox.hidethenotch`,
-   sinon l'envoi TestFlight n'a pas de destination.
-4. Renseigner les secrets du dépôt :
-
-   | Secret | Contenu |
-   | ------ | ------- |
-   | `ASC_KEY_ID` | l'ID de la clé |
-   | `ASC_ISSUER_ID` | l'ID de l'émetteur |
-   | `ASC_KEY_P8_BASE64` | `base64 -i AuthKey_XXXX.p8` |
-   | `MATCH_GIT_URL` | l'URL HTTPS du dépôt privé |
-   | `MATCH_PASSWORD` | une phrase secrète à inventer, qui chiffre le dépôt |
-   | `MATCH_GIT_AUTH` | `echo -n 'MoOx:<jeton>' \| base64` |
-
-5. Lancer le workflow **une première fois avec `seed_signing` coché** : `match`
-   crée les certificats et les dépose dans le dépôt privé. Ensuite, laisser
-   décoché — le CI ne fait plus que les consommer.
-
-Le numéro de build vient de `github.run_number` et est écrit dans `app.json`
-avant `expo prebuild`, parce que le projet Xcode est régénéré à chaque fois : y
-incrémenter quoi que ce soit n'aurait aucun effet durable.
-
-> Ce workflow n'a pas pu être exécuté ici, faute de compte Apple. Le reste de la
-> chaîne l'a été.
+Ce que la lane `ios beta` fait, dans l'ordre : trousseau temporaire, clone du
+dépôt de certificats, déchiffrement des secrets, clé d'API App Store Connect,
+`match` en lecture seule, `expo prebuild --clean`, retour en signature manuelle
+(le prebuild vient de la remettre en automatique), numéro de build calculé depuis
+TestFlight, archive, envoi. Les secrets déchiffrés sont effacés en sortie, succès
+ou échec.
 
 ### Ce qui reste utile chez EAS
 

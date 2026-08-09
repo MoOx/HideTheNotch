@@ -1,0 +1,112 @@
+name: iOS to TestFlight
+
+# Adapted from MoOx/certificates templates/github-workflows/ios-testflight.yml.
+# The only deviations: the Expo app lives in v2/, and APPLE_TEAM_ID comes from a
+# repository variable rather than being hardcoded.
+#
+# Repository secrets required (Settings > Secrets and variables > Actions):
+#
+#   CERTIFICATES_DEPLOY_KEY   read-only ed25519 deploy key for MoOx/certificates
+#   MATCH_PASSWORD            match passphrase
+#   SECRETS_PASSPHRASE        passphrase for the certificates repo secrets/
+#
+# Repository variable required (same page, "Variables" tab):
+#
+#   APPLE_TEAM_ID             developer.apple.com > Membership
+#
+# The [testflight] commit marker exists only because workflow_dispatch cannot be
+# triggered from a branch that is not the default one. Drop it once this is on
+# main.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+    branches: ["**"]
+
+# One iOS build at a time: two concurrent `match` runs can stomp on each other
+# in the certificates repository.
+concurrency:
+  group: ios-testflight
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: v2
+
+jobs:
+  testflight:
+    runs-on: macos-15
+    timeout-minutes: 90
+    if: >-
+      github.event_name != 'push' ||
+      startsWith(github.ref, 'refs/tags/v') ||
+      contains(github.event.head_commit.message, '[testflight]')
+    env:
+      APP_IDENTIFIER: io.moox.HideTheNotch
+      APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+      ANDROID_PACKAGE_NAME: io.moox.hidethenotch
+      CERTS_REPO_URL: git@github.com:MoOx/certificates.git
+      MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+      SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
+      FASTLANE_XCODEBUILD_SETTINGS_TIMEOUT: "120"
+      FASTLANE_SKIP_UPDATE_CHECK: "1"
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # Fail here with a readable message rather than deep inside fastlane.
+      - name: Check the configuration is complete
+        run: |
+          missing=""
+          [ -n "$APPLE_TEAM_ID" ] || missing="$missing APPLE_TEAM_ID(variable)"
+          [ -n "$MATCH_PASSWORD" ] || missing="$missing MATCH_PASSWORD"
+          [ -n "$SECRETS_PASSPHRASE" ] || missing="$missing SECRETS_PASSPHRASE"
+          [ -n "${{ secrets.CERTIFICATES_DEPLOY_KEY }}" ] || missing="$missing CERTIFICATES_DEPLOY_KEY"
+          if [ -n "$missing" ]; then
+            echo "Missing:$missing"
+            echo "See v2/README.md, section 'iOS signed with your Apple account'."
+            exit 1
+          fi
+          echo "All four values are present."
+
+      # Grants the runner read access to the private certificates repository.
+      - name: Access the certificates repository
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.CERTIFICATES_DEPLOY_KEY }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: v2/package-lock.json
+
+      - run: npm ci
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+          working-directory: v2
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      # The lane runs `expo prebuild --clean` and pod install itself, so there
+      # is nothing to prepare beforehand.
+      - name: Build and upload to TestFlight
+        run: bundle exec fastlane ios beta
+
+      - name: Keep the logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fastlane-logs
+          path: |
+            ~/Library/Logs/gym
+            ~/Library/Logs/fastlane
+            v2/fastlane/report.xml
+          if-no-files-found: ignore
+          retention-days: 7

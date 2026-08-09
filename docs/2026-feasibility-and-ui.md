@@ -1,228 +1,248 @@
-# Sept familles, une seule interface — faisabilité et UI
+# Seven families, one interface: feasibility and UI
 
-_Août 2026. Suite de [`2026-notch-masking-research.md`](./2026-notch-masking-research.md)._
+_August 2026. Follow-up to
+[`2026-notch-masking-research.md`](./2026-notch-masking-research.md)._
 
-Familles retenues : **01** bandeau plein, **03** fondu dithéré, **07** objet suspendu,
-**08** décor organique, **09** camouflage par contenu, **11** trame dégressive, **12** génératif pur.
+Families kept: **01** solid bar, **03** dithered fade, **07** hanging object,
+**08** organic decor, **09** content camouflage, **11** decaying stripes,
+**12** pure generative.
 
-Version avec maquettes : [`2026-feasibility-and-ui.html`](./2026-feasibility-and-ui.html).
-
----
-
-## 1. Le coût est dans le socle, pas dans les familles
-
-Prises isolément, cinq des sept familles se codent en une à trois journées. Ce qui coûte cher, ce
-sont **cinq briques partagées** à écrire une fois. Ensuite, ajouter une famille devient une soirée.
-
-| Socle | Contenu | Requis par | Effort |
-| ----- | ------- | ---------- | ------ |
-| **A — Géométrie** | Table des appareils + mesure runtime de la safe area et du modèle. Expose une boîte `{x, y, w, h, forme}` en points et en pixels. | les 7 | ~3 j |
-| **B — Recette & moteur** | Un JSON décrit le fond ; un même moteur le rend à l'écran _et_ hors écran en pixels natifs. La parité aperçu / export est non négociable. | les 7 | ~4 j |
-| **C — Couche SkSL** | Trois shaders réutilisables : dithering ±1 LSB, bruit fractal (fbm), interpolation de dégradé en lumière linéaire. | 03, 08, 09, 12 | ~3 j |
-| **D — Rig procédural** | PRNG à graine + _garantie de couverture_ : un socle noir dérivé de la découpe, posé sous le décor. | 07, 08, 11, 12 | ~2 j |
-| **E — Analyse d'image** | Sous-échantillonnage 96×208, `readPixels()`, table de sommes cumulées, solveur de cadrage. | 09 seule | ~3 j |
-
-**Le socle E est le seul à usage unique, et le plus risqué.** C'est l'argument le plus net pour
-garder la famille 09 hors du premier jet.
+Version with mockups:
+[`2026-feasibility-and-ui.html`](./2026-feasibility-and-ui.html).
 
 ---
 
-## 2. Les sept familles, notées
+## 1. The cost is in the foundations, not the families
 
-Quatre axes sur 5 : **rendu** (difficulté de dessin), **paramétrage** (nombre et subtilité des
-réglages), **contenu** (direction artistique en amont), **risque** (ce qui peut ne pas marcher).
-Estimations hors socles A et B.
+Taken on their own, five of the seven families are one to three days of work.
+What is expensive is **five shared pieces** written once. After that, adding a
+family becomes an evening.
 
-| #  | Famille | Rendu | Param. | Contenu | Risque | Verdict | Effort |
-| -- | ------- | :---: | :----: | :-----: | :----: | ------- | ------ |
-| 01 | Bandeau plein | 1 | 1 | 1 | 1 | **Trivial** | ≈ 0,5 j |
-| 11 | Trame dégressive | 2 | 2 | 1 | 1 | **Faible** | ≈ 1 j |
-| 03 | Fondu dithéré | 3 | 3 | 1 | 3 | **Moyen** | ≈ 2 j + socle C |
-| 12 | Génératif pur | 4 | 2 | 3 | 1 | **Moyen** | ≈ 3 j + socle D |
-| 08 | Décor organique | 3 | 3 | 3 | 1 | **Moyen** | ≈ 3 j |
-| 07 | Objet suspendu | 3 | 2 | 5 | 2 | **Élevé — coût artistique** | ≈ 2 j + 0,5 j / objet |
-| 09 | Camouflage par contenu | 4 | 3 | 2 | 5 | **Élevé — risque produit** | ≈ 5 j + socle E |
+| Foundation | Contents | Required by | Effort |
+| ---------- | -------- | ----------- | ------ |
+| **A, geometry** | Device table plus runtime measurement of safe area and model. Exposes a `{x, y, w, h, shape}` box in points and pixels. | all 7 | about 3 d |
+| **B, recipe and engine** | JSON describes the wallpaper; one engine renders it on screen _and_ offscreen at native pixels. Preview and export parity is non negotiable. | all 7 | about 4 d |
+| **C, SkSL layer** | Three reusable shaders: dithering at plus or minus 1 LSB, fractal noise (fbm), gradient interpolation in linear light. | 03, 08, 09, 12 | about 3 d |
+| **D, procedural rig** | Seeded PRNG plus a _coverage guarantee_: a black base derived from the cutout, laid under the decor. | 07, 08, 11, 12 | about 2 d |
+| **E, image analysis** | Downsample to 96 x 208, `readPixels()`, summed area table, framing solver. | 09 only | about 3 d |
 
-### 01 · Bandeau plein — trivial
-
-Un `Path` Skia avec deux coins bas arrondis, rempli en `#000`. Le seul vrai piège est le **choix de
-la hauteur par défaut** : sur encoche elle vaut la hauteur de la découpe, sur Dynamic Island il faut
-descendre jusqu'à la safe area, sinon il reste 22 pt de photo coincés sous l'île. Rayon par défaut
-aligné sur celui de l'île (≈ 18 pt) : le bandeau se lit alors comme une extension du matériel.
-
-**Paramétrage** — pas de curseur pour la hauteur : on attrape le bord bas du bandeau et on le tire.
-Trois points d'accroche magnétiques avec retour haptique (_ras de la découpe_, _bas de la safe
-area_, _libre_). Un unique curseur pour le rayon.
-
-### 03 · Fondu dithéré — moyen
-
-Un shader SkSL d'une quinzaine de lignes : dégradé calculé analytiquement, **interpolé en lumière
-linéaire** puis ré-encodé — un fondu vers le noir interpolé en sRGB plonge trop vite et se voit. Le
-dithering s'ajoute avant la quantification 8 bits : bruit triangulaire d'amplitude 1/255 dérivé des
-coordonnées du fragment ; alternative plus sûre, une tuile de bruit bleu 64×64 en additif.
-
-**Risque réel** : la validation ne peut se faire qu'à l'œil, sur dalle OLED, à faible luminosité et
-en pièce sombre. Un simulateur ne dira rien.
-
-**Paramétrage** — deux poignées tirables sur le fond : fin du noir absolu, fin du fondu. La première
-**bute** au bas de la découpe avec un cran haptique. Courbe en trois pastilles (_linéaire_,
-_adouci_, _en S_) plutôt qu'un éditeur de bézier.
-
-### 07 · Objet suspendu — élevé (coût artistique)
-
-Chaque objet est un **gabarit paramétrique**, pas un dessin figé : une ancre partant du bord haut,
-un corps qui s'étire pour contenir la boîte de découpe, des appendices décoratifs. Le même périscope
-doit fonctionner sur une île de 125×37 et un poinçon de 26×26 — un SVG importé ne s'étire pas
-correctement, il faut coder les tracés en fonction de la boîte.
-
-**Le facteur limitant n'est pas technique, il est humain** : chaque objet demande une vraie idée.
-Six bons objets valent mieux que vingt médiocres, et ils s'ajoutent après le lancement.
-
-**Paramétrage** — galerie horizontale d'objets appliqués en direct ; un seul curseur (la taille,
-c'est-à-dire la marge entre le corps et la découpe) ; une bascule miroir pour les découpes décalées.
-Les parties décoratives se déplacent au doigt, la partie couvrante reste verrouillée.
-
-### 08 · Décor organique — moyen
-
-Un tracé porteur (branche, câble, guirlande) traversant l'écran, puis des éléments distribués le
-long avec un générateur aléatoire **à graine** — même graine, même résultat, donc partageable.
-
-**L'astuce qui supprime tout risque** : on pose d'abord un socle noir de la forme exacte de la
-découpe, puis on éparpille le feuillage par-dessus. La couverture est garantie par construction ;
-l'organique n'a plus qu'à faire joli.
-
-**Paramétrage** — six motifs en pastilles (_branche, oiseaux, câble, coulure, guirlande, fumée_), un
-curseur de densité, et **un bouton « mélanger »** : une seule commande donne une infinité de
-résultats, l'utilisateur tape jusqu'à ce que ça lui plaise sans rien comprendre au système.
-
-### 09 · Camouflage par contenu — élevé (risque produit)
-
-- **Placement automatique** : on redessine la photo en 96×208, on lit les pixels, on construit une
-  table de sommes cumulées, puis on teste quelques centaines de cadrages en notant la luminance
-  moyenne _et_ l'écart-type sous la découpe. Quelques millisecondes.
-- **Assombrissement local** : un simple fondu vers le noir laisse une tache floue. La bonne méthode
-  remonte le point noir localement — une courbe, pas un calque — pour que la texture de la photo
-  meure naturellement.
-- **Affinage** : la distance de fondu se module par la luminance locale. Là où la photo est déjà
-  sombre, la transition est courte et invisible ; là où elle est claire, elle s'allonge.
-- **La vérité qui fait mal** : la zone sous la découpe doit finir en `#000000` exact. Aucune analyse
-  ne change ça. Le solveur ne fait que rendre ce cœur noir _petit et entouré de presque-noir_.
-
-**Paramétrage** — un bouton et un verdict honnête. « Caler automatiquement » lance le solveur et
-annonce : _excellent_, _correct_, ou _cette photo ne s'y prête pas_. Sur un échec, l'app propose
-elle-même la famille 03 en repli, sur le même cadrage.
-
-### 11 · Trame dégressive — faible
-
-Une boucle de rectangles pour les rayures ; un shader pour la variante en trame de points, où le
-rayon décroît avec la distance. **La géométrie ne part pas du haut de l'écran, elle part de la
-découpe** : la première bande est forcée à la contenir, tout le reste en dérive — ce qui ne laisse
-que deux paramètres libres. Aucun réglage ne produit un résultat raté.
-
-**Paramétrage** — trois types en pastilles (_rayures, grille, points_), deux curseurs (pas,
-décroissance), six préréglages en accès direct.
-
-### 12 · Génératif pur — moyen
-
-Un shader SkSL de dégradé maillé : mélange bilinéaire de quatre à six couleurs, déformé par un bruit
-fractal. **Préférable à des dégradés radiaux flous** — un flou à 1290×2796 coûte cher en mémoire, un
-shader ne coûte rien. Le puits de noir est trivial ici : on contrôle le fond, donc aucun cas d'échec
-possible. Le vrai travail est le choix des **palettes** : du goût, pas du code.
-
-**Paramétrage** — c'est l'écran de premier lancement. L'app s'ouvre sur un fond déjà généré, déjà
-valide : zéro écran vide, zéro permission demandée, enregistrable en deux touchers. Une rangée de
-palettes, un bouton mélanger, un curseur de grain. Chaque résultat porte une graine et peut être
-régénéré pour un autre appareil, plus tard, à n'importe quelle résolution.
+**Foundation E is the only single use one, and the riskiest.** That is the
+clearest argument for keeping family 09 out of the first pass.
 
 ---
 
-## 3. Ordre de construction
+## 2. The seven families, scored
 
-Pas un classement par importance : une chaîne de dépendances. Chaque étape livre une brique dont la
-suivante a besoin, et chaque étape produit une app qui marche.
+Four axes out of 5: **rendering** (drawing difficulty), **parameters** (number
+and subtlety of the settings), **content** (art direction needed up front),
+**risk** (what may not work). Estimates assume foundations A and B exist.
 
-1. **01 · Bandeau plein** — prouve les socles A et B de bout en bout, sur la famille où toute erreur
-   d'alignement se voit immédiatement. `+0,5 j`
-2. **11 · Trame dégressive** — quasi gratuite une fois 01 fait. `+1 j`
-3. **03 · Fondu dithéré** — force à écrire le socle C. Le banding se règle ici, une fois pour
-   toutes. `+2 j & socle C`
-4. **12 · Génératif pur** — réutilise C, ajoute D. Livre le premier lancement sans photo ni
-   permission. `+3 j & socle D`
-5. **08 · Décor organique** — le rig existe déjà ; il ne reste que la direction artistique. `+3 j`
-6. **07 · Objet suspendu** — même rig, contrainte de dessin en plus. Ajoutable objet par objet après
-   le lancement. `+2 j puis 0,5 j / objet`
-7. **09 · Camouflage par contenu** — socle E, à usage unique. À traiter comme un projet séparé.
-   `+5 j & socle E`
+| # | Family | Rendering | Params | Content | Risk | Verdict | Effort |
+| - | ------ | :-------: | :----: | :-----: | :--: | ------- | ------ |
+| 01 | Solid bar | 1 | 1 | 1 | 1 | **Trivial** | about 0.5 d |
+| 11 | Decaying stripes | 2 | 2 | 1 | 1 | **Low** | about 1 d |
+| 03 | Dithered fade | 3 | 3 | 1 | 3 | **Medium** | about 2 d plus foundation C |
+| 12 | Pure generative | 4 | 2 | 3 | 1 | **Medium** | about 3 d plus foundation D |
+| 08 | Organic decor | 3 | 3 | 3 | 1 | **Medium** | about 3 d |
+| 07 | Hanging object | 3 | 2 | 5 | 2 | **High, art cost** | about 2 d plus 0.5 d per object |
+| 09 | Content camouflage | 4 | 3 | 2 | 5 | **High, product risk** | about 5 d plus foundation E |
 
-**Coupe naturelle après l'étape 4** : socles A à D, quatre familles robustes, aucune dépendante d'un
-travail graphique. C'est une app complète et honnête. Les étapes 5 à 7 sont ce qui la rend
-remarquable — et peuvent arriver après.
+### 01, solid bar: trivial
+
+A Skia `Path` with two rounded bottom corners, filled with `#000`. The only real
+trap is the **default height**: on a notch it equals the cutout height, on a
+Dynamic Island you have to go down to the safe area, otherwise 22 pt of photo
+stay stranded under the island. Default radius matched to the island's (about
+18 pt), so the bar reads as an extension of the hardware.
+
+**Parameters**: no slider for the height, you grab the bottom edge of the bar
+and pull it. Three magnetic snap points with haptic feedback (_flush with the
+cutout_, _bottom of the safe area_, _free_). A single slider for the radius.
+
+### 03, dithered fade: medium
+
+An SkSL shader of about fifteen lines: gradient computed analytically,
+**interpolated in linear light** then re-encoded, since a fade to black
+interpolated in sRGB dives too fast and shows. Dithering is added before 8 bit
+quantisation: triangular noise of amplitude 1/255 derived from the fragment
+coordinates; a safer alternative is a 64 x 64 blue noise tile added on top.
+
+**Real risk**: validation can only happen by eye, on an OLED panel, at low
+brightness, in a dark room. A simulator will tell you nothing.
+
+**Parameters**: two handles dragged on the wallpaper, end of absolute black and
+end of the fade. The first one **stops** at the bottom of the cutout with a
+haptic notch. Curve as three chips (_linear_, _eased_, _S curve_) rather than a
+bezier editor.
+
+### 07, hanging object: high (art cost)
+
+Each object is a **parametric template**, not a fixed drawing: an anchor from the
+top edge, a body that stretches to contain the cutout box, decorative
+appendages. The same periscope has to work on a 125 x 37 island and a 26 x 26
+punch hole; an imported SVG does not stretch correctly, so the paths have to be
+coded as a function of the box.
+
+**The limiting factor is not technical, it is human**: every object needs a real
+idea. Six good objects beat twenty mediocre ones, and they can be added after
+launch.
+
+**Parameters**: a horizontal gallery of objects applied live; a single slider
+(size, meaning the margin between body and cutout); a mirror toggle for offset
+cutouts. Decorative parts move under the finger, the covering part stays locked.
+
+### 08, organic decor: medium
+
+A carrier path (branch, cable, garland) crossing the screen, then elements
+distributed along it with a **seeded** random generator: same seed, same result,
+therefore shareable.
+
+**The trick that removes all risk**: lay down a black base in the exact shape of
+the cutout first, then scatter the foliage over it. Coverage is guaranteed by
+construction, and the organic part only has to look good.
+
+**Parameters**: six patterns as chips (_branch, birds, cable, drip, garland,
+smoke_), a density slider, and **a shuffle button**: one control produces endless
+results, and the user taps until they like it without understanding the system.
+
+### 09, content camouflage: high (product risk)
+
+- **Automatic placement**: redraw the photo at 96 x 208, read the pixels, build a
+  summed area table, then test a few hundred framings scoring mean luminance
+  _and_ standard deviation under the cutout. A few milliseconds.
+- **Local darkening**: a plain fade to black leaves a blurry smudge. The right
+  method lifts the black point locally, a curve rather than a layer, so the
+  texture of the photo dies naturally.
+- **Refinement**: the fade distance is modulated by local luminance. Where the
+  photo is already dark the transition is short and invisible; where it is bright
+  it stretches.
+- **The uncomfortable truth**: the area under the cutout must end at exact
+  `#000000`. No analysis changes that. The solver only makes that black core
+  _small and surrounded by near black_.
+
+**Parameters**: one button and an honest verdict. "Fit automatically" runs the
+solver and reports _excellent_, _acceptable_, or _this photo does not suit_. On
+failure the app itself offers family 03 as a fallback, on the same framing.
+
+### 11, decaying stripes: low
+
+A loop of rectangles for the lines; a shader for the dot variant, where the
+radius decays with distance. **The geometry does not start at the top of the
+screen, it starts at the cutout**: the first band is forced to contain it and
+everything else follows, which leaves only two free parameters. No setting
+produces a bad result.
+
+**Parameters**: three types as chips (_lines, grid, dots_), two sliders (spacing,
+falloff), six presets in direct reach.
+
+### 12, pure generative: medium
+
+An SkSL mesh gradient shader: bilinear blend of four to six colours, warped by
+fractal noise. **Preferable to blurred radial gradients**, since a blur at
+1290 x 2796 is expensive in memory while a shader costs nothing. The black well
+is trivial here: we control the background, so no failure case exists. The real
+work is choosing the **palettes**, which is taste, not code.
+
+**Parameters**: this is the first launch screen. The app opens on a wallpaper
+already generated and already valid: no empty screen, no permission prompt,
+saveable in two taps. A row of palettes, a shuffle button, a grain slider. Every
+result carries a seed and can be regenerated for another device, later, at any
+resolution.
 
 ---
 
-## 4. L'interface : un écran, cinq gestes
+## 3. Build order
 
-L'app n'a qu'un seul objet — le fond d'écran en cours — et une seule sortie — une image. Toute
-navigation ajoutée serait du décor. D'où : **pas d'onglets, pas de menu, pas de compte, un seul
-écran.** Le fond occupe 100 % de la surface, les commandes flottent dessus en verre, et l'essentiel
-du réglage se fait en touchant directement le fond.
+Not a ranking by importance: a dependency chain. Each step delivers a piece the
+next one needs, and each step produces an app that works.
 
-Le point qui fait tout basculer : l'aperçu n'est pas une maquette de téléphone dans un téléphone.
-C'est le fond, plein écran, **sous la vraie découpe de l'appareil**. On juge le résultat en le
-regardant, pas en l'imaginant.
+1. **01, solid bar**: proves foundations A and B end to end, on the family where
+   any alignment error shows immediately. `+0.5 d`
+2. **11, decaying stripes**: almost free once 01 is done. `+1 d`
+3. **03, dithered fade**: forces foundation C to be written. Banding is settled
+   here, once and for all. `+2 d and foundation C`
+4. **12, pure generative**: reuses C, adds D. Delivers a first launch with no
+   photo and no permission. `+3 d and foundation D`
+5. **08, organic decor**: the rig already exists, only art direction remains.
+   `+3 d`
+6. **07, hanging object**: same rig, plus a drawing constraint. Can be added
+   object by object after launch. `+2 d then 0.5 d per object`
+7. **09, content camouflage**: foundation E, single use. Treat it as a separate
+   project. `+5 d and foundation E`
 
-### Vocabulaire gestuel
-
-| Geste | Effet |
-| ----- | ----- |
-| glisser ←→ | changer de famille d'effet, comme un filtre d'appareil photo |
-| pincer | recadrer et repositionner la photo |
-| tirer une poignée | régler l'effet directement sur le fond |
-| appui long | masquer toute l'interface pour juger |
-| secouer | nouvelle variation, sur les familles génératives |
-
-### Anatomie de l'écran, de bas en haut
-
-1. **Barre d'action** en verre — `Source` · nom de l'effet + points de position · `Enregistrer`.
-2. **Bande de réglages** — les deux ou trois commandes de l'effet courant, toujours visibles.
-3. **Le fond**, plein écran, avec les poignées de manipulation directe posées dessus.
-
-### Feuille d'enregistrement
-
-`Définir comme fond d'écran` (primaire, via App Intent / Raccourci — évite l'éditeur de recadrage
-d'iOS) · `Enregistrer dans Photos` · `Partager` · et le **format**, seul endroit où la question
-« pour quel téléphone ? » se pose, donc seul endroit où elle est posée.
+**Natural cut after step 4**: foundations A to D, four robust families, none
+depending on graphic work. That is a complete and honest app. Steps 5 to 7 are
+what make it remarkable, and they can come later.
 
 ---
 
-## 5. Une règle : trois réglages maximum
+## 4. The interface: one screen, five gestures
 
-Toutes en direct, toutes réversibles, sans jamais afficher de valeur numérique — sauf là où le
-nombre veut dire quelque chose. Ce qui ne rentre pas dans trois commandes ne rentre pas dans l'app.
+The app has a single object, the wallpaper being edited, and a single output, an
+image. Any added navigation would be decoration. Hence: **no tabs, no menu, no
+account, one screen.** The wallpaper takes 100 percent of the surface, the
+controls float over it in glass, and most of the adjusting happens by touching
+the wallpaper directly.
 
-| Famille | Commande 1 | Commande 2 | Commande 3 | Contrainte dure |
-| ------- | ---------- | ---------- | ---------- | --------------- |
-| **01** Bandeau | bord tiré à la main | rayon | — | plancher sous la découpe |
-| **03** Fondu | poignée « fin du noir » | poignée « fin du fondu » | courbe (3 choix) | poignée 1 ≥ bas de découpe |
-| **07** Objet | galerie d'objets | taille | miroir | corps ⊇ découpe + marge |
-| **08** Décor | motif (6 choix) | densité | mélanger | socle de couverture invisible |
-| **09** Camouflage | caler automatiquement | étendue | douceur | cœur en noir absolu |
-| **11** Trame | type (3 choix) | pas | décroissance | bande 1 ⊇ découpe |
-| **12** Génératif | palette | mélanger | grain | — |
+The point that changes everything: the preview is not a mockup of a phone inside
+a phone. It is the wallpaper, full screen, **under the device's real cutout**.
+You judge the result by looking at it, not by imagining it.
 
-**Les contraintes dures ne sont jamais des messages d'erreur.** Une poignée qui atteint le bas de la
-découpe ne se bloque pas en silence : elle bute, vibre légèrement, et affiche une ligne.
-L'utilisateur apprend la règle physique en la touchant, sans qu'on la lui explique.
+### Gesture vocabulary
+
+| Gesture | Effect |
+| ------- | ------ |
+| swipe left and right | change effect family, like a camera filter |
+| pinch | reframe and reposition the photo |
+| drag a handle | adjust the effect directly on the wallpaper |
+| long press | hide the whole interface to judge |
+| shake | contact support |
+
+### Anatomy of the screen, bottom up
+
+1. **Action bar** in glass: `Source`, effect name plus position dots, `Save`.
+2. **Control strip**: the two or three controls of the current effect, always
+   visible.
+3. **The wallpaper**, full screen, with the direct manipulation handles on it.
+
+### Save sheet
+
+`Set as wallpaper` (primary, through an App Intent and Shortcut, avoiding the
+iOS crop editor), `Save to Photos`, `Share`, and the **format**, the only place
+where the question "for which phone?" actually arises, therefore the only place
+where it is asked.
 
 ---
 
-## 6. Ce que je couperais
+## 5. One rule: three controls at most
 
-- **La bibliothèque de fonds embarqués.** La v1 en avait une ; elle pèse lourd, se démode, et pose
-  des questions de droits. La famille 12 la remplace par un générateur infini qui ne pèse rien.
-- **Tout écran de réglages.** Le format d'export va dans la feuille d'enregistrement, la calibration
-  se déclenche après le premier export, il ne reste rien à régler.
-- **L'écran d'aide.** Remplacé par les butées haptiques et une seule phrase dans la feuille
-  d'export, au moment où elle sert.
-- **La famille 09 dans la v1.** C'est la plus belle promesse et la seule qui peut échouer sur la
-  photo de l'utilisateur. Elle mérite d'arriver seule, quand elle sera vraiment bonne.
+All live, all reversible, never showing a numeric value except where the number
+means something. Whatever does not fit in three controls does not fit in the app.
+
+| Family | Control 1 | Control 2 | Control 3 | Hard constraint |
+| ------ | --------- | --------- | --------- | --------------- |
+| **01** Bar | edge dragged by hand | radius | none | floor under the cutout |
+| **03** Fade | "end of black" handle | "end of fade" handle | curve (3 choices) | handle 1 at or below the cutout |
+| **07** Object | object gallery | size | mirror | body contains cutout plus margin |
+| **08** Decor | pattern (6 choices) | density | shuffle | invisible coverage base |
+| **09** Camouflage | fit automatically | extent | softness | core in absolute black |
+| **11** Stripes | type (3 choices) | spacing | falloff | band 1 contains the cutout |
+| **12** Generative | palette | shuffle | grain | none |
+
+**Hard constraints are never error messages.** A handle reaching the bottom of
+the cutout does not stop silently: it butts, vibrates lightly, and shows a line.
+The user learns the physical rule by touching it, without being told.
+
+---
+
+## 6. What I would cut
+
+- **The bundled wallpaper library.** v1 had one; it is heavy, it dates, and it
+  raises rights questions. Family 12 replaces it with an endless generator that
+  weighs nothing.
+- **Any settings screen.** Export format goes in the save sheet, calibration
+  triggers after the first export, nothing is left to configure.
+- **The help screen.** Replaced by haptic stops and a single sentence in the
+  export sheet, at the moment it is useful.
+- **Family 09 in v1.** It is the finest promise and the only one that can fail on
+  the user's photo. It deserves to arrive on its own, when it is genuinely good.

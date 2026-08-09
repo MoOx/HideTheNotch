@@ -1,162 +1,177 @@
-# Masquer l'encoche, neuf ans après — note de recherche
+# Hiding the notch, nine years on: research note
 
-_Août 2026. Étude préalable à une éventuelle refonte de HideTheNotch._
+_August 2026. Groundwork for a possible rewrite of HideTheNotch._
 
-Version interactive (aperçus des 13 familles, commutables encoche / Dynamic Island / poinçon) :
+Interactive version (previews of the 13 families, switchable between notch,
+Dynamic Island and punch hole):
 [`2026-notch-masking-study.html`](./2026-notch-masking-study.html).
 
 ---
 
-## 1. Ce que faisait la v1 (2017)
+## 1. What v1 did (2017)
 
-789 lignes. Un `ImageBackground` plein écran, des PNG posés en `position: absolute; top: 0`
-par-dessus, puis `captureRef()` de _react-native-view-shot_ pour photographier la vue et la pousser
-dans la pellicule. Quatre masques bitmap sans paramètres : `Rounded Notch`, `Rounded Slim Notch`,
-`Hard Notch`, `Hard Slim Notch`.
+789 lines. A full screen `ImageBackground`, PNGs laid over it at
+`position: absolute; top: 0`, then `captureRef()` from _react-native-view-shot_
+to photograph the view and push it into the camera roll. Four bitmap masks with
+no parameters: `Rounded Notch`, `Rounded Slim Notch`, `Hard Notch`, `Hard Slim
+Notch`.
 
-C'était la bonne réponse à l'époque : un seul appareil au monde avait une encoche, et
-`src/platform.js` le décrivait en huit lignes (`isIPhoneX = height === 812 && width === 375`).
+It was the right answer at the time: exactly one device in the world had a
+notch, and `src/platform.js` described it in eight lines
+(`isIPhoneX = height === 812 && width === 375`).
 
-**Ce qui a bien vieilli**
+**What aged well**
 
-- L'intuition de base : sur OLED, du `#000000` posé à côté d'une découpe la fait disparaître.
-- Le geste produit : on n'installe pas un thème, on **exporte une image** que l'utilisateur pose.
-- Catalogue de fonds embarqués + import photo perso, avec crédit auteur affiché.
+- The core intuition: on OLED, `#000000` placed next to a cutout makes it vanish.
+- The product gesture: you do not install a theme, you **export an image** that
+  the user applies.
+- A catalogue of bundled backgrounds plus personal photo import, with author
+  credit shown.
 
-**Les cinq plafonds de verre**
+**The five ceilings**
 
-1. **Un seul appareil connu** — chaque nouvel iPhone désalignait le masque.
-2. **Masques bitmap** — ni hauteur, ni rayon, ni couleur paramétrables.
-3. **Export = capture d'écran** — la photo source est réduite à la taille de l'écran _avant_ d'être
-   capturée ; pas de recadrage ni de zoom (le `ScrollView` pinch est commenté dans `App.js`).
-4. **Aucune Dynamic Island** — elle n'existait pas.
-5. **Le dernier kilomètre non traité** — rien n'empêche iOS de re-zoomer le fond au moment de le
-   poser, ce qui casse l'alignement au pixel.
-
----
-
-## 2. Pourquoi l'astuce marche (et quand elle casse)
-
-Tous les iPhone à découpe sont OLED : un pixel noir est un pixel _éteint_, optiquement identique à
-la dalle autour de la caméra. Trois règles non négociables en découlent :
-
-1. **Noir absolu, pas « presque noir »** — `#010101` se voit sur OLED en pièce sombre.
-2. **PNG obligatoire** — le JPEG produit des artefacts de bloc à la frontière noir / image.
-3. **Dégradés dithérés** — un fondu vers le noir en 8 bits fait du _banding_ franc ; il faut
-   injecter un bruit de ±1 LSB.
-
-### Géométrie des découpes
-
-| Génération                        | Écran (pt)     | Découpe        | Position               | Safe area haute |
-| --------------------------------- | -------------- | -------------- | ---------------------- | --------------- |
-| Encoche — iPhone X → 11 Pro       | 375 × 812 @3x  | ≈ 209 × 30 pt  | collée au bord         | 44 pt           |
-| Encoche — iPhone 12 → 14 Plus     | 390 × 844 @3x  | ≈ 209 × 32 pt  | collée au bord         | 47 pt           |
-| Dynamic Island — 14 Pro → 17      | 393 × 852 @3x  | ≈ 125 × 37 pt  | flottante, ≈ 11 pt     | 59 pt           |
-| Poinçon — iPhone 18 Pro (rumeur)  | —              | ≈ 13,5 mm      | décalé vers la gauche  | —               |
-
-Apple ne publie pas la géométrie exacte des découpes : ces valeurs sont des ordres de grandeur. En
-pratique l'app doit **mesurer** l'appareil courant (safe area + modèle) et garder une table de
-secours pour générer un fond destiné à un _autre_ téléphone.
-
-La différence structurante : l'encoche **touche le bord haut** (un simple bandeau la supprime), la
-Dynamic Island **flotte** (elle ouvre des designs impossibles avant, mais un bandeau plein y gaspille
-plus de surface).
+1. **One known device.** Every new iPhone shifted the mask out of alignment.
+2. **Bitmap masks.** No height, no radius, no colour to adjust.
+3. **Export equals screenshot.** The source photo is shrunk to screen size
+   _before_ capture; no reframing, no zoom (the `ScrollView` pinch is commented
+   out in `App.js`).
+4. **No Dynamic Island.** It did not exist yet.
+5. **The last mile untreated.** Nothing stops iOS from re-zooming the wallpaper
+   when it is applied, which breaks pixel alignment.
 
 ---
 
-## 3. Treize familles de masquage
+## 2. Why the trick works, and when it breaks
 
-Chaque famille est un **générateur** — une fonction qui prend la géométrie de la découpe et rend une
-pile de calques — et non une image.
+Every iPhone with a cutout is OLED: a black pixel is an _off_ pixel, optically
+identical to the panel around the camera. Three non negotiable rules follow:
 
-| #   | Famille                    | Principe                                                                                  | Portée          | Coût            |
-| --- | -------------------------- | ----------------------------------------------------------------------------------------- | --------------- | --------------- |
-| 01  | **Bandeau plein**          | Aplat noir jusque sous la découpe. Paramètres : hauteur, rayon des coins intérieurs.        | universel       | trivial         |
-| 02  | **Faux cadre**             | Bandeau + bordure basse et latérale : l'écran devient une image encadrée.                   | universel       | trivial         |
-| 03  | **Fondu dithéré**          | Aplat sur la découpe puis fondu vers la photo. Nécessite un bruit de ±1 niveau.             | universel       | moyen           |
-| 04  | **Dôme**                   | Le bandeau se creuse en cloche là où se trouve la découpe : on ne perd que le nécessaire.   | universel       | faible          |
-| 05  | **Pilule étendue**         | Une pilule noire plus large centrée sur la découpe : elle se lit comme un composant d'UI.   | île / poinçon   | faible          |
-| 06  | **Écho symétrique**        | On duplique la découpe en bas de l'écran : deux marques identiques = composition voulue.    | universel       | faible          |
-| 07  | **Objet suspendu**         | Périscope, abat-jour, nacelle : une tige part du bord, le corps noir enveloppe la découpe.  | île / poinçon   | dessin          |
-| 08  | **Décor organique**        | Branche, feuillage, nuée d'oiseaux, coulure. Variations procédurales : chaque fond diffère. | universel       | dessin + génératif |
-| 09  | **Camouflage par contenu** | Analyse de luminance, recadrage qui amène la zone sombre sous la découpe, assombrissement local du delta. | universel | traitement d'image |
-| 10  | **Lentille Liquid Glass**  | On habille la découpe en composant iOS 26 : flou, réfraction, liseré spéculaire.            | île / poinçon   | shader          |
-| 11  | **Trame dégressive**       | Bandes noires qui s'espacent en descendant ; la découpe devient une cellule du motif.       | universel       | génératif       |
-| 12  | **Génératif pur**          | Dégradé maillé + bruit fractal + puits de noir. Zéro asset, zéro question de droits.        | universel       | génératif       |
-| 13  | **Contour assumé**         | L'inverse : un liseré lumineux souligne la découpe. Double le catalogue gratuitement.       | universel       | trivial         |
+1. **Absolute black, not "almost black".** `#010101` shows on OLED in a dark
+   room.
+2. **PNG only.** JPEG produces block artefacts at the black to image boundary.
+3. **Dithered gradients.** A fade to black in 8 bits bands visibly; it needs
+   noise of plus or minus 1 LSB.
 
-Sept de ces treize familles sont **infaisables** avec l'architecture de 2017 : elles demandent des
-dégradés dithérés, des modes de fusion, du bruit procédural, ou un export à une résolution
-supérieure à celle de l'écran.
+### Cutout geometry
 
----
+| Generation | Screen (pt) | Cutout | Position | Top safe area |
+| ---------- | ----------- | ------ | -------- | ------------- |
+| Notch, iPhone X to 11 Pro | 375 x 812 @3x | about 209 x 30 pt | flush with the edge | 44 pt |
+| Notch, iPhone 12 to 14 Plus | 390 x 844 @3x | about 209 x 32 pt | flush with the edge | 47 pt |
+| Dynamic Island, 14 Pro to 17 | 393 x 852 @3x | about 125 x 37 pt | floating, about 11 pt down | 59 pt |
+| Punch hole, iPhone 18 Pro (rumoured) | unknown | about 13.5 mm | offset to the left | unknown |
 
-## 4. Le pipeline nécessaire
+Apple does not publish exact cutout geometry, so these are orders of magnitude.
+In practice the app has to **measure** the current device (safe area and model)
+and keep a fallback table for generating a wallpaper aimed at _another_ phone.
 
-Le changement structurant tient en une phrase : **arrêter de photographier une vue React Native.**
-
-| Étage       | Choix                                                                                                                                                                                                               |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Modèle**  | Une **recette JSON**, pas une image : source (photo / dégradé / procédural), transformation (recadrage, zoom, rotation), pile de masques paramétrés, géométrie de l'appareil cible. Sérialisable, donc partageable et re-générable pour un autre téléphone. |
-| **Aperçu**  | `@shopify/react-native-skia` rend la recette à l'échelle écran, avec pincer-glisser via Reanimated 4 + Gesture Handler. Dégradés, bruit fractal et shaders personnalisés sont natifs.                                   |
-| **Export**  | `Skia.Surface.MakeOffscreen(1290, 2796)` rejoue la **même** recette à la résolution réelle du device, puis `makeImageSnapshot()` → `encodeToBytes(PNG)` → `expo-media-library`. Qualité 1:1, indépendante de l'écran d'aperçu. |
-| **Coque**   | Expo SDK 56 (RN 0.85, Hermes v1, nouvelle archi). `expo-glass-effect` pour la vraie barre d'outils Liquid Glass (UIVisualEffectView natif) sur iOS 26+, repli `expo-blur` en dessous. `@expo/ui` pour les feuilles SwiftUI, `expo-haptics` au calage. |
-| **Android** | Même moteur Skia, mêmes recettes. Et `WallpaperManager.setBitmap()` pose le fond **directement**, sans galerie ni recadrage : l'obstacle principal d'iOS n'existe pas.                                                   |
+The structural difference: the notch **touches the top edge** (a plain bar
+removes it), the Dynamic Island **floats** (it opens up designs that were
+impossible before, but a solid bar wastes more surface on it).
 
 ---
 
-## 5. Le vrai problème : poser le fond d'écran
+## 3. Thirteen masking families
 
-Un masque au pixel près ne sert à rien si iOS le décale en le posant. C'est là que la v1 s'arrêtait
-(« mets-le en _Still_ et aligne-le en bas ») et c'est là que se joue la différence entre un jouet et
-un outil.
+Each family is a **generator**, a function that takes the cutout geometry and
+returns a stack of layers, not an image.
 
-**Ce qui casse l'alignement**
+| # | Family | Principle | Scope | Cost |
+| - | ------ | --------- | ----- | ---- |
+| 01 | **Solid bar** | Flat black down to below the cutout. Parameters: height, inner corner radius. | universal | trivial |
+| 02 | **False bezel** | Bar plus bottom and side borders: the screen reads as a framed image. | universal | trivial |
+| 03 | **Dithered fade** | Flat black over the cutout, then a fade into the photo. Needs noise of plus or minus 1 level. | universal | medium |
+| 04 | **Dome** | The bar dips where the cutout is: you only lose what is necessary. | universal | low |
+| 05 | **Extended pill** | A wider black pill centred on the cutout: it reads as a UI component. | island, punch | low |
+| 06 | **Symmetric echo** | The cutout is duplicated at the bottom: two identical marks read as intent. | universal | low |
+| 07 | **Hanging object** | Periscope, lampshade, gondola: a stem from the edge, a black body wrapping the cutout. | island, punch | drawing |
+| 08 | **Organic decor** | Branch, foliage, flock of birds, paint drip. Procedural variation: every wallpaper differs. | universal | drawing, generative |
+| 09 | **Content camouflage** | Luminance analysis, framing that brings the dark area under the cutout, local darkening of the delta. | universal | image processing |
+| 10 | **Liquid Glass lens** | Dress the cutout as an iOS 26 component: blur, refraction, specular rim. | island, punch | shader |
+| 11 | **Decaying stripes** | Black bands spreading apart downward; the cutout becomes a cell of the pattern. | universal | generative |
+| 12 | **Pure generative** | Mesh gradient, fractal noise, black well. Zero assets, zero rights questions. | universal | generative |
+| 13 | **Deliberate outline** | The opposite: a glowing rim underlines the cutout. Doubles the catalogue for free. | universal | trivial |
 
-- **Zoom de perspective** — iOS agrandit le fond d'environ 4 % pour la parallaxe au gyroscope.
-- **Scènes spatiales (iOS 26)** — séparation sujet / fond par profondeur, puis parallaxe : désalignement garanti.
-- **Effet de profondeur** sur l'écran verrouillé.
-- **L'éditeur de recadrage** qui s'ouvre à chaque « Choisir une photo » et invite au pincement.
-
-**Les parades**
-
-1. **Exporter à la résolution native exacte** — iOS affiche alors l'image 1:1 par défaut.
-2. **Une App Intent + un Raccourci fourni** : l'action _Définir le fond d'écran_ de Raccourcis pose
-   l'image sans ouvrir l'éditeur. Un seul geste. **À valider en conditions réelles**, mais c'est le
-   différenciateur le plus fort du projet.
-3. **Une mire de calibration** : un fond de test qui laisse l'utilisateur mesurer et corriger un
-   décalage résiduel, mémorisé ensuite pour tous ses exports.
-4. **Des instructions ciblées par version d'iOS**, pas un texte générique.
+Seven of these thirteen are **impossible** on the 2017 architecture: they need
+dithered gradients, blend modes, procedural noise, or an export above screen
+resolution.
 
 ---
 
-## 6. Est-ce que ça vaut le coup ?
+## 4. The pipeline it requires
 
-**Le calendrier joue pour nous.** L'iPhone 18 Pro est attendu en septembre 2026 avec une découpe
-nettement réduite et, selon les fuites, _décalée vers la gauche_. Un bandeau noir centré devient
-absurde sur une découpe asymétrique : toute la catégorie redevient un problème de design ouvert.
+The structural change fits in one sentence: **stop photographing a React Native
+view.**
 
-**La concurrence est faible mais installée.** Le App Store est plein de galeries de fonds pour
-Dynamic Island — abonnement, pubs, 90 % du contenu payant, aucune notion de géométrie réelle. Aucune
-ne propose un _générateur_ : recette paramétrée, export en résolution native, photo perso. C'est le
-créneau, et il est cohérent avec ce que HideTheNotch était déjà en 2017.
+| Layer | Choice |
+| ----- | ------ |
+| **Model** | A **JSON recipe**, not an image: source (photo, gradient, procedural), transform (framing, zoom, rotation), stack of parameterised masks, target device geometry. Serialisable, therefore shareable and regenerable for another phone. |
+| **Preview** | `@shopify/react-native-skia` draws the recipe at screen scale, with pinch and pan through Reanimated 4 and Gesture Handler. Gradients, fractal noise and custom shaders are native. |
+| **Export** | `Skia.Surface.MakeOffscreen(1290, 2796)` replays the **same** recipe at the device's real resolution, then `makeImageSnapshot()`, `encodeToBytes(PNG)`, `expo-media-library`. Quality 1:1, independent of the preview screen. |
+| **Shell** | Expo SDK 56 or later (New Architecture). `expo-glass-effect` for the real Liquid Glass toolbar (native UIVisualEffectView) on iOS 26 and above, `expo-blur` as a fallback below. `@expo/ui` for SwiftUI sheets, `expo-haptics` for snapping feedback. |
+| **Android** | Same Skia engine, same recipes. And `WallpaperManager.setBitmap()` applies the wallpaper **directly**, with no gallery and no cropping: the main iOS obstacle does not exist. |
 
-**La question à trancher d'abord** n'est pas « quel framework » mais **combien de familles au
-lancement**. Trois bien faites (bandeau paramétrique, fondu dithéré, génératif) valent mieux que
-treize approximatives — et les familles 05 à 09, celles qui demandent du dessin, sont ce qui fera
-parler de l'app.
+---
+
+## 5. The real problem: applying the wallpaper
+
+A pixel perfect mask is worthless if iOS shifts it while applying it. That is
+where v1 stopped ("set it to _Still_ and align it at the bottom") and it is where
+the difference between a toy and a tool is decided.
+
+**What breaks alignment**
+
+- **Perspective zoom.** iOS enlarges the wallpaper by about 4 percent for
+  gyroscope parallax.
+- **Spatial scenes (iOS 26).** Subject and background separated by depth, then
+  parallax: misalignment guaranteed.
+- **Depth effect** on the lock screen.
+- **The crop editor** that opens on every "Choose a photo" and invites pinching.
+
+**The countermeasures**
+
+1. **Export at the exact native resolution.** iOS then shows the image 1:1 by
+   default.
+2. **An App Intent plus a supplied Shortcut.** The Shortcuts _Set Wallpaper_
+   action applies the image without opening the editor. One gesture. **To be
+   validated in real conditions**, but it is the project's strongest
+   differentiator.
+3. **A calibration target.** A test wallpaper letting the user measure and
+   correct a residual offset, then remembered for every export.
+4. **Instructions targeted per iOS version**, not a generic blurb.
+
+---
+
+## 6. Is it worth it?
+
+**The calendar is on our side.** The iPhone 18 Pro is expected in September 2026
+with a much smaller cutout and, according to leaks, _offset to the left_. A
+centred black bar is absurd on an asymmetric cutout: the whole category becomes
+an open design problem again.
+
+**The competition is weak but entrenched.** The App Store is full of Dynamic
+Island wallpaper galleries: subscriptions, ads, 90 percent of the content behind
+a paywall, no notion of real geometry. None offers a _generator_: parameterised
+recipe, native resolution export, your own photo. That is the opening, and it
+matches what HideTheNotch already was in 2017.
+
+**The question to settle first** is not "which framework" but **how many
+families at launch**. Three done well (parametric bar, dithered fade,
+generative) beat thirteen done roughly, and families 05 to 09, the ones that
+need drawing, are what will get the app talked about.
 
 ---
 
 ## Sources
 
-- [Expo — GlassEffect](https://docs.expo.dev/versions/latest/sdk/glass-effect/) ·
-  [Expo SDK 55](https://expo.dev/changelog/sdk-55) · [Expo SDK 56](https://expo.dev/changelog/sdk-56)
-- [React Native Skia — Offscreen Canvas](https://shopify.github.io/react-native-skia/docs/canvas/offscreen) ·
-  [Shading Language](https://shopify.github.io/react-native-skia/docs/shaders/overview/)
-- [iOS 26 Lock Screen — MacRumors](https://www.macrumors.com/guide/ios-26-lock-screen/)
-- [iPhone 18 Pro : Dynamic Island réduite — AppleInsider](https://appleinsider.com/articles/26/02/24/iphone-18-pro-again-rumored-to-feature-a-smaller-redesigned-dynamic-island) ·
-  [Cotes du poinçon — GSMArena](https://m.gsmarena.com/iphone_18_pro_series_dynamic_island_cutout_dimensions_leaked-news-71222.php)
-- [Notch Remover (App Store)](https://apps.apple.com/us/app/notch-remover/id1277467873) ·
-  [Notcho — The Next Web](https://thenextweb.com/news/this-wallpaper-app-makes-your-iphone-xs-notch-disappear)
+- [Expo GlassEffect](https://docs.expo.dev/versions/latest/sdk/glass-effect/),
+  [Expo SDK 55](https://expo.dev/changelog/sdk-55),
+  [Expo SDK 56](https://expo.dev/changelog/sdk-56)
+- [React Native Skia offscreen canvas](https://shopify.github.io/react-native-skia/docs/canvas/offscreen),
+  [shading language](https://shopify.github.io/react-native-skia/docs/shaders/overview/)
+- [iOS 26 lock screen, MacRumors](https://www.macrumors.com/guide/ios-26-lock-screen/)
+- [iPhone 18 Pro smaller Dynamic Island, AppleInsider](https://appleinsider.com/articles/26/02/24/iphone-18-pro-again-rumored-to-feature-a-smaller-redesigned-dynamic-island),
+  [punch hole dimensions, GSMArena](https://m.gsmarena.com/iphone_18_pro_series_dynamic_island_cutout_dimensions_leaked-news-71222.php)
+- [Notch Remover, App Store](https://apps.apple.com/us/app/notch-remover/id1277467873),
+  [Notcho, The Next Web](https://thenextweb.com/news/this-wallpaper-app-makes-your-iphone-xs-notch-disappear)
 - [Android WallpaperManager](https://developer.android.com/reference/android/app/WallpaperManager)

@@ -13,7 +13,7 @@
       "policy": "fingerprint"
     },
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
       "bundleIdentifier": "io.moox.HideTheNotch",
       "buildNumber": "1",
       "infoPlist": {

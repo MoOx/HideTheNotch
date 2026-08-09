@@ -200,7 +200,7 @@ plan gratuit) cessent donc d'être une contrainte — on peut ne jamais s'en ser
 | `verify.yml` | ubuntu | push sur `v2/**` | types, contrôles pixels, bundles, et les PNG d'exemple en artefact |
 | `build-android.yml` | ubuntu | manuel ou `[build-apk]` | APK installable (~10 min) |
 | `build-ios-sim.yml` | macos | manuel ou `[build-ios]` | `.app` simulateur, non signé |
-| `ios-testflight.yml` | macos | manuel, tag `v*` | build signé envoyé sur TestFlight |
+| `ios-testflight.yml` | macos | manuel, tag `v*` | build signé envoyé sur TestFlight (~8 min) |
 
 `workflow_dispatch` n'est déclenchable qu'une fois le fichier sur la branche par
 défaut : c'est pourquoi les deux workflows de build acceptent aussi un marqueur
@@ -253,6 +253,21 @@ dépôt de certificats, déchiffrement des secrets, clé d'API App Store Connect
 (le prebuild vient de la remettre en automatique), numéro de build calculé depuis
 TestFlight, archive, envoi. Les secrets déchiffrés sont effacés en sortie, succès
 ou échec.
+
+### Deux pièges rencontrés sur ce chemin
+
+**La version de Xcode.** `setup-xcode` avec `latest-stable` sélectionne un Xcode
+dont le compilateur Swift refuse `expo-modules-jsi`, un module d'Expo lui-même :
+`type of expression is ambiguous without a type annotation`. Le workflow utilise
+donc le Xcode par défaut de l'image. Une étape affiche sa version à chaque run,
+pour pouvoir l'épingler explicitement et éviter que le build ne dérive quand
+GitHub met l'image à jour.
+
+**Le support iPad.** L'app de 2017 est toujours publiée, et elle était compilée
+pour iPhone et iPad. Apple refuse qu'une mise à jour retire le support d'un
+appareil (`90101`). `supportsTablet` doit donc rester à `true` tant qu'on met à
+jour cette fiche. Sur iPad l'app ne détecte aucune découpe, mais le sélecteur
+d'appareil permet quand même de générer un fond pour un iPhone.
 
 ### Ce qui reste utile chez EAS
 

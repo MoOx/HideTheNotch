@@ -9,7 +9,9 @@
     "userInterfaceStyle": "dark",
     "backgroundColor": "#000000",
     "newArchEnabled": true,
-    "runtimeVersion": { "policy": "fingerprint" },
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "io.moox.hidethenotch",
@@ -28,8 +30,7 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false,
-      "edgeToEdgeEnabled": true
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -52,10 +53,15 @@
       [
         "expo-build-properties",
         {
-          "ios": { "deploymentTarget": "16.4" },
-          "android": { "minSdkVersion": 24 }
+          "ios": {
+            "deploymentTarget": "16.4"
+          },
+          "android": {
+            "minSdkVersion": 24
+          }
         }
-      ]
+      ],
+      "./plugins/with-android-lint-off"
     ],
     "experiments": {
       "typedRoutes": false

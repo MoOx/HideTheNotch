@@ -198,13 +198,29 @@ plan gratuit) cessent donc d'être une contrainte — on peut ne jamais s'en ser
 | Workflow | Runner | Déclencheur | Résultat |
 | -------- | ------ | ----------- | -------- |
 | `verify.yml` | ubuntu | push sur `v2/**` | types, contrôles pixels, bundles, et les PNG d'exemple en artefact |
-| `build-android.yml` | ubuntu | manuel ou `[build-apk]` | APK installable |
+| `build-android.yml` | ubuntu | manuel ou `[build-apk]` | APK installable (~10 min) |
 | `build-ios-sim.yml` | macos | manuel ou `[build-ios]` | `.app` simulateur, non signé |
 | `build-ios-testflight.yml` | macos | manuel | build signé envoyé sur TestFlight |
 
 `workflow_dispatch` n'est déclenchable qu'une fois le fichier sur la branche par
 défaut : c'est pourquoi les deux workflows de build acceptent aussi un marqueur
 dans le message de commit, `[build-apk]` ou `[build-ios]`.
+
+### Une note sur le build Android local
+
+Le workflow passe `-x lintVitalRelease` à Gradle. AGP lance `lintVital` sur les
+builds release, y compris dans les modules des dépendances, et il échoue sur
+`react-native-skia` et `expo-modules-core` pour des raisons étrangères à cette
+app. Le désactiver par le DSL ne fonctionne pas : AGP lit `checkReleaseBuilds`
+pendant sa propre configuration, avant qu'un plugin de config Expo puisse
+l'écrire — d'où l'exclusion de la tâche plutôt qu'un réglage.
+
+En local, il faut donc le même drapeau :
+
+```sh
+npx expo prebuild --platform android
+cd android && ./gradlew assembleRelease -x lintVitalRelease
+```
 
 ### iOS signé avec votre compte Apple
 

@@ -203,9 +203,67 @@ Each step leaves the app working and `npm run verify` green.
 - **Both corner buttons are plain glass**, with no filled variant. Two buttons
   in fixed corners need no hierarchy invented for them.
 
+---
+
+## 6. Second round, from the first build on a device
+
+What the build showed, and what it changed.
+
+### Two things were broken
+
+- **Export threw.** `saveToLibraryAsync` is the deprecated API and announces
+  itself in the thrown error rather than in a warning. Now `Asset.create`.
+- **Import failed silently.** `useImage` resolves the path through Skia's URL
+  loader and the hook swallows a rejection, so a photo that cannot be loaded
+  gives no image and no message: the app looks like it ignored the tap. It now
+  reads the file's bytes and decodes them, and says what went wrong. The picker
+  is also launched after the sheet has closed rather than on top of it.
+
+### The stripes, properly
+
+The first version ran two independent geometric series, one shrinking the bands
+and one growing the gaps. They drift apart: by the fifth band the period had
+more than doubled while the band had halved, so the eye never found a rhythm,
+and the tail was a scatter of hairlines that simply stopped.
+
+It is now a **halftone ramp on one grid**:
+
+| | |
+| --- | --- |
+| Grid | one geometric series, opening gently downward (1.09 per step) |
+| Coverage | falls from 0.85 to 0 along that grid |
+| Law | `(1 - i/n)^2.2`, because the eye integrates the bands spatially: mean luminance is `1 - coverage`, and lightness goes as luminance to the power 1/2.2. The same reasoning as the fade shader |
+| Floors | no slit of wallpaper under 5 pt, no band under 1 pt |
+| Density | means one thing: how fine the pattern is, 7 bands to 13 |
+
+The starting coverage is capped **once**, from the first period, rather than per
+band. Clamping each band lets the clamp bind on the first few, and since the
+grid grows those come out thicker than the one above: the pattern swells before
+it dissolves. `verify` now asserts the bands never thicken going down, and that
+check caught exactly this the first time it ran.
+
+### The rest
+
+- The **bar** stops at an eighth of the screen, and its radius now opens up with
+  the height towards the display's own corner radius instead of tightening.
+- The **fade** is first in the order and defaults to the S curve.
+- The **home screen sketch** is on press, not by default, cross fading with the
+  interface.
+- The **sheets** are a `FieldGroup`, which is a SwiftUI `Form` with real
+  `Section`s, so the grouping and typography come from the platform instead of
+  from a column of bare rows. Both have the title they were missing.
+- The **gradients** are shown as thumbnails: the real drawing scaled down, mask
+  included, from the one drawing path.
+- The **export target picker** is gone. It changed the preview live for a choice
+  with no visible meaning until export.
+
 ### Parked, deliberately
 
 - Home screen screenshot as preview backdrop, from section 2.
+- The export target picker, to bring back once choosing another phone does
+  something visible other than resizing the preview under your hands.
+- A larger gradient gallery, closer to the way iOS presents wallpapers, if the
+  thumbnails in the list turn out to be too small to judge.
 - `expo-splash-screen` with the recovered logo. The asset is committed as
   `assets/splash-icon.png` but nothing references it yet, and adding the plugin
   is a dependency change worth doing on its own.

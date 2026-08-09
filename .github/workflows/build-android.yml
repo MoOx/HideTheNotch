@@ -41,13 +41,21 @@ jobs:
 
       # Le gabarit Expo signe le build release avec le keystore de debug : rien
       # à fournir pour un APK installable en test.
-      # RN 0.86 en nouvelle architecture compile du C++ pour les quatre ABI, ce
-      # qui dépasse 45 minutes sur un runner deux cœurs. Un APK de test n'a
-      # besoin que d'arm64 : c'est ce que fait tout téléphone réel depuis des
-      # années, et le build passe sous les dix minutes.
+      # Deux choses ici.
+      #
+      # `-PreactNativeArchitectures=arm64-v8a` : un APK de test n'a pas besoin
+      # des tranches x86, qui ne servent qu'aux émulateurs. Pour tester sur un
+      # émulateur, rajouter x86_64.
+      #
+      # `-x lintVitalRelease` : AGP lance lintVital sur les builds release, y
+      # compris dans les modules des dépendances, et il échoue sur
+      # react-native-skia et expo-modules-core pour des raisons étrangères à
+      # cette app. Le désactiver par le DSL ne marche pas — AGP lit
+      # `checkReleaseBuilds` avant qu'un plugin de config puisse l'écrire —
+      # donc on exclut la tâche, ce qui retire aussi ses dépendances exclusives.
       - name: Compiler
         working-directory: v2/android
-        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
+        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a -x lintVitalRelease
 
       - name: Nom de l'artefact
         id: name

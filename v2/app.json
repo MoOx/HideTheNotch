@@ -60,8 +60,7 @@
             "minSdkVersion": 24
           }
         }
-      ],
-      "./plugins/with-android-lint-off"
+      ]
     ],
     "experiments": {
       "typedRoutes": false

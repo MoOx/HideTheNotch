@@ -36,7 +36,10 @@ defaults:
 
 jobs:
   testflight:
-    runs-on: macos-15
+    # Deliberately the image default Xcode, on the same runner as the simulator
+    # build that compiles fine. Selecting latest-stable picked Xcode 26.3, whose
+    # Swift compiler rejects expo-modules-jsi (see the setup-xcode note below).
+    runs-on: macos-latest
     timeout-minutes: 90
     if: >-
       github.event_name != 'push' ||
@@ -90,9 +93,15 @@ jobs:
           bundler-cache: true
           working-directory: v2
 
-      - uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: latest-stable
+      # No setup-xcode here on purpose. With xcode-version: latest-stable the
+      # runner selected Xcode 26.3, and archiving died on Expo's own code:
+      #
+      #   expo-modules-jsi/.../JavaScriptCodable+Date.swift:53:50:
+      #   error: type of expression is ambiguous without a type annotation
+      #
+      # The image default compiles it, which is what the iOS simulator workflow
+      # already proves. Pin an explicit version here once one is known good, so
+      # this does not drift when GitHub updates the image.
 
       # The lane runs `expo prebuild --clean` and pod install itself, so there
       # is nothing to prepare beforehand.

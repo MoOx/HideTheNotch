@@ -5,9 +5,9 @@ import { Canvas, Picture, Skia, createPicture } from "@shopify/react-native-skia
 import { drawRecipe, type DrawContext } from "../render/draw";
 
 /**
- * L'aperçu n'est pas une maquette de téléphone dans un téléphone : c'est le fond
- * en plein écran, sous la vraie découpe de l'appareil. On juge le résultat en le
- * regardant, pas en l'imaginant.
+ * The preview is not a mockup of a phone inside a phone: it is the wallpaper,
+ * full screen, under the device's real cutout. You judge the result by looking
+ * at it, not by imagining it.
  */
 export function Preview({ ctx }: { ctx: DrawContext }) {
   const { width, height } = ctx.geometry;

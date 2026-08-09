@@ -1,50 +1,50 @@
 /**
- * Socle A — géométrie.
+ * Foundation A, geometry.
  *
- * Tout ce qui est mesurable est mesuré (taille de fenêtre, densité, safe area).
- * La table ci-dessous ne sert qu'à ce qu'iOS ne dit pas : la boîte exacte de la
- * découpe. Sur Android, `DisplayCutout.getBoundingRects()` la donne vraiment —
- * cf. `docs/geometry.md` — mais il faut un module natif pour la lire.
+ * Everything measurable is measured (window size, density, safe areas). The
+ * table below only covers what iOS does not publish: the exact box of the
+ * cutout. On Android `DisplayCutout.getBoundingRects()` gives the real
+ * rectangles, but reading it needs a native module.
  */
 
 export type CutoutKind = "island" | "notch" | "punch" | "none";
 
-/** Boîte de la découpe, en points, origine en haut à gauche de l'écran. */
+/** Cutout box, in points, origin at the top left of the screen. */
 export type Cutout = {
   x: number;
   y: number;
   w: number;
   h: number;
-  /** Rayon des coins, en points. */
+  /** Corner radius, in points. */
   r: number;
 };
 
 export type Geometry = {
   label: string;
   kind: CutoutKind;
-  /** Taille logique de l'écran, en points. */
+  /** Logical screen size, in points. */
   width: number;
   height: number;
-  /** Pixels physiques par point. */
+  /** Physical pixels per point. */
   scale: number;
   insetTop: number;
   insetBottom: number;
   cutout: Cutout;
-  /** Vrai quand la boîte est déduite des safe areas au lieu d'être connue. */
+  /** True when the box is inferred from safe areas rather than known. */
   estimated: boolean;
 };
 
 /**
- * La Dynamic Island a la même taille physique sur tous les iPhone qui en ont
- * une, du 14 Pro au 17 Pro Max. C'est ce qui rend la détection fiable : dès que
- * l'inset haut vaut 59 pt, ces valeurs s'appliquent telles quelles.
+ * The Dynamic Island is the same physical size on every iPhone that has one,
+ * from the 14 Pro to the 17 Pro Max. That is what makes detection reliable: as
+ * soon as the top inset is 59 pt, these values apply as they are.
  */
 export const ISLAND = { w: 125, h: 37.33, y: 11, r: 18.67 } as const;
 
-/** iPhone X → 12 Pro Max. */
+/** iPhone X through 12 Pro Max. */
 export const NOTCH_WIDE = { w: 209, h: 30, y: 0, r: 20 } as const;
 
-/** iPhone 13 → 14 Plus : encoche réduite d'environ 20 %. */
+/** iPhone 13 through 14 Plus: notch narrowed by about 20 percent. */
 export const NOTCH_NARROW = { w: 161, h: 32, y: 0, r: 20 } as const;
 
 function centered(width: number, c: { w: number; h: number; y: number; r: number }): Cutout {
@@ -52,12 +52,12 @@ function centered(width: number, c: { w: number; h: number; y: number; r: number
 }
 
 /**
- * Déduit la découpe de ce que le système accepte de dire.
+ * Infers the cutout from what the system is willing to say.
  *
- * Sur iOS l'inset haut est un indicateur fiable : 59 pt ⇒ Dynamic Island,
- * 44-48 pt ⇒ encoche, moins ⇒ rien. Sur Android il vaut la hauteur de la barre
- * d'état, qui n'a rien à voir avec la découpe : on ne devine pas, on rend la
- * main à l'utilisateur via le sélecteur d'appareil.
+ * On iOS the top inset is a reliable signal: 59 pt means Dynamic Island,
+ * 44 to 48 pt means a notch, less means nothing. On Android it is the status
+ * bar height, which has nothing to do with the cutout, so we do not guess and
+ * hand control back to the user through the device picker.
  */
 export function inferCutout(
   os: string,
@@ -69,8 +69,8 @@ export function inferCutout(
       return { kind: "island", cutout: centered(width, ISLAND), estimated: false };
     }
     if (insetTop >= 40) {
-      // On prend l'encoche large : sur les familles pleine largeur seule la
-      // hauteur compte, et trop large vaut mieux que trop court.
+      // Assume the wide notch: on full width masks only the height matters,
+      // and too wide beats too short.
       return { kind: "notch", cutout: centered(width, NOTCH_WIDE), estimated: true };
     }
     return { kind: "none", cutout: { x: width / 2, y: 0, w: 0, h: 0, r: 0 }, estimated: false };
@@ -83,7 +83,7 @@ export function inferCutout(
   };
 }
 
-/** Le bas de la découpe : rien ne peut être masqué au-dessus de cette ligne. */
+/** Bottom of the cutout: nothing above this line can be masked. */
 export function cutoutBottom(g: Geometry): number {
   return g.kind === "none" ? 0 : g.cutout.y + g.cutout.h;
 }
@@ -132,27 +132,26 @@ function preset(
 }
 
 /**
- * Cibles d'export. Sert à deux choses : forcer un rendu quand la détection est
- * incertaine (Android), et générer un fond pour le téléphone de quelqu'un
- * d'autre.
+ * Export targets. Two uses: forcing a render when detection is unreliable
+ * (Android), and making a wallpaper for someone else's phone.
  */
 export const DEVICE_PRESETS: DevicePreset[] = [
-  preset("island-393", "Dynamic Island", "393 × 852 · 14 Pro, 15, 16", 393, 852, 3, 59, "island", ISLAND),
-  preset("island-402", "Dynamic Island", "402 × 874 · 16 Pro, 17", 402, 874, 3, 59, "island", ISLAND),
-  preset("island-430", "Dynamic Island", "430 × 932 · 14/15 Pro Max", 430, 932, 3, 59, "island", ISLAND),
-  preset("island-440", "Dynamic Island", "440 × 956 · 16/17 Pro Max", 440, 956, 3, 59, "island", ISLAND),
-  preset("notch-390", "Encoche", "390 × 844 · 12, 13, 14", 390, 844, 3, 47, "notch", NOTCH_WIDE),
-  preset("notch-375", "Encoche", "375 × 812 · X, XS, 13 mini", 375, 812, 3, 44, "notch", NOTCH_WIDE),
-  preset("notch-428", "Encoche", "428 × 926 · 12/13 Pro Max", 428, 926, 3, 47, "notch", NOTCH_WIDE),
-  preset("punch-c", "Poinçon centré", "412 × 915 · Android", 412, 915, 2.625, 32, "punch",
+  preset("island-393", "Dynamic Island", "393 x 852, 14 Pro, 15, 16", 393, 852, 3, 59, "island", ISLAND),
+  preset("island-402", "Dynamic Island", "402 x 874, 16 Pro, 17", 402, 874, 3, 59, "island", ISLAND),
+  preset("island-430", "Dynamic Island", "430 x 932, 14/15 Pro Max", 430, 932, 3, 59, "island", ISLAND),
+  preset("island-440", "Dynamic Island", "440 x 956, 16/17 Pro Max", 440, 956, 3, 59, "island", ISLAND),
+  preset("notch-390", "Notch", "390 x 844, 12, 13, 14", 390, 844, 3, 47, "notch", NOTCH_WIDE),
+  preset("notch-375", "Notch", "375 x 812, X, XS, 13 mini", 375, 812, 3, 44, "notch", NOTCH_WIDE),
+  preset("notch-428", "Notch", "428 x 926, 12/13 Pro Max", 428, 926, 3, 47, "notch", NOTCH_WIDE),
+  preset("punch-c", "Centred punch hole", "412 x 915, Android", 412, 915, 2.625, 32, "punch",
     { w: 26, h: 26, y: 14, r: 13 }),
-  preset("punch-l", "Poinçon à gauche", "412 × 915 · Android", 412, 915, 2.625, 32, "punch",
+  preset("punch-l", "Left punch hole", "412 x 915, Android", 412, 915, 2.625, 32, "punch",
     { w: 26, h: 26, y: 14, r: 13 }, 412 * 0.28),
 ];
 
 export function geometryFromPreset(p: DevicePreset): Geometry {
   return {
-    label: `${p.label} · ${p.sub}`,
+    label: `${p.label}, ${p.sub}`,
     kind: p.kind,
     width: p.width,
     height: p.height,

@@ -2,9 +2,9 @@ import { useEffect, useRef } from "react";
 import { Accelerometer } from "expo-sensors";
 
 /**
- * Secouer ouvre le menu de support. Trois secousses en moins d'une seconde, puis
- * une seconde et demie de silence — assez pour que le geste soit délibéré, assez
- * peu pour qu'il marche du premier coup.
+ * Shaking opens the support menu. Three shakes within a second, then a second
+ * and a half of quiet: enough for the gesture to be deliberate, little enough
+ * that it works on the first try.
  */
 export function useShake(onShake: () => void, enabled = true) {
   const handler = useRef(onShake);

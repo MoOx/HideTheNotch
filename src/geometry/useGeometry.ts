@@ -6,8 +6,8 @@ import * as Device from "expo-device";
 import { inferCutout, type Geometry } from "./devices";
 
 /**
- * Géométrie de l'appareil courant. Tout vient du système sauf la boîte de la
- * découpe, qui est déduite (cf. `inferCutout`).
+ * Geometry of the current device. Everything comes from the system except the
+ * cutout box, which is inferred (see `inferCutout`).
  */
 export function useDeviceGeometry(): Geometry {
   const { width, height } = useWindowDimensions();
@@ -17,7 +17,7 @@ export function useDeviceGeometry(): Geometry {
   return useMemo(() => {
     const { kind, cutout, estimated } = inferCutout(Platform.OS, width, insets.top);
     return {
-      label: Device.modelName ?? `${Platform.OS} ${width}×${height}`,
+      label: Device.modelName ?? `${Platform.OS} ${width}x${height}`,
       kind,
       width,
       height,

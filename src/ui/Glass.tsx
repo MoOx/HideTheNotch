@@ -12,9 +12,9 @@ type Props = {
 };
 
 /**
- * Verre liquide natif quand iOS 26 le fournit, flou classique partout ailleurs.
- * L'app ne doit jamais avoir l'air d'imiter le système : soit c'est le vrai
- * matériau, soit c'est franchement autre chose.
+ * Native liquid glass when iOS 26 provides it, a classic blur everywhere else.
+ * The app should never look like it is imitating the system: either it is the
+ * real material, or it is plainly something else.
  */
 export function Glass({ children, style, radius = T.radius }: Props) {
   if (isLiquidGlassAvailable()) {

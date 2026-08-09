@@ -51,12 +51,12 @@ function Editor() {
   }));
   const [source, setSource] = useState<Source>({
     type: "gradient",
-    preset: "aurore",
+    preset: "aurora",
     seed: 1,
   });
 
-  // Changer d'appareil cible change les contraintes : on repart des valeurs par
-  // défaut de cet appareil plutôt que de garder des réglages devenus faux.
+  // Changing the target device changes the constraints, so we go back to that
+  // device's defaults rather than keeping settings that have become wrong.
   const geomKey = `${geometry.width}x${geometry.height}:${geometry.kind}`;
   useEffect(() => {
     setMasks({
@@ -99,7 +99,8 @@ function Editor() {
     void Haptics.selectionAsync();
   }, []);
 
-  // Glisser ←→ change de famille ; appui long masque l'interface pour juger.
+  // Swiping left and right changes family, a long press hides the interface so
+  // the wallpaper can be judged on its own.
   const swipe = useMemo(
     () =>
       Gesture.Pan()
@@ -125,10 +126,7 @@ function Editor() {
   const pickPhoto = useCallback(async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert(
-        "Accès aux photos refusé",
-        "Autorisez l'accès dans Réglages pour importer une image."
-      );
+      Alert.alert("Photo access denied", "Allow access in Settings to import an image.");
       return;
     }
     const res = await ImagePicker.launchImageLibraryAsync({
@@ -150,14 +148,14 @@ function Editor() {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setExportOpen(false);
       Alert.alert(
-        "Enregistré",
-        `${outcome.result.widthPx} × ${outcome.result.heightPx} px dans vos photos.\n\n` +
-          "Réglages ▸ Fond d'écran, sans recadrer et sans zoom de perspective."
+        "Saved",
+        `${outcome.result.widthPx} x ${outcome.result.heightPx} px in your photos.\n\n` +
+          "Settings, then Wallpaper. Do not crop, and leave perspective zoom off."
       );
     } else if (outcome.reason === "permission") {
-      Alert.alert("Accès aux photos refusé", "Autorisez l'accès dans Réglages pour enregistrer.");
+      Alert.alert("Photo access denied", "Allow access in Settings to save.");
     } else {
-      Alert.alert("Échec de l'export", outcome.message ?? "Erreur inconnue");
+      Alert.alert("Export failed", outcome.message ?? "Unknown error");
     }
   }, [ctx]);
 
@@ -169,7 +167,7 @@ function Editor() {
         await Sharing.shareAsync(file.uri, { mimeType: "image/png" });
       }
     } catch (e) {
-      Alert.alert("Échec du partage", e instanceof Error ? e.message : String(e));
+      Alert.alert("Share failed", e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
@@ -190,7 +188,7 @@ function Editor() {
       {!chromeHidden && mask.type === "bar" && (
         <DragHandle
           y={mask.height}
-          label="Hauteur"
+          label="Height"
           min={Math.max(floor, 1)}
           max={geometry.height * 0.45}
           snaps={snaps}
@@ -202,7 +200,7 @@ function Editor() {
         <>
           <DragHandle
             y={mask.solidEnd}
-            label="Fin du noir"
+            label="End of black"
             min={Math.max(floor, 1)}
             max={mask.fadeEnd - 20}
             snaps={snaps}
@@ -210,7 +208,7 @@ function Editor() {
           />
           <DragHandle
             y={mask.fadeEnd}
-            label="Fin du fondu"
+            label="End of fade"
             min={mask.solidEnd + 20}
             max={geometry.height * 0.8}
             onChange={(fadeEnd) => setMask({ ...mask, fadeEnd })}
@@ -248,7 +246,7 @@ function Editor() {
         target={geometry}
         targetId={targetId}
         onPickTarget={setTargetId}
-        detectedLabel={`${detected.label} · ${detected.width}×${detected.height}`}
+        detectedLabel={`${detected.label}, ${detected.width}x${detected.height}`}
         busy={busy}
       />
 

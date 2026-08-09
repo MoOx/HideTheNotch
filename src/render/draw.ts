@@ -15,17 +15,17 @@ import { paletteById } from "./palettes";
 import { fadeEffect } from "./shaders";
 
 /**
- * Socle B — le rendu.
+ * Foundation B, rendering.
  *
- * Une seule fonction dessine la recette, **toujours en points**. L'aperçu la
- * joue à l'échelle 1, l'export applique `canvas.scale(densité)` avant de
- * l'appeler. La parité aperçu / export est structurelle, pas surveillée : il
- * n'y a qu'un chemin de dessin.
+ * One function draws the recipe, **always in points**. The preview plays it at
+ * scale 1, the export applies `canvas.scale(density)` before calling it. Parity
+ * between preview and export is structural rather than watched: there is only
+ * one drawing path.
  */
 export type DrawContext = {
   recipe: Recipe;
   geometry: Geometry;
-  /** L'image source déjà décodée, quand la source est une photo. */
+  /** The already decoded source image, when the source is a photo. */
   image: SkImage | null;
 };
 
@@ -39,15 +39,15 @@ export function drawRecipe(canvas: SkCanvas, ctx: DrawContext) {
   drawMask(canvas, ctx.recipe.mask, ctx.geometry, source);
 }
 
-// ── Source ──────────────────────────────────────────────────────────────────
+// -- Source ------------------------------------------------------------------
 
 /**
- * La source est produite comme un **shader**, pas comme un dessin.
+ * The source is produced as a **shader**, not as a drawing.
  *
- * C'est ce qui permet au fondu de la recevoir en entrée et de calculer la
- * couleur finale lui-même, au lieu de poser du noir semi-transparent par-dessus
- * (cf. `shaders.ts`). Le fond et le fondu partagent donc exactement la même
- * définition de la source : aucune divergence possible.
+ * That is what lets the fade take it as an input and compute the final colour
+ * itself, instead of compositing translucent black on top (see `shaders.ts`).
+ * Background and fade therefore share the exact same definition of the source,
+ * so they cannot drift apart.
  */
 export function sourceShader(source: Source, g: Geometry, image: SkImage | null): SkShader {
   if (source.type === "photo" && image) {
@@ -64,9 +64,9 @@ export function sourceShader(source: Source, g: Geometry, image: SkImage | null)
     );
   }
 
-  // Pas de photo : un dégradé procédural. Sert aussi de repli tant que l'image
-  // n'est pas décodée, pour ne jamais afficher un écran vide.
-  const palette = paletteById(source.type === "gradient" ? source.preset : "aurore");
+  // No photo: a procedural gradient. It also serves as a fallback while the
+  // image is being decoded, so the screen is never empty.
+  const palette = paletteById(source.type === "gradient" ? source.preset : "aurora");
 
   const base = Skia.Shader.MakeLinearGradient(
     { x: g.width * 0.15, y: 0 },
@@ -88,9 +88,9 @@ export function sourceShader(source: Source, g: Geometry, image: SkImage | null)
 }
 
 /**
- * Cadrage « couvrir » : l'image remplit toujours l'écran, quels que soient le
- * zoom et le décalage. Le décalage est borné pour qu'aucun bord ne rentre dans
- * le cadre — ce qui laisserait un trou sous la découpe.
+ * Cover framing: the image always fills the screen, whatever the zoom and
+ * offset. The offset is clamped so no edge enters the frame, which would leave
+ * a hole under the cutout.
  */
 export function coverRect(
   iw: number,
@@ -110,7 +110,7 @@ export function coverRect(
   return { x: (W - w) / 2 + dx, y: (H - h) / 2 + dy, w, h };
 }
 
-// ── Masques ─────────────────────────────────────────────────────────────────
+// -- Masks -------------------------------------------------------------------
 
 function black() {
   const p = Skia.Paint();
@@ -131,8 +131,8 @@ function drawMask(canvas: SkCanvas, mask: Mask, g: Geometry, source: SkShader) {
 }
 
 /**
- * 01 · Bandeau plein. Les coins hauts sont arrondis eux aussi, mais placés
- * au-dessus du bord de l'écran : seuls les coins bas se voient.
+ * 01, solid bar. The top corners are rounded too, but placed above the screen
+ * edge, so only the bottom ones are visible.
  */
 function drawBar(canvas: SkCanvas, height: number, radius: number, g: Geometry) {
   const r = Math.max(0, Math.min(radius, height / 2));
@@ -141,8 +141,9 @@ function drawBar(canvas: SkCanvas, height: number, radius: number, g: Geometry) 
 }
 
 /**
- * 11 · Trame dégressive. La géométrie ne part pas du haut de l'écran mais de la
- * découpe : la première bande est forcée à la contenir, tout le reste en dérive.
+ * 11, decaying stripes. The geometry does not start at the top of the screen
+ * but at the cutout: the first band is forced to contain it and everything else
+ * follows from there.
  */
 function drawStripes(
   canvas: SkCanvas,
@@ -182,15 +183,15 @@ function drawStripes(
   }
 }
 
-/** 03 · Fondu dithéré. Voir `shaders.ts` pour le pourquoi du shader. */
+/** 03, dithered fade. See `shaders.ts` for why it needs a shader. */
 function drawFade(
   canvas: SkCanvas,
   mask: { solidEnd: number; fadeEnd: number; curve: 0 | 1 | 2 },
   g: Geometry,
   source: SkShader
 ) {
-  // Le noir absolu au-dessus de `solidEnd` est peint séparément : le shader ne
-  // traite que la transition, et cette bande ne doit jamais être dithérée.
+  // Absolute black above `solidEnd` is painted separately: the shader only
+  // handles the transition, and this band must never be dithered.
   canvas.drawRect(Skia.XYWHRect(0, 0, g.width, mask.solidEnd), black());
 
   const span = Math.max(0, mask.fadeEnd - mask.solidEnd);
@@ -199,8 +200,8 @@ function drawFade(
   }
 
   if (!fadeEffect) {
-    // Repli sans shader : dégradé Skia standard. Il fera du banding, mais mieux
-    // vaut un fondu imparfait qu'un écran cassé.
+    // Fallback without a shader: a plain Skia gradient. It will band, but a
+    // flawed fade beats a broken screen.
     const p = Skia.Paint();
     p.setShader(
       Skia.Shader.MakeLinearGradient(

@@ -11,7 +11,7 @@ import { T } from "./theme";
 const SUPPORT_EMAIL = "apps+hide-the-notch@moox.io";
 const WEBSITE = "https://moox.io/apps/hide-the-notch";
 
-// ── Source ──────────────────────────────────────────────────────────────────
+// -- Source ------------------------------------------------------------------
 
 export function SourceSheet({
   visible,
@@ -29,12 +29,12 @@ export function SourceSheet({
   return (
     <Sheet visible={visible} onClose={onClose} title="Source">
       <SheetRow
-        label="Choisir une photo"
-        sub="Pincer pour recadrer une fois importée"
+        label="Choose a photo"
+        sub="Pinch to reframe once imported"
         primary
         onPress={onPickPhoto}
       />
-      <SheetLabel>Dégradés</SheetLabel>
+      <SheetLabel>Gradients</SheetLabel>
       {PALETTES.map((p) => (
         <SheetRow
           key={p.id}
@@ -47,7 +47,7 @@ export function SourceSheet({
   );
 }
 
-// ── Export ──────────────────────────────────────────────────────────────────
+// -- Export ------------------------------------------------------------------
 
 export function ExportSheet({
   visible,
@@ -70,24 +70,24 @@ export function ExportSheet({
   detectedLabel: string;
   busy: boolean;
 }) {
-  const px = `${Math.round(target.width * target.scale)} × ${Math.round(
+  const px = `${Math.round(target.width * target.scale)} x ${Math.round(
     target.height * target.scale
   )}`;
 
   return (
-    <Sheet visible={visible} onClose={onClose} title="Enregistrer">
+    <Sheet visible={visible} onClose={onClose} title="Save">
       <SheetRow
-        label={busy ? "Rendu en cours…" : "Enregistrer dans Photos"}
-        sub={`PNG ${px} · résolution native`}
+        label={busy ? "Rendering…" : "Save to Photos"}
+        sub={`PNG ${px}, native resolution`}
         primary
         onPress={busy ? undefined : onSave}
       />
-      <SheetRow label="Partager" onPress={busy ? undefined : onShare} />
+      <SheetRow label="Share" onPress={busy ? undefined : onShare} />
 
       <SheetLabel>Format</SheetLabel>
       <ScrollView style={styles.targets} contentContainerStyle={styles.targetsInner}>
         <SheetRow
-          label="Cet appareil"
+          label="This device"
           sub={detectedLabel}
           right={targetId === "auto" ? "✓" : undefined}
           onPress={() => onPickTarget("auto")}
@@ -104,14 +104,14 @@ export function ExportSheet({
       </ScrollView>
 
       <Text style={styles.hint}>
-        Une fois la photo enregistrée : Réglages ▸ Fond d'écran. Ne recadrez pas, et laissez le zoom
-        de perspective désactivé — c'est ce qui décale le masque.
+        Once saved: Settings, then Wallpaper. Do not crop, and leave perspective zoom off. That is
+        what shifts the mask.
       </Text>
     </Sheet>
   );
 }
 
-// ── Support (secouer) ───────────────────────────────────────────────────────
+// -- Support (shake) ---------------------------------------------------------
 
 export function SupportSheet({
   visible,
@@ -127,25 +127,25 @@ export function SupportSheet({
       Application.nativeBuildVersion ?? "?"
     })`,
     `${Platform.OS} ${Platform.Version}`,
-    `${geometry.label} · ${geometry.width}×${geometry.height}@${geometry.scale}x`,
-    `découpe ${geometry.kind}${geometry.estimated ? " (déduite)" : ""} · insets ${geometry.insetTop}/${geometry.insetBottom}`,
+    `${geometry.label}, ${geometry.width}x${geometry.height}@${geometry.scale}x`,
+    `cutout ${geometry.kind}${geometry.estimated ? " (inferred)" : ""}, insets ${geometry.insetTop}/${geometry.insetBottom}`,
   ].join("\n");
 
   const mailto =
     `mailto:${SUPPORT_EMAIL}` +
-    `?subject=${encodeURIComponent("Hide The Notch — support")}` +
+    `?subject=${encodeURIComponent("Hide The Notch, support")}` +
     `&body=${encodeURIComponent(`\n\n---\n${diagnostics}\n`)}`;
 
   return (
-    <Sheet visible={visible} onClose={onClose} title="Un souci ?">
+    <Sheet visible={visible} onClose={onClose} title="Something wrong?">
       <SheetRow
-        label="Écrire au support"
+        label="Email support"
         sub={SUPPORT_EMAIL}
         primary
         onPress={() => void Linking.openURL(mailto)}
       />
-      <SheetRow label="Site de l'app" sub={WEBSITE} onPress={() => void Linking.openURL(WEBSITE)} />
-      <SheetLabel>Ce qui sera joint</SheetLabel>
+      <SheetRow label="App website" sub={WEBSITE} onPress={() => void Linking.openURL(WEBSITE)} />
+      <SheetLabel>What will be attached</SheetLabel>
       <View style={styles.diagBox}>
         <Text style={styles.diag}>{diagnostics}</Text>
       </View>

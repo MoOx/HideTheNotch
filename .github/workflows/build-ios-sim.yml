@@ -1,13 +1,12 @@
-name: Build iOS simulateur
+name: iOS simulator build
 
-# Build pour le simulateur iOS, sans signature donc sans compte Apple. À
-# télécharger depuis l'onglet Actions et glisser sur un simulateur ouvert.
-# Un build installable sur un vrai iPhone demande, lui, le programme
-# développeur Apple — voir README.md.
+# Build for the iOS simulator, unsigned and therefore without an Apple account.
+# Download it from the Actions tab and drop it onto a running simulator. A build
+# installable on a real iPhone needs the Apple Developer Program, see README.md.
 on:
   workflow_dispatch:
-  # `workflow_dispatch` n'est déclenchable que depuis la branche par défaut.
-  # En attendant la fusion, un marqueur dans le message de commit suffit.
+  # workflow_dispatch can only be triggered from the default branch. Until this
+  # is merged, a marker in the commit message does the job.
   push:
 
 jobs:
@@ -26,15 +25,15 @@ jobs:
 
       - run: npm ci
 
-      - name: Générer le projet natif
+      - name: Generate the native project
         run: npx expo prebuild --platform ios --no-install
 
       - name: CocoaPods
         run: npx pod-install
 
-      # Le nom du projet est dérivé du nom de l'app : on le lit plutôt que de
-      # le coder en dur, pour ne pas casser à chaque renommage.
-      - name: Compiler
+      # The project name derives from the app name, so read it rather than
+      # hardcoding it, to avoid breaking on every rename.
+      - name: Build
         run: |
           set -eo pipefail
           WORKSPACE=$(ls -d ios/*.xcworkspace | head -1)
@@ -49,14 +48,14 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
 
-      - name: Empaqueter le .app
+      - name: Package the .app
         run: |
           set -eo pipefail
           APP=$(ls -d build/Build/Products/Release-iphonesimulator/*.app | head -1)
           cd "$(dirname "$APP")"
           zip -qry "$GITHUB_WORKSPACE/simulator-app.zip" "$(basename "$APP")"
 
-      - name: Nom de l'artefact
+      - name: Artifact name
         id: name
         run: echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 

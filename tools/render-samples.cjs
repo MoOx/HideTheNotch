@@ -1,8 +1,8 @@
 /**
- * Exécute le VRAI code de rendu de l'app (src/render/draw.ts, shader compris)
- * contre CanvasKit, en Node, et écrit de vrais PNG. Rien n'est réimplémenté :
- * les modules transpilés sont chargés tels quels, seul le module natif
- * `@shopify/react-native-skia` est remplacé par son implémentation web.
+ * Runs the app's REAL rendering code (src/render/draw.ts, shader included)
+ * against CanvasKit, in Node, and writes real PNGs. Nothing is reimplemented:
+ * the transpiled modules are loaded as they are, only the native
+ * `@shopify/react-native-skia` import is swapped for its web implementation.
  */
 const path = require("path");
 const fs = require("fs");
@@ -25,9 +25,8 @@ const { JsiSkApi } = require(path.join(
 
   const Skia = JsiSkApi(CanvasKit);
 
-  // L'app importe `Skia`, `TileMode`, `ImageFormat` depuis le paquet natif.
-  // Les énumérations de RN Skia sont numériques et traduites côté web ; il faut
-  // les prendre dans le paquet, pas dans CanvasKit.
+  // RN Skia enums are numeric and translated on the web side, so they have to
+  // come from the package rather than from CanvasKit.
   const types = require(path.join(
     APP,
     "node_modules/@shopify/react-native-skia/lib/commonjs/skia/types"
@@ -45,11 +44,11 @@ const { JsiSkApi } = require(path.join(
   const { defaultMask } = require(path.join(HARNESS, "recipe/defaults.js"));
   const { ISLAND, NOTCH_WIDE } = require(path.join(HARNESS, "geometry/devices.js"));
 
-  console.log("shader de fondu compilé :", fadeEffect ? "oui" : "NON");
+  console.log("fade shader compiled:", fadeEffect ? "oui" : "NON");
 
   const devices = {
     island: {
-      label: "Dynamic Island · 393×852",
+      label: "Dynamic Island, 393x852",
       kind: "island",
       width: 393,
       height: 852,
@@ -60,7 +59,7 @@ const { JsiSkApi } = require(path.join(
       estimated: false,
     },
     notch: {
-      label: "Encoche · 390×844",
+      label: "Notch, 390x844",
       kind: "notch",
       width: 390,
       height: 844,
@@ -77,25 +76,25 @@ const { JsiSkApi } = require(path.join(
   const jobs = [];
   for (const [devName, g] of Object.entries(devices)) {
     for (const family of ["bar", "stripes", "fade"]) {
-      jobs.push({ devName, g, family, mask: defaultMask(family, g), palette: "aurore" });
+      jobs.push({ devName, g, family, mask: defaultMask(family, g), palette: "aurora" });
     }
   }
-  // Quelques variantes pour juger les réglages
+  // A few variants, to judge the settings
   jobs.push({
     devName: "island", g: devices.island, family: "stripes", tag: "points",
-    mask: { type: "stripes", variant: "dots", period: 24, decay: 0.5 }, palette: "braise",
+    mask: { type: "stripes", variant: "dots", period: 24, decay: 0.5 }, palette: "ember",
   });
   jobs.push({
     devName: "island", g: devices.island, family: "stripes", tag: "grille",
-    mask: { type: "stripes", variant: "grid", period: 28, decay: 0.35 }, palette: "mousse",
+    mask: { type: "stripes", variant: "grid", period: 28, decay: 0.35 }, palette: "moss",
   });
   jobs.push({
     devName: "island", g: devices.island, family: "fade", tag: "long-lineaire",
-    mask: { type: "fade", solidEnd: 48, fadeEnd: 320, curve: 0 }, palette: "brume",
+    mask: { type: "fade", solidEnd: 48, fadeEnd: 320, curve: 0 }, palette: "haze",
   });
   jobs.push({
     devName: "island", g: devices.island, family: "bar", tag: "haut-rayon0",
-    mask: { type: "bar", height: 120, radius: 0 }, palette: "encre",
+    mask: { type: "bar", height: 120, radius: 0 }, palette: "ink",
   });
 
   for (const job of jobs) {
@@ -104,7 +103,7 @@ const { JsiSkApi } = require(path.join(
     const hPx = Math.round(g.height * g.scale);
 
     const surface = Skia.Surface.Make(wPx, hPx);
-    if (!surface) throw new Error("pas de surface");
+    if (!surface) throw new Error("no surface");
     const canvas = surface.getCanvas();
     canvas.clear(Skia.Color("#000000"));
     canvas.scale(g.scale, g.scale);
@@ -120,9 +119,9 @@ const { JsiSkApi } = require(path.join(
     const bytes = img.encodeToBytes(shim.ImageFormat.PNG, 100);
     const name = `${job.devName}-${job.family}${job.tag ? "-" + job.tag : ""}.png`;
     fs.writeFileSync(path.join(OUT, name), Buffer.from(bytes));
-    console.log(`${name.padEnd(34)} ${wPx}×${hPx}  ${(bytes.length / 1024).toFixed(0)} Ko`);
+    console.log(`${name.padEnd(34)} ${wPx}x${hPx}  ${(bytes.length / 1024).toFixed(0)} kB`);
   }
 })().catch((e) => {
-  console.error("ÉCHEC :", e);
+  console.error("FAILED:", e);
   process.exit(1);
 });

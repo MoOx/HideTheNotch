@@ -1,10 +1,10 @@
 /**
- * Vérifie sur les pixels réels les deux propriétés dont dépend toute l'app :
+ * Checks, on real pixels, the two properties the whole app rests on:
  *
- *  1. La découpe est couverte par du noir ABSOLU (0,0,0). Un « presque noir »
- *     se voit sur OLED en pièce sombre.
- *  2. Le fondu ne fait pas de banding : sur une descente de 8 bits, une valeur
- *     ne doit jamais rester constante sur une longue plage de lignes.
+ *  1. The cutout is covered by ABSOLUTE black (0,0,0). An "almost black" shows
+ *     on OLED in a dark room.
+ *  2. The fade does not band: over an 8 bit ramp, a value must never stay
+ *     constant across a long run of rows.
  */
 const path = require("path");
 const Module = require("module");
@@ -38,7 +38,7 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
       label: "", estimated: false,
       cutout: { x: (393 - ISLAND.w) / 2, y: ISLAND.y, w: ISLAND.w, h: ISLAND.h, r: ISLAND.r },
     },
-    Encoche: {
+    Notch: {
       kind: "notch", width: 390, height: 844, scale: 3, insetTop: 47, insetBottom: 34,
       label: "", estimated: false,
       cutout: { x: (390 - NOTCH_WIDE.w) / 2, y: 0, w: NOTCH_WIDE.w, h: NOTCH_WIDE.h, r: NOTCH_WIDE.r },
@@ -68,13 +68,13 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
     return { px, wPx, hPx };
   }
 
-  // ── 1. Noir absolu sur la découpe ─────────────────────────────────────────
-  console.log("\n── Couverture de la découpe (noir absolu attendu) ──");
+  // -- 1. Absolute black over the cutout -------------------------------------
+  console.log("\n-- Cutout coverage (absolute black expected) --");
   for (const [devName, g] of Object.entries(devices)) {
     for (const family of ["bar", "stripes", "fade"]) {
-      const { px, wPx } = render(g, defaultMask(family, g), "braise");
+      const { px, wPx } = render(g, defaultMask(family, g), "ember");
       const c = g.cutout;
-      // La marge de 2 pt évite d'échantillonner l'antialiasing du bord.
+      // The 2 pt margin avoids sampling the antialiased edge.
       const x0 = Math.ceil((c.x + 2) * g.scale);
       const x1 = Math.floor((c.x + c.w - 2) * g.scale);
       const y0 = Math.ceil((c.y + 2) * g.scale);
@@ -93,28 +93,28 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
       const ok = worst === 0;
       if (!ok) failures += 1;
       console.log(
-        `  ${ok ? "✓" : "✗"} ${devName.padEnd(15)} ${family.padEnd(8)} ` +
-          `canal max = ${worst}${bad ? `  (${bad} pixels non noirs)` : ""}`
+        `  ${ok ? "ok  " : "FAIL"} ${devName.padEnd(15)} ${family.padEnd(8)} ` +
+          `max channel = ${worst}${bad ? `  (${bad} non black pixels)` : ""}`
       );
     }
   }
 
-  // ── 2. Dithering du fondu ─────────────────────────────────────────────────
+  // -- 2. Fade dithering -----------------------------------------------------
   //
-  // Mesurer la plus longue plage verticale à valeur constante ne dit rien :
-  // en fin de fondu la courbe rejoint la source, sa pente tend vers zéro, et
-  // une plage plate y est normale — il n'y a aucune marche à masquer.
+  // Measuring the longest vertical run of a constant value says nothing: at the
+  // end of the fade the curve meets the source, its slope tends to zero, and a
+  // flat run there is normal since there is no step to mask.
   //
-  // Ce qui compte est ailleurs :
-  //   a) le bruit atteint bien la sortie (des pixels voisins sur une même ligne
-  //      doivent différer ; sans dithering ils seraient tous identiques) ;
-  //   b) aucune plage plate dans la partie *raide* du fondu, où les marches de
-  //      quantification se verraient.
-  console.log("\n── Fondu dithéré ──");
+  // What matters is elsewhere:
+  //   a) the noise reaches the output (neighbouring pixels on the same row must
+  //      differ; without dithering they would all be identical);
+  //   b) no flat run in the *steep* part of the fade, where quantisation steps
+  //      would be visible.
+  console.log("\n-- Dithered fade --");
   const g = devices["Dynamic Island"];
   const solidEnd = 52;
   const fadeEnd = 420;
-  const { px, wPx } = render(g, { type: "fade", solidEnd, fadeEnd, curve: 0 }, "brume");
+  const { px, wPx } = render(g, { type: "fade", solidEnd, fadeEnd, curve: 0 }, "haze");
   const x = Math.floor(wPx / 2);
 
   let differing = 0;
@@ -128,15 +128,15 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
     }
   }
   const activity = (100 * differing) / pairs;
-  console.log(`  bruit actif sur ${activity.toFixed(1)} % des paires horizontales (0 % = pas de dithering)`);
+  console.log(`  noise active on ${activity.toFixed(1)} % of horizontal pairs (0 % = no dithering)`);
   if (activity < 15) {
-    console.log("  ✗ dithering absent ou trop faible");
+    console.log("  FAIL dithering missing or too weak");
     failures += 1;
   } else {
-    console.log("  ✓ dithering présent");
+    console.log("  ok   dithering present");
   }
 
-  // Partie raide : les 60 premiers pour cent du fondu.
+  // Steep part: the first 60 percent of the fade.
   const steepStart = Math.floor((solidEnd + 4) * g.scale);
   const steepEnd = Math.floor((solidEnd + 0.6 * (fadeEnd - solidEnd)) * g.scale);
   let run = 0;
@@ -152,17 +152,17 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
       prev = v;
     }
   }
-  console.log(`  plus longue plage plate dans la partie raide : ${longest} lignes`);
+  console.log(`  longest flat run in the steep part: ${longest} rows`);
   if (longest > 16) {
-    console.log("  ✗ marche visible probable");
+    console.log("  FAIL visible step likely");
     failures += 1;
   } else {
-    console.log("  ✓ aucune marche significative");
+    console.log("  ok   no significant step");
   }
 
-  console.log(failures === 0 ? "\nTout est vert.\n" : `\n${failures} échec(s).\n`);
+  console.log(failures === 0 ? "\nAll green.\n" : `\n${failures} failure(s).\n`);
   process.exit(failures === 0 ? 0 : 1);
 })().catch((e) => {
-  console.error("ÉCHEC :", e);
+  console.error("FAILED:", e);
   process.exit(1);
 });

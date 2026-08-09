@@ -1,55 +1,55 @@
 /**
- * Socle B — la recette.
+ * Foundation B, the recipe.
  *
- * Un fond d'écran est décrit par cet objet, et rien d'autre. Le même objet est
- * rendu à l'écran et hors écran en pixels natifs : c'est ce qui garantit que ce
- * qu'on voit est ce qu'on enregistre. Il est sérialisable, donc partageable et
- * régénérable plus tard, pour un autre appareil, à n'importe quelle résolution.
+ * A wallpaper is described by this object and nothing else. The same object is
+ * rendered on screen and offscreen at native pixel resolution, which is what
+ * guarantees that what you see is what you save. It is serialisable, so it can
+ * be shared and regenerated later, for another device, at any resolution.
  */
 
-export type GradientPresetId = "aurore" | "brume" | "encre" | "braise" | "mousse";
+export type GradientPresetId = "aurora" | "haze" | "ink" | "ember" | "moss";
 
 export type Source =
   | { type: "gradient"; preset: GradientPresetId; seed: number }
   | {
       type: "photo";
       uri: string;
-      /** Décalage du cadrage, en points. */
+      /** Framing offset, in points. */
       dx: number;
       dy: number;
-      /** Facteur de zoom, 1 = l'image couvre l'écran au plus juste. */
+      /** Zoom factor, 1 means the image just covers the screen. */
       zoom: number;
     };
 
 export type MaskFamily = "bar" | "stripes" | "fade";
 
-/** 01 · Bandeau plein. */
+/** 01, solid bar. */
 export type BarMask = {
   type: "bar";
-  /** Hauteur du bandeau, en points, mesurée depuis le bord haut. */
+  /** Bar height, in points, measured from the top edge. */
   height: number;
-  /** Rayon des coins bas, en points. */
+  /** Radius of the bottom corners, in points. */
   radius: number;
 };
 
-/** 11 · Trame dégressive. */
+/** 11, decaying stripes. */
 export type StripesMask = {
   type: "stripes";
   variant: "lines" | "grid" | "dots";
-  /** Hauteur de la première bande après le bandeau de tête, en points. */
+  /** Height of the first band after the head band, in points. */
   period: number;
-  /** Vitesse de décroissance : 0 = bandes constantes, 1 = disparition rapide. */
+  /** Decay rate: 0 keeps bands constant, 1 makes them vanish quickly. */
   decay: number;
 };
 
-/** 03 · Fondu dithéré. */
+/** 03, dithered fade. */
 export type FadeMask = {
   type: "fade";
-  /** Fin du noir absolu, en points. Ne peut pas remonter au-dessus de la découpe. */
+  /** End of absolute black, in points. Cannot rise above the cutout. */
   solidEnd: number;
-  /** Fin du fondu, en points. */
+  /** End of the fade, in points. */
   fadeEnd: number;
-  /** 0 linéaire · 1 adouci · 2 en S. */
+  /** 0 linear, 1 eased, 2 S curve. */
   curve: 0 | 1 | 2;
 };
 
@@ -63,7 +63,7 @@ export type Recipe = {
 export const FAMILY_ORDER: MaskFamily[] = ["bar", "stripes", "fade"];
 
 export const FAMILY_LABEL: Record<MaskFamily, string> = {
-  bar: "Bandeau",
-  stripes: "Trame",
-  fade: "Fondu",
+  bar: "Bar",
+  stripes: "Stripes",
+  fade: "Fade",
 };

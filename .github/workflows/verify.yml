@@ -1,4 +1,4 @@
-name: Vérification
+name: Verify
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
 
 jobs:
   verify:
-    name: Types, rendu, bundles
+    name: Types, rendering, bundles
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -25,9 +25,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      # Exécute le vrai code de rendu contre CanvasKit et contrôle les pixels :
-      # noir absolu sous la découpe, fondu effectivement dithéré.
-      - name: Vérification du rendu
+      # Runs the real rendering code against CanvasKit and checks the pixels:
+      # absolute black under the cutout, fade actually dithered.
+      - name: Verify the rendering
         run: npm run verify
 
       - name: Bundle iOS
@@ -36,13 +36,13 @@ jobs:
       - name: Bundle Android
         run: npx expo export --platform android --output-dir /tmp/export-android
 
-      # Des images à regarder directement depuis l'onglet Actions, sans rien
-      # installer : c'est le retour visuel le plus court sur une branche.
-      - name: Rendus d'exemple
+      # Images to look at straight from the Actions tab, with nothing to
+      # install: the shortest visual feedback loop on a branch.
+      - name: Sample renders
         run: npm run samples
 
       - uses: actions/upload-artifact@v4
         with:
-          name: rendus
+          name: renders
           path: renders/*.png
           if-no-files-found: error

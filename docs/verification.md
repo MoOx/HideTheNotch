@@ -1,28 +1,31 @@
-# Vérifier le rendu sans appareil
+# Checking the rendering without a device
 
-Le code de rendu (`src/render/draw.ts`, shader compris) est exécuté hors application, contre
-CanvasKit — le Skia compilé en WebAssembly qui est déjà livré comme dépendance de
-`@shopify/react-native-skia`. Rien n'est réimplémenté : les modules sont transpilés tels quels et
-seul l'import `@shopify/react-native-skia` est remplacé par son implémentation web.
+The rendering code (`src/render/draw.ts`, shader included) runs out of the app,
+against CanvasKit, the WebAssembly build of Skia already shipped as a dependency
+of `@shopify/react-native-skia`. Nothing is reimplemented: the modules are
+transpiled as they are, and only the `@shopify/react-native-skia` import is
+swapped for its web implementation.
 
 ```sh
-npm run verify    # contrôles sur les pixels
-npm run samples   # écrit des PNG en résolution native dans .renders/
+npm run verify    # pixel checks
+npm run samples   # writes native resolution PNGs into renders/
 ```
 
-## Ce que `verify` contrôle
+## What `verify` checks
 
-**1. Couverture de la découpe.** Pour les 3 familles × 2 géométries, tous les pixels de la boîte de
-découpe doivent valoir exactement `0,0,0`. C'est la propriété dont dépend l'app entière : sur OLED,
-seul le noir absolu se confond avec la dalle.
+**1. Cutout coverage.** For 3 families across 2 geometries, every pixel of the
+cutout box must be exactly `0,0,0`. This is the property the whole app rests on:
+on OLED, only absolute black merges with the panel.
 
-**2. Dithering du fondu.** Deux mesures, parce que la mesure évidente est trompeuse :
+**2. Fade dithering.** Two measurements, because the obvious one is misleading:
 
-- *le bruit atteint la sortie* — part des paires de pixels horizontalement voisines qui diffèrent.
-  Sans dithering elle serait nulle ; on attend plus de 15 %.
-- *pas de marche dans la partie raide* — plus longue plage verticale à valeur constante sur les
-  60 premiers pour cent du fondu.
+- *the noise reaches the output*, measured as the share of horizontally adjacent
+  pixel pairs that differ. Without dithering it would be zero; we expect more
+  than 15 percent.
+- *no step in the steep part*, measured as the longest vertical run of a
+  constant value over the first 60 percent of the fade.
 
-Mesurer la plus longue plage plate sur **tout** le fondu ne dit rien : en fin de course la courbe
-rejoint la source, sa pente tend vers zéro, et une plage plate y est normale — il n'y a aucune
-marche à masquer. C'est ce faux positif qui a fait croire à un banding lors de la première passe.
+Measuring the longest flat run over the **whole** fade says nothing: near the end
+the curve meets the source, its slope tends to zero, and a flat run there is
+normal since there is no step to mask. That false positive is what suggested
+banding on the first pass.

@@ -1,7 +1,6 @@
 /**
- * L'interface flotte au-dessus du fond d'écran en cours d'édition. Elle est donc
- * toujours sombre et translucide : elle ne doit jamais concurrencer ce qu'elle
- * laisse voir.
+ * The interface floats above the wallpaper being edited. It is therefore always
+ * dark and translucent: it must never compete with what it lets you see.
  */
 export const T = {
   text: "#FFFFFF",

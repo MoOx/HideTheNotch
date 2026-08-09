@@ -5,9 +5,9 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { T } from "./theme";
 
 /**
- * Un curseur qui n'affiche jamais de valeur. Ce qui compte est le résultat à
- * l'écran, pas le nombre — et un nombre invite à chercher « le bon réglage »
- * plutôt qu'à regarder.
+ * A slider that never shows a value. What matters is the result on screen, not
+ * the number, and a number invites hunting for "the right setting" instead of
+ * looking.
  */
 export function MiniSlider({
   value,

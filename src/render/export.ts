@@ -12,15 +12,16 @@ export type ExportResult = {
 };
 
 /**
- * Rend la recette hors écran, à la résolution physique de l'appareil cible.
+ * Renders the recipe offscreen, at the physical resolution of the target
+ * device.
  *
- * C'est la différence de fond avec la v1 de 2017, qui photographiait l'arbre de
- * vues : ici la photo source est échantillonnée à la résolution finale, pas
- * réduite à celle de l'écran avant capture. Et rien n'oblige la cible à être le
- * téléphone qu'on tient — d'où l'export pour un autre appareil.
+ * This is the substantive difference from the 2017 version, which photographed
+ * the view tree: here the source photo is sampled at the final resolution
+ * rather than being shrunk to screen size before capture. And nothing forces
+ * the target to be the phone in your hand, hence exporting for another device.
  *
- * PNG obligatoire : le JPEG produit des artefacts de bloc à la frontière entre
- * le noir et l'image, ce qui fait précisément réapparaître la découpe.
+ * PNG is mandatory: JPEG produces block artefacts at the boundary between the
+ * black and the image, which is precisely what makes the cutout reappear.
  */
 export function renderToFile(ctx: DrawContext): ExportResult {
   const { width, height, scale } = ctx.geometry;
@@ -29,12 +30,12 @@ export function renderToFile(ctx: DrawContext): ExportResult {
 
   const surface = Skia.Surface.MakeOffscreen(wPx, hPx) ?? Skia.Surface.Make(wPx, hPx);
   if (!surface) {
-    throw new Error(`Surface hors écran impossible en ${wPx}×${hPx}`);
+    throw new Error(`Could not create a ${wPx}x${hPx} offscreen surface`);
   }
 
   const canvas = surface.getCanvas();
   canvas.clear(Skia.Color("#000000"));
-  // Le dessin est écrit en points ; on change d'échelle, pas de code.
+  // The drawing is written in points, so we change the scale, not the code.
   canvas.scale(scale, scale);
   drawRecipe(canvas, ctx);
   surface.flush();
@@ -42,7 +43,7 @@ export function renderToFile(ctx: DrawContext): ExportResult {
   const snapshot = surface.makeImageSnapshot();
   const bytes = snapshot.encodeToBytes(ImageFormat.PNG, 100);
   if (!bytes) {
-    throw new Error("Encodage PNG impossible");
+    throw new Error("PNG encoding failed");
   }
 
   const file = new File(Paths.cache, `HideTheNotch-${wPx}x${hPx}-${Date.now()}.png`);

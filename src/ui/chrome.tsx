@@ -31,15 +31,15 @@ export function ActionBar({
       </View>
 
       <Pressable accessibilityRole="button" style={styles.primary} onPress={onExport}>
-        <Text style={styles.primaryLabel}>Enregistrer</Text>
+        <Text style={styles.primaryLabel}>Save</Text>
       </Pressable>
     </Glass>
   );
 }
 
 /**
- * Trois commandes au maximum par famille, toutes en direct. Ce qui ne rentre pas
- * dans trois commandes ne rentre pas dans l'app.
+ * Three controls per family at most, all live. Whatever does not fit in three
+ * controls does not fit in the app.
  */
 export function ControlStrip({
   mask,
@@ -51,7 +51,7 @@ export function ControlStrip({
   return (
     <Glass style={styles.controls} radius={18}>
       {mask.type === "bar" && (
-        <Row label="Rayon">
+        <Row label="Radius">
           <MiniSlider
             value={mask.radius / 30}
             onChange={(v) => onChange({ ...mask, radius: v * 30 })}
@@ -61,38 +61,38 @@ export function ControlStrip({
 
       {mask.type === "stripes" && (
         <>
-          <Row label="Trame">
+          <Row label="Pattern">
             <Segmented
               value={mask.variant}
               onChange={(variant) => onChange({ ...mask, variant })}
               options={[
-                { value: "lines", label: "Rayures" },
-                { value: "grid", label: "Grille" },
-                { value: "dots", label: "Points" },
+                { value: "lines", label: "Lines" },
+                { value: "grid", label: "Grid" },
+                { value: "dots", label: "Dots" },
               ]}
             />
           </Row>
-          <Row label="Pas">
+          <Row label="Spacing">
             <MiniSlider
               value={(mask.period - 8) / 44}
               onChange={(v) => onChange({ ...mask, period: 8 + v * 44 })}
             />
           </Row>
-          <Row label="Décroissance">
+          <Row label="Falloff">
             <MiniSlider value={mask.decay} onChange={(decay) => onChange({ ...mask, decay })} />
           </Row>
         </>
       )}
 
       {mask.type === "fade" && (
-        <Row label="Courbe">
+        <Row label="Curve">
           <Segmented
             value={String(mask.curve) as "0" | "1" | "2"}
             onChange={(v) => onChange({ ...mask, curve: Number(v) as 0 | 1 | 2 })}
             options={[
-              { value: "0", label: "Linéaire" },
-              { value: "1", label: "Adouci" },
-              { value: "2", label: "En S" },
+              { value: "0", label: "Linear" },
+              { value: "1", label: "Eased" },
+              { value: "2", label: "S curve" },
             ]}
           />
         </Row>

@@ -3,10 +3,10 @@ import { ISLAND } from "../geometry/devices";
 import type { Mask, MaskFamily, Recipe } from "./types";
 
 /**
- * Les valeurs par défaut dépendent de l'appareil, et c'est le seul vrai piège de
- * la famille 01 : sur une encoche, un bandeau à ras de la découpe suffit ; sur
- * une Dynamic Island, s'arrêter au bas de l'île laisse une bande de photo de
- * 11 pt coincée au-dessus de la barre d'état. On descend donc à la safe area.
+ * Defaults depend on the device, and that is the one real trap in family 01: on
+ * a notch a bar flush with the cutout is enough, but on a Dynamic Island
+ * stopping at the bottom of the island leaves an 11 pt strip of photo stranded
+ * above the status bar. So we go down to the safe area.
  */
 export function defaultMask(family: MaskFamily, g: Geometry): Mask {
   const floor = cutoutBottom(g);
@@ -16,8 +16,8 @@ export function defaultMask(family: MaskFamily, g: Geometry): Mask {
       return {
         type: "bar",
         height: g.kind === "island" ? Math.max(floor, g.insetTop) : Math.max(floor, 1),
-        // Aligné sur le rayon de l'île : le bandeau se lit alors comme une
-        // extension du matériel plutôt que comme un ajout.
+        // Matched to the island radius, so the bar reads as an extension of the
+        // hardware rather than something added on top.
         radius: g.kind === "none" ? 0 : ISLAND.r,
       };
 
@@ -36,7 +36,7 @@ export function defaultMask(family: MaskFamily, g: Geometry): Mask {
 
 export function defaultRecipe(g: Geometry): Recipe {
   return {
-    source: { type: "gradient", preset: "aurore", seed: 1 },
+    source: { type: "gradient", preset: "aurora", seed: 1 },
     mask: defaultMask("bar", g),
   };
 }

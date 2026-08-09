@@ -8,23 +8,23 @@ import { T } from "./theme";
 const SNAP_TOLERANCE = 7;
 
 type Props = {
-  /** Position courante, en points depuis le haut de l'écran. */
+  /** Current position, in points from the top of the screen. */
   y: number;
   label: string;
   min: number;
   max: number;
-  /** Positions magnétiques, en points. */
+  /** Magnetic positions, in points. */
   snaps?: number[];
   onChange: (y: number) => void;
 };
 
 /**
- * Une poignée tirable posée sur le fond lui-même.
+ * A draggable handle sitting on the wallpaper itself.
  *
- * Elle porte deux choses que ne porte aucun curseur : la contrainte physique
- * — `min` est le bas de la découpe, on ne peut pas remonter au-dessus — et le
- * fait qu'on voit ce qu'on règle, là où on le règle. Quand la poignée bute ou
- * s'accroche, elle vibre : la règle s'apprend au doigt, sans écran d'aide.
+ * It carries two things no slider can: the physical constraint (`min` is the
+ * bottom of the cutout, you cannot go above it), and the fact that you see what
+ * you are adjusting, where you are adjusting it. When the handle hits the floor
+ * or snaps, it vibrates: the rule is learned by touch, without a help screen.
  */
 export function DragHandle({ y, label, min, max, snaps = [], onChange }: Props) {
   const startY = useRef(y);
@@ -34,8 +34,8 @@ export function DragHandle({ y, label, min, max, snaps = [], onChange }: Props) 
   const gesture = useMemo(
     () =>
       Gesture.Pan()
-        // Tout se passe sur le fil JS : le dessin d'un masque est trivial, et
-        // ça évite d'avoir à faire vivre la recette dans des worklets.
+        // Everything runs on the JS thread: drawing a mask is trivial, and this
+        // avoids having to keep the recipe alive inside worklets.
         .runOnJS(true)
         .onBegin(() => {
           startY.current = y;

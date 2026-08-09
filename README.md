@@ -1,276 +1,217 @@
 # Hide The Notch
 
-Réécriture Expo / Skia de l'app de 2017 (le code d'origine reste dans l'historique git). Trois familles de masquage pour l'instant :
-**bandeau plein**, **trame dégressive**, **fondu dithéré**.
+An Expo and Skia rewrite of the 2017 app (the original code stays in git
+history). Three mask families so far: **solid bar**, **decaying stripes**,
+**dithered fade**.
 
-Expo SDK 57 · React Native 0.86 · React 19.2 · `@shopify/react-native-skia` 2.6
-
----
-
-## Ce qui change par rapport à la v1
-
-La v1 photographiait l'arbre de vues React Native avec `react-native-view-shot` : la photo source
-était réduite à la taille de l'écran **avant** d'être capturée, et l'export était donc plafonné à la
-résolution de l'écran. Ici, une **recette** est décrite en JSON et rendue par une seule fonction,
-toujours en points ; l'aperçu la joue à l'échelle 1, l'export applique `canvas.scale(densité)` avant
-de l'appeler.
-
-```
-src/recipe/types.ts     la recette (source + masque), sérialisable
-src/render/draw.ts      drawRecipe(canvas, ctx) — l'unique chemin de dessin
-src/render/export.ts    surface hors écran en pixels natifs → PNG → pellicule
-```
-
-La parité aperçu / export est donc **structurelle** et non surveillée : il n'y a qu'un chemin.
-Corollaire gratuit : rien n'oblige la cible à être le téléphone qu'on tient, d'où le sélecteur
-d'appareil dans la feuille d'enregistrement.
-
-## Les deux propriétés qui font tout tenir
-
-1. **Le noir sous la découpe est absolu.** Sur OLED un pixel noir est éteint, donc optiquement
-   identique à la dalle autour de la caméra. `#010101` se voit en pièce sombre. L'export est en PNG :
-   le JPEG produit des artefacts de bloc à la frontière noir / image, ce qui fait réapparaître la
-   découpe.
-
-2. **Le fondu est dithéré, et au bon endroit.** Le shader ne pose pas du noir semi-transparent
-   par-dessus la source : il **reçoit la source** en entrée (`uniform shader uSrc`) et calcule la
-   couleur finale. Dithérer l'alpha ne dithère pas la sortie — le bruit y est atténué par la
-   luminance de la source, d'autant plus qu'elle est sombre, et c'est exactement là que le banding se
-   voit. Le bruit est donc appliqué sur la couleur finale, à ±1 LSB, en densité triangulaire, calculé
-   en pixels de sortie. Le fondu lui-même est calculé en lumière linéaire.
-
-Les deux sont vérifiées sur les pixels réels — voir plus bas.
-
-## Géométrie
-
-Tout ce qui est mesurable est mesuré (taille de fenêtre, densité, safe area). Seule la boîte de la
-découpe est déduite, parce qu'iOS ne la publie pas :
-
-| Inset haut | Découpe déduite | Fiabilité |
-| ---------- | --------------- | --------- |
-| ≥ 55 pt | Dynamic Island, 125 × 37,33 pt à 11 pt du bord | sûre — l'île a la même taille physique du 14 Pro au 17 Pro Max |
-| 40–55 pt | Encoche, 209 × 30 pt collée au bord | approchée — l'encoche du 13/14 est plus étroite (161 pt) |
-| < 40 pt | aucune | sûre |
-
-**Sur Android, rien n'est déduit** : `insets.top` y est la hauteur de la barre d'état, qui n'a aucun
-rapport avec la découpe. L'utilisateur choisit la cible à la main. Le correctif propre est un petit
-module natif lisant `WindowInsets.getDisplayCutout().getBoundingRects()`, qui donne les rectangles
-**exacts** — mieux que sur iOS, où il faut les inférer.
+Expo SDK 57, React Native 0.86, React 19.2, `@shopify/react-native-skia` 2.6
 
 ---
 
-## Développement
+## What changed from v1
+
+The 2017 version photographed the React Native view tree with
+`react-native-view-shot`: the source photo was shrunk to screen size **before**
+being captured, so exports were capped at screen resolution. Here a **recipe** is
+described as JSON and drawn by a single function, always in points; the preview
+plays it at scale 1, the export applies `canvas.scale(density)` before calling
+it.
+
+```
+src/recipe/types.ts     the recipe (source and mask), serialisable
+src/render/draw.ts      drawRecipe(canvas, ctx), the single drawing path
+src/render/export.ts    offscreen surface at native pixels, PNG, camera roll
+```
+
+Preview and export parity is therefore **structural** rather than watched: there
+is only one path. A free consequence: nothing forces the target to be the phone
+in your hand, hence the device picker in the save sheet.
+
+## The two properties everything rests on
+
+1. **Black under the cutout is absolute.** On OLED a black pixel is an off
+   pixel, so it is optically identical to the panel around the camera.
+   `#010101` shows in a dark room. Exports are PNG: JPEG produces block
+   artefacts at the black to image boundary, which makes the cutout reappear.
+
+2. **The fade is dithered, in the right place.** The shader does not composite
+   translucent black over the source: it **takes the source as an input**
+   (`uniform shader uSrc`) and computes the final colour. Dithering the alpha
+   does not dither the output, because the noise is attenuated by the luminance
+   of the source, the more so the darker it is, which is exactly where banding
+   shows. So the noise is applied to the final colour, at plus or minus 1 LSB,
+   with a triangular probability density, computed in output pixels. The fade
+   itself is computed in linear light.
+
+Both are checked on real pixels, see below.
+
+## Geometry
+
+Everything measurable is measured (window size, density, safe areas). Only the
+cutout box is inferred, because iOS does not publish it:
+
+| Top inset | Inferred cutout | Reliability |
+| --------- | --------------- | ----------- |
+| 59 pt or more | Dynamic Island, 125 x 37.33 pt at 11 pt from the edge | safe, the island is the same physical size from the 14 Pro to the 17 Pro Max |
+| 40 to 55 pt | Notch, 209 x 30 pt flush with the edge | approximate, the 13 and 14 notch is narrower (161 pt) |
+| under 40 pt | none | safe |
+
+**On Android nothing is inferred**: `insets.top` there is the status bar height,
+which has nothing to do with the cutout. The user picks the target by hand. The
+proper fix is a small native module reading
+`WindowInsets.getDisplayCutout().getBoundingRects()`, which gives the **exact**
+rectangles, better than iOS where they have to be guessed.
+
+---
+
+## Development
 
 ```sh
 npm install
-npx expo start          # nécessite un development build, pas Expo Go (cf. plus bas)
-npx tsc --noEmit        # typecheck
-npx expo export --platform ios       # vérifie que le bundle se construit
+npx expo start          # needs a development build, not Expo Go, see below
+npm run typecheck
+npm run verify          # pixel checks, no device needed
+npm run samples         # writes native resolution PNGs into renders/
 ```
 
-### Vérification du rendu, sans appareil
+### Checking the rendering without a device
 
-Le code de rendu est exécuté hors application, contre CanvasKit (le Skia WASM livré avec
-`react-native-skia`), ce qui produit de vrais PNG et permet de contrôler les pixels. Voir
-`docs/verification.md` pour le harnais. Les deux contrôles :
+The rendering code runs out of the app, against CanvasKit (the Skia WASM build
+shipped with `react-native-skia`), which produces real PNGs and allows pixel
+level assertions. See [`docs/verification.md`](docs/verification.md). The two
+checks:
 
-- la découpe est couverte par du `0,0,0` exact, pour les 3 familles × 2 géométries ;
-- le fondu est bien dithéré (part des paires de pixels voisins qui diffèrent) et sans plage plate
-  dans sa partie raide.
+- the cutout is covered by exact `0,0,0`, for 3 families across 2 geometries;
+- the fade is dithered (share of neighbouring pixels that differ) with no flat
+  run in its steep part.
 
 ---
 
-## Tester l'app sans rien installer sur sa machine
+## Building without EAS
 
-### Android — gratuit et immédiat
+The repository is public, so standard GitHub runners are free and unmetered,
+**macOS included**. The EAS quotas (15 builds per OS per month on the free plan)
+stop being a constraint: you can never use it at all.
 
-```sh
-npx eas login
-npx eas init                              # crée le projet, écrit le projectId
-npx eas build -p android --profile preview
-```
+| Workflow | Runner | Trigger | Result |
+| -------- | ------ | ------- | ------ |
+| `verify.yml` | ubuntu | every push | types, pixel checks, bundles, sample PNGs as an artifact |
+| `build-android.yml` | ubuntu | manual or `[build-apk]` | installable APK, about 10 min |
+| `build-ios-sim.yml` | macos | manual or `[build-ios]` | unsigned simulator `.app` |
+| `ios-testflight.yml` | macos | manual, `v*` tag | signed build shipped to TestFlight, about 8 min |
 
-EAS compile dans le cloud et renvoie une page d'installation avec QR code. Le profil `preview`
-produit un **APK** en distribution interne : il s'installe directement, sans compte Google Play,
-sans passer par le Store. C'est le chemin le plus court pour voir l'app tourner.
+`workflow_dispatch` can only be triggered from the default branch, which is why
+the build workflows also accept a commit message marker. Drop the markers once
+this is on `main`.
 
-### iOS — il faut le programme développeur Apple (99 $/an)
+### A note on local Android builds
 
-Un build installable sur un iPhone — ad hoc *ou* TestFlight — exige un certificat de distribution et
-un profil de provisionnement, que seul un compte payant peut émettre. Un identifiant Apple gratuit ne
-donne qu'un certificat de développement personnel valable 7 jours, utilisable uniquement depuis Xcode
-sur un appareil relié. **Il n'existe pas de chemin gratuit et sans Mac pour iOS.**
+The workflow passes `-x lintVitalRelease` to Gradle. AGP runs `lintVital` on
+release builds, including inside dependency modules, and it fails on
+`react-native-skia` and `expo-modules-core` for reasons unrelated to this app.
+Turning it off through the DSL does not work: AGP reads `checkReleaseBuilds`
+during its own configuration, before an Expo config plugin can write to it,
+hence excluding the task rather than configuring it.
 
-Avec le compte payant, deux options :
-
-```sh
-npx eas device:create                     # enregistre l'UDID de l'iPhone
-npx eas build -p ios --profile preview    # ad hoc, installable par lien / QR code
-```
-Limite : 100 appareils par an et par type, chaque UDID à enregistrer à la main.
-
-```sh
-npx eas build -p ios --profile production
-npx eas submit -p ios                     # → TestFlight
-```
-Pas d'UDID à gérer, mais chaque build passe la revue automatique d'Apple.
-
-**Si vous avez un Mac**, il existe un raccourci sans aucun compte ni signature :
-
-```sh
-npx eas build -p ios --profile preview-sim
-```
-produit un build pour le simulateur iOS, à glisser-déposer dessus. Le simulateur reproduit la
-géométrie réelle de la Dynamic Island, donc le test visuel est valable.
-
-### Pourquoi pas Expo Go
-
-Expo Go embarque un jeu fixe de modules natifs. `@shopify/react-native-skia`, `expo-glass-effect` et
-`expo-media-library` n'en font pas partie — donc pas de QR code Expo Go pour cette app. Le
-remplaçant est le *development build* : votre propre Expo Go, construit une fois par EAS, dans lequel
-le JS se recharge ensuite normalement.
-
-```sh
-npx eas build -p android --profile development   # ou -p ios
-npx expo start --dev-client
-```
-
-### Ensuite : essayer une branche sans reconstruire
-
-Une fois **un** build installé, les changements purement JS se poussent en OTA :
-
-```sh
-npx eas update --branch ma-branche --message "essai du fondu"
-```
-
-`app.json` utilise `runtimeVersion: { policy: "fingerprint" }` : l'empreinte change dès qu'une
-dépendance native bouge, et une mise à jour n'est alors plus délivrée aux builds incompatibles. Une
-branche qui ajoute un module natif exige donc un nouveau build — mais le système ne livrera jamais
-silencieusement un bundle qui planterait.
-
-> `eas init` écrit `extra.eas.projectId` et `updates.url` dans `app.json`. Ces valeurs sont liées à
-> votre compte et ne sont pas versionnées ici.
-
----
-
-## Tester les différentes découpes
-
-Deux choses distinctes, et une seule demande un émulateur.
-
-**Juger le rendu** — le sélecteur de cible, dans la feuille d'enregistrement, force n'importe quelle
-géométrie sur n'importe quel matériel : Dynamic Island en 393/402/430/440, encoche en 375/390/428,
-poinçon Android centré ou décalé. Aucun émulateur nécessaire.
-
-**Valider la détection** — là, l'émulateur Android sert vraiment. Sur API 28+ :
-
-> Options pour les développeurs ▸ Dessin ▸ *Simuler un écran avec une découpe*
-> → Par défaut · Angle · Double · Poinçon · Haute · Cascade
-
-En ligne de commande, les mêmes variantes sont des overlays système :
-
-```sh
-adb shell cmd overlay list | grep cutout      # les noms exacts selon la version
-adb shell cmd overlay enable com.android.internal.display.cutout.emulation.hole
-```
-
-C'est plus fiable que côté iOS, où le simulateur ne propose que les modèles existants. Et comme
-Android expose les rectangles exacts de la découpe via `DisplayCutout`, la détection y sera à terme
-plus juste que sur iPhone.
-
----
-
-## Reste à faire
-
-- Poser le fond d'écran en un geste : App Intent + raccourci sur iOS, `WallpaperManager.setBitmap()`
-  sur Android. Les deux demandent du code natif.
-- Module natif Android pour lire `DisplayCutout.getBoundingRects()`.
-- Recadrage de la photo au pincement (le modèle le prévoit : `dx`, `dy`, `zoom`).
-- Familles 12 (génératif), 08 (décor), 07 (objet), 09 (camouflage) — cf. `docs/2026-feasibility-and-ui.md`.
-
----
-
-## Construire soi-même, sans EAS
-
-Le dépôt est public : les runners GitHub standard y sont gratuits et non
-décomptés, **macOS compris**. Les quotas EAS (15 builds par OS et par mois sur le
-plan gratuit) cessent donc d'être une contrainte — on peut ne jamais s'en servir.
-
-| Workflow | Runner | Déclencheur | Résultat |
-| -------- | ------ | ----------- | -------- |
-| `verify.yml` | ubuntu | à chaque push | types, contrôles pixels, bundles, et les PNG d'exemple en artefact |
-| `build-android.yml` | ubuntu | manuel ou `[build-apk]` | APK installable (~10 min) |
-| `build-ios-sim.yml` | macos | manuel ou `[build-ios]` | `.app` simulateur, non signé |
-| `ios-testflight.yml` | macos | manuel, tag `v*` | build signé envoyé sur TestFlight (~8 min) |
-
-`workflow_dispatch` n'est déclenchable qu'une fois le fichier sur la branche par
-défaut : c'est pourquoi les deux workflows de build acceptent aussi un marqueur
-dans le message de commit, `[build-apk]` ou `[build-ios]`.
-
-### Une note sur le build Android local
-
-Le workflow passe `-x lintVitalRelease` à Gradle. AGP lance `lintVital` sur les
-builds release, y compris dans les modules des dépendances, et il échoue sur
-`react-native-skia` et `expo-modules-core` pour des raisons étrangères à cette
-app. Le désactiver par le DSL ne fonctionne pas : AGP lit `checkReleaseBuilds`
-pendant sa propre configuration, avant qu'un plugin de config Expo puisse
-l'écrire — d'où l'exclusion de la tâche plutôt qu'un réglage.
-
-En local, il faut donc le même drapeau :
+Locally you need the same flag:
 
 ```sh
 npx expo prebuild --platform android
 cd android && ./gradlew assembleRelease -x lintVitalRelease
 ```
 
-### iOS signé avec votre compte Apple
+### iOS signed with your Apple account
 
-Le dépôt privé `MoOx/certificates` porte toute la matière de signature et fournit
-les gabarits. `.github/workflows/ios-testflight.yml`, `fastlane/*` et `Gemfile`
-en sont des copies, adaptées sur un seul point : `APPLE_TEAM_ID` vient d'une
-variable de dépôt au lieu d'être écrit en dur.
+The private `MoOx/certificates` repository holds all the signing material and
+provides the templates. `.github/workflows/ios-testflight.yml`, `fastlane/*` and
+`Gemfile` are copies of them, adapted on a single point: `APPLE_TEAM_ID` comes
+from a repository variable rather than being hardcoded.
 
-Trois secrets et une variable, à créer dans *Settings ▸ Secrets and variables ▸
-Actions* :
+Three secrets and one variable, under *Settings, Secrets and variables,
+Actions*:
 
-| Nom | Onglet | Contenu |
-| --- | ------ | ------- |
-| `CERTIFICATES_DEPLOY_KEY` | Secrets | clé de déploiement ed25519, lecture seule sur `MoOx/certificates` |
-| `MATCH_PASSWORD` | Secrets | phrase secrète match |
-| `SECRETS_PASSPHRASE` | Secrets | phrase secrète du dossier `secrets/` du dépôt de certificats |
-| `APPLE_TEAM_ID` | Variables | developer.apple.com ▸ Membership |
+| Name | Tab | Content |
+| ---- | --- | ------- |
+| `CERTIFICATES_DEPLOY_KEY` | Secrets | read-only ed25519 deploy key on `MoOx/certificates` |
+| `MATCH_PASSWORD` | Secrets | match passphrase |
+| `SECRETS_PASSPHRASE` | Secrets | passphrase for the `secrets/` directory of the certificates repository |
+| `APPLE_TEAM_ID` | Variables | developer.apple.com, Membership |
 
-La création de la clé de déploiement est décrite dans `docs/03-sharing-access.md`
-du dépôt de certificats, le reste dans `docs/04-consumer-projects.md`.
+Creating the deploy key is covered in `docs/03-sharing-access.md` of the
+certificates repository, the rest in `docs/04-consumer-projects.md`.
 
-Le profil `AppStore_io.moox.HideTheNotch` existe déjà dans le dépôt de
-certificats, donc aucun amorçage `match` n'est nécessaire. En revanche l'app doit
-exister sur App Store Connect avec ce bundle ID **avant** le premier envoi.
+The `AppStore_io.moox.HideTheNotch` profile already exists there, so no `match`
+bootstrap is needed.
 
-Ce que la lane `ios beta` fait, dans l'ordre : trousseau temporaire, clone du
-dépôt de certificats, déchiffrement des secrets, clé d'API App Store Connect,
-`match` en lecture seule, `expo prebuild --clean`, retour en signature manuelle
-(le prebuild vient de la remettre en automatique), numéro de build calculé depuis
-TestFlight, archive, envoi. Les secrets déchiffrés sont effacés en sortie, succès
-ou échec.
+What the `ios beta` lane does, in order: temporary keychain, clone of the
+certificates repository, secrets decryption, App Store Connect API key, `match`
+read-only, `expo prebuild --clean`, switch back to manual signing (the prebuild
+just reset it to automatic), build number from TestFlight, archive, upload.
+Decrypted secrets are wiped on the way out, on success and on failure alike.
 
-### Deux pièges rencontrés sur ce chemin
+### Two traps met along the way
 
-**La version de Xcode.** `setup-xcode` avec `latest-stable` sélectionne un Xcode
-dont le compilateur Swift refuse `expo-modules-jsi`, un module d'Expo lui-même :
-`type of expression is ambiguous without a type annotation`. Le workflow utilise
-donc le Xcode par défaut de l'image. Une étape affiche sa version à chaque run,
-pour pouvoir l'épingler explicitement et éviter que le build ne dérive quand
-GitHub met l'image à jour.
+**The Xcode version.** `setup-xcode` with `latest-stable` selects an Xcode whose
+Swift compiler rejects `expo-modules-jsi`, a module of Expo itself: `type of
+expression is ambiguous without a type annotation`. The workflow therefore uses
+the image default Xcode. A step prints its version on every run, so it can be
+pinned explicitly and the build does not drift when GitHub updates the image.
 
-**Le support iPad.** L'app de 2017 est toujours publiée, et elle était compilée
-pour iPhone et iPad. Apple refuse qu'une mise à jour retire le support d'un
-appareil (`90101`). `supportsTablet` doit donc rester à `true` tant qu'on met à
-jour cette fiche. Sur iPad l'app ne détecte aucune découpe, mais le sélecteur
-d'appareil permet quand même de générer un fond pour un iPhone.
+**iPad support.** The 2017 app is still published, and it was built for iPhone
+and iPad. Apple refuses an update that drops support for a device (`90101`), so
+`supportsTablet` has to stay `true` as long as this app record is being updated.
+On an iPad the app detects no cutout, but the device picker still allows
+generating a wallpaper for an iPhone.
 
-### Ce qui reste utile chez EAS
+### What EAS is still good for
 
-Rien pour les builds. En revanche `eas update` reste le moyen le plus court de
-pousser un changement purement JS sur un build déjà installé, sans reconstruire —
-et le plan gratuit (1 000 utilisateurs actifs) est très au-delà d'un usage de
-test.
+Nothing for builds. `eas update` remains the shortest way to push a JS-only
+change to an already installed build without rebuilding, and the free plan
+(1,000 monthly active users) is far beyond any testing use.
+
+### Why not Expo Go
+
+Expo Go ships a fixed set of native modules. `@shopify/react-native-skia`,
+`expo-glass-effect` and `expo-media-library` are not among them, so there is no
+Expo Go QR code for this app. The replacement is a development build: your own
+Expo Go, built once, in which JS then reloads normally.
+
+---
+
+## Testing the different cutouts
+
+Two distinct things, and only one needs an emulator.
+
+**Judging the rendering**: the target picker, in the save sheet, forces any
+geometry on any hardware: Dynamic Island at 393, 402, 430 and 440, notch at 375,
+390 and 428, Android punch hole centred or offset. No emulator needed.
+
+**Validating detection**: this is where the Android emulator genuinely helps. On
+API 28 and above:
+
+> Developer options, Drawing, *Simulate a display with a cutout*
+> Default, Corner, Double, Punch hole, Tall, Waterfall
+
+On the command line the same variants are system overlays:
+
+```sh
+adb shell cmd overlay list | grep cutout      # exact names vary by version
+adb shell cmd overlay enable com.android.internal.display.cutout.emulation.hole
+```
+
+More reliable than iOS, where the simulator only offers existing models. And
+since Android exposes the exact cutout rectangles through `DisplayCutout`,
+detection there will eventually be more accurate than on iPhone.
+
+---
+
+## Still to do
+
+- Set the wallpaper in one gesture: App Intent and shortcut on iOS,
+  `WallpaperManager.setBitmap()` on Android. Both need native code.
+- Native Android module to read `DisplayCutout.getBoundingRects()`.
+- Pinch to reframe the photo (the model already carries `dx`, `dy` and `zoom`,
+  and the renderer honours them).
+- Families 12 (generative), 08 (organic decor), 07 (hanging object) and 09
+  (content camouflage), see
+  [`docs/2026-feasibility-and-ui.md`](docs/2026-feasibility-and-ui.md).

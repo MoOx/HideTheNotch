@@ -1,11 +1,11 @@
-name: APK Android
+name: Android APK
 
-# Construit l'APK entièrement sur GitHub : ni compte Expo, ni crédits EAS, ni
-# compte Google. Le repo étant public, les runners standard sont gratuits.
+# Builds the APK entirely on GitHub: no Expo account, no EAS credits, no Google
+# account. The repository is public, so standard runners are free.
 on:
   workflow_dispatch:
-  # `workflow_dispatch` n'est déclenchable que depuis la branche par défaut.
-  # En attendant la fusion, un marqueur dans le message de commit suffit.
+  # workflow_dispatch can only be triggered from the default branch. Until this
+  # is merged, a marker in the commit message does the job.
   push:
 
 jobs:
@@ -32,28 +32,26 @@ jobs:
 
       - run: npm ci
 
-      - name: Générer le projet natif
+      - name: Generate the native project
         run: npx expo prebuild --platform android --no-install
 
-      # Le gabarit Expo signe le build release avec le keystore de debug : rien
-      # à fournir pour un APK installable en test.
-      # Deux choses ici.
+      # The Expo template signs release builds with the debug keystore, so
+      # nothing has to be supplied for a test APK.
       #
-      # `-PreactNativeArchitectures=arm64-v8a` : un APK de test n'a pas besoin
-      # des tranches x86, qui ne servent qu'aux émulateurs. Pour tester sur un
-      # émulateur, rajouter x86_64.
+      # -PreactNativeArchitectures=arm64-v8a: a test APK does not need the x86
+      # slices, which only serve emulators. Add x86_64 to test on one.
       #
-      # `-x lintVitalRelease` : AGP lance lintVital sur les builds release, y
-      # compris dans les modules des dépendances, et il échoue sur
-      # react-native-skia et expo-modules-core pour des raisons étrangères à
-      # cette app. Le désactiver par le DSL ne marche pas — AGP lit
-      # `checkReleaseBuilds` avant qu'un plugin de config puisse l'écrire —
-      # donc on exclut la tâche, ce qui retire aussi ses dépendances exclusives.
-      - name: Compiler
+      # -x lintVitalRelease: AGP runs lintVital on release builds, including
+      # inside dependency modules, and it fails on react-native-skia and
+      # expo-modules-core for reasons unrelated to this app. Turning it off
+      # through the DSL does not work, since AGP reads checkReleaseBuilds during
+      # its own configuration, before a config plugin can write to it. So we
+      # exclude the task, which also drops its exclusive dependencies.
+      - name: Build
         working-directory: android
         run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a -x lintVitalRelease
 
-      - name: Nom de l'artefact
+      - name: Artifact name
         id: name
         run: echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 

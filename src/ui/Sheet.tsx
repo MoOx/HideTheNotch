@@ -19,7 +19,7 @@ export function Sheet({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel="Fermer" />
+      <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel="Close" />
       <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
         <View style={styles.grabber} />
         {title ? <Text style={styles.title}>{title}</Text> : null}

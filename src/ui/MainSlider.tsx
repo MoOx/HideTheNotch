@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from "react";
+import { useMemo, useRef } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
@@ -27,22 +27,16 @@ type Props = {
  * setting never deserved.
  */
 export function MainSlider({ value, onChange, label }: Props) {
+  // The gesture is built once. Reading `value` inside it would put it in the
+  // dependency list, and the detector would then be handed a new gesture on
+  // every frame of the drag, which cancels the drag it is in the middle of.
+  const live = useRef(value);
+  live.current = value;
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
   const start = useRef(0);
   const lastNotch = useRef(-1);
-
-  const set = useCallback(
-    (v: number) => {
-      const clamped = Math.min(1, Math.max(0, v));
-      // A tick every tenth, so the travel is felt without the value being read.
-      const notch = Math.round(clamped * 10);
-      if (notch !== lastNotch.current) {
-        lastNotch.current = notch;
-        void Haptics.selectionAsync();
-      }
-      onChange(clamped);
-    },
-    [onChange]
-  );
 
   const pan = useMemo(
     () =>
@@ -50,11 +44,20 @@ export function MainSlider({ value, onChange, label }: Props) {
         .runOnJS(true)
         .minDistance(0)
         .onBegin(() => {
-          start.current = value;
-          lastNotch.current = Math.round(value * 10);
+          start.current = live.current;
+          lastNotch.current = Math.round(live.current * 10);
         })
-        .onUpdate((e) => set(start.current - e.translationY / SLIDER_H)),
-    [set, value]
+        .onUpdate((e) => {
+          const v = Math.min(1, Math.max(0, start.current - e.translationY / SLIDER_H));
+          // A tick every tenth, so the travel is felt without the value being read.
+          const notch = Math.round(v * 10);
+          if (notch !== lastNotch.current) {
+            lastNotch.current = notch;
+            void Haptics.selectionAsync();
+          }
+          onChangeRef.current(v);
+        }),
+    []
   );
 
   const filled = Math.round(Math.min(1, Math.max(0, value)) * SLIDER_H);

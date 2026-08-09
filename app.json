@@ -39,15 +39,15 @@
       [
         "expo-media-library",
         {
-          "photosPermission": "Hide The Notch enregistre les fonds d'écran générés dans vos photos.",
-          "savePhotosPermission": "Hide The Notch enregistre les fonds d'écran générés dans vos photos.",
+          "photosPermission": "Hide The Notch saves the wallpapers it generates to your photos.",
+          "savePhotosPermission": "Hide The Notch saves the wallpapers it generates to your photos.",
           "isAccessMediaLocationEnabled": false
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Choisissez une photo à transformer en fond d'écran."
+          "photosPermission": "Choose a photo to turn into a wallpaper."
         }
       ],
       [

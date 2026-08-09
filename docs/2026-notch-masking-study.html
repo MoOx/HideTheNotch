@@ -1,6 +1,6 @@
-<title>Hide The Notch — pistes de refonte visuelle</title>
+<title>Hide The Notch, visual directions for a rewrite</title>
 <style>
-  /* ── Tokens : design sombre par défaut (le sujet, c'est le pixel éteint) ── */
+  /* Tokens: dark by default, the subject is the pixel that is switched off */
   :root {
     --ground:      #131110;
     --surface:     #1C1917;
@@ -10,7 +10,7 @@
     --text:        #EFE9E4;
     --text-2:      #A69B93;
     --text-3:      #776C65;
-    --accent:      #F0533A;   /* rubylith — le film de masquage de la photogravure */
+    --accent:      #F0533A;   /* rubylith, the masking film of photoengraving */
     --accent-dim:  #8C3223;
     --accent-wash: rgba(240, 83, 58, 0.10);
     --signal:      #6FD3B8;
@@ -68,7 +68,7 @@
   .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px 96px; }
   .prose { max-width: 68ch; }
 
-  /* ── Typo ── */
+  /* Type */
   h1, h2, h3, .eyebrow, .mono, code, th, .num {
     font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   }
@@ -112,7 +112,7 @@
     margin: 0 0 10px;
   }
 
-  /* ── En-tête ── */
+  /* Masthead */
   .masthead {
     border-bottom: 1px solid var(--line);
     padding: 64px 0 40px;
@@ -138,7 +138,7 @@
     letter-spacing: 0.02em;
   }
 
-  /* ── Sections ── */
+  /* Sections */
   section { padding-top: 64px; }
   .sec-head {
     display: flex;
@@ -158,7 +158,7 @@
     padding-top: 4px;
   }
 
-  /* ── Blocs ── */
+  /* Blocks */
   .panel {
     background: var(--surface);
     border: 1px solid var(--line);
@@ -197,7 +197,7 @@
     color: var(--text);
   }
 
-  /* ── Tableau specs ── */
+  /* Spec table */
   .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   table {
     border-collapse: collapse;
@@ -222,7 +222,7 @@
   }
   td.n { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; color: var(--text-2); }
 
-  /* ── Contrôles du catalogue ── */
+  /* Catalogue controls */
   .controls {
     position: sticky;
     top: 0;
@@ -282,7 +282,7 @@
     letter-spacing: 0.01em;
   }
 
-  /* ── Cartes techniques ── */
+  /* Technique cards */
   .cards {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
@@ -338,7 +338,7 @@
   .chip.gen { color: var(--signal); border-color: color-mix(in srgb, var(--signal) 40%, transparent); }
   .chip.hard { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
 
-  /* ── Étapes du pipeline ── */
+  /* Pipeline steps */
   .flow { display: flex; flex-direction: column; gap: 0; }
   .step {
     display: grid;
@@ -382,11 +382,11 @@
 <div class="wrap">
 
   <header class="masthead">
-    <p class="eyebrow">Note de recherche · Août 2026</p>
-    <h1>Masquer l'encoche, neuf ans après</h1>
+    <p class="eyebrow">Research note, August 2026</p>
+    <h1>Hiding the notch, nine years on</h1>
     <p class="lede">
-      Autopsie de HideTheNotch (2017), inventaire des techniques de masquage visuel qui existent
-      aujourd'hui, et treize familles de solutions à trancher avant d'écrire la moindre ligne de code.
+      A post mortem of HideTheNotch (2017), an inventory of the masking techniques that exist today,
+      and thirteen families of solutions to settle before writing a single line of code.
     </p>
     <div class="meta-row">
       <span>Repo · MoOx/HideTheNotch</span>
@@ -395,51 +395,51 @@
     </div>
   </header>
 
-  <!-- ══════════════════ 1. AUTOPSIE ══════════════════ -->
+  <!-- 1. AUTOPSIE -->
   <section>
     <div class="sec-head">
       <span class="tag">01</span>
-      <h2>Ce que faisait la v1</h2>
+      <h2>What v1 did</h2>
     </div>
 
     <div class="prose">
       <p>
-        L'app de 2017 tient en 789 lignes. Un <code>ImageBackground</code> plein écran, une pile de PNG
-        posés en <code>position:&nbsp;absolute&nbsp;/&nbsp;top:&nbsp;0</code> par-dessus, et
-        <code>captureRef()</code> de <em>react-native-view-shot</em> pour photographier cette vue et la
-        pousser dans la pellicule. Quatre masques : <em>Rounded Notch</em>, <em>Rounded Slim Notch</em>,
-        <em>Hard Notch</em>, <em>Hard Slim Notch</em> — quatre bitmaps, aucun paramètre.
+        The 2017 app is 789 lines. A full screen <code>ImageBackground</code>, a stack of PNGs laid
+        over it at <code>position:&nbsp;absolute&nbsp;/&nbsp;top:&nbsp;0</code>, and
+        <code>captureRef()</code> from <em>react-native-view-shot</em> to photograph that view and
+        push it into the camera roll. Four masks: <em>Rounded Notch</em>, <em>Rounded Slim
+        Notch</em>, <em>Hard Notch</em>, <em>Hard Slim Notch</em>, four bitmaps with no parameters.
       </p>
       <p>
-        C'était la bonne réponse à l'époque : un seul appareil au monde avait une encoche, et il était
-        entièrement décrit par <code>src/platform.js</code> en huit lignes —
+        It was the right answer at the time: exactly one device in the world had a notch, and it was
+        entirely described by <code>src/platform.js</code> in eight lines,
         <code>isIPhoneX = height === 812 &amp;&amp; width === 375</code>.
       </p>
     </div>
 
     <div class="grid-2" style="margin-top: 24px;">
       <div class="panel">
-        <h3 style="margin-bottom:10px">Ce qui a bien vieilli</h3>
+        <h3 style="margin-bottom:10px">What aged well</h3>
         <ul class="tight" style="font-size:15px;color:var(--text-2)">
-          <li>L'intuition de base : sur OLED, du <code>#000000</code> posé à côté d'une découpe la fait littéralement disparaître.</li>
-          <li>Le geste produit : on n'installe pas un « thème », on <strong>exporte une image</strong> que l'utilisateur pose lui-même.</li>
-          <li>Le catalogue de fonds embarqués + import photo perso, avec crédit auteur affiché.</li>
+          <li>The core intuition: on OLED, <code>#000000</code> placed next to a cutout literally makes it vanish.</li>
+          <li>The product gesture: you do not install a "theme", you <strong>export an image</strong> that the user applies.</li>
+          <li>The catalogue of bundled backgrounds plus personal photo import, with author credit shown.</li>
         </ul>
       </div>
       <div class="panel">
-        <h3 style="margin-bottom:10px">Les cinq plafonds de verre</h3>
+        <h3 style="margin-bottom:10px">The five ceilings</h3>
         <ul class="tight" style="font-size:15px;color:var(--text-2)">
-          <li><strong>Un seul appareil connu.</strong> Chaque nouvel iPhone désalignait le masque.</li>
-          <li><strong>Masques bitmap.</strong> Non paramétrables : pas de hauteur, pas de rayon, pas de couleur.</li>
-          <li><strong>Export = capture d'écran.</strong> La photo source est réduite à la taille de l'écran <em>avant</em> d'être capturée. Pas de recadrage, pas de zoom (le <code>ScrollView</code> pinch est commenté dans le code).</li>
-          <li><strong>Aucune Dynamic Island</strong> — elle n'existait pas.</li>
-          <li><strong>Le dernier kilomètre non traité :</strong> rien n'empêche iOS de re-zoomer le fond au moment de le poser, ce qui casse l'alignement au pixel.</li>
+          <li><strong>One known device.</strong> Every new iPhone shifted the mask out of alignment.</li>
+          <li><strong>Bitmap masks.</strong> Nothing to adjust: no height, no radius, no colour.</li>
+          <li><strong>Export equals screenshot.</strong> The source photo is shrunk to screen size <em>before</em> capture. No reframing, no zoom (the <code>ScrollView</code> pinch is commented out in the code).</li>
+          <li><strong>No Dynamic Island</strong>, it did not exist.</li>
+          <li><strong>The last mile untreated:</strong> nothing stops iOS from re-zooming the wallpaper when it is applied, which breaks pixel alignment.</li>
         </ul>
       </div>
     </div>
   </section>
 
-  <!-- ══════════════════ 2. PHYSIQUE ══════════════════ -->
+  <!-- 2. PHYSIQUE -->
   <section>
     <div class="sec-head">
       <span class="tag">02</span>
@@ -448,89 +448,89 @@
 
     <div class="prose">
       <p>
-        Tous les iPhone à découpe sont OLED : un pixel noir est un pixel <em>éteint</em>, optiquement
-        identique à la dalle autour de la caméra. C'est la seule raison pour laquelle le masquage
-        fonctionne — et ça impose trois règles non négociables.
+        Every iPhone with a cutout is OLED: a black pixel is an <em>off</em> pixel, optically
+        identical to the panel around the camera. That is the only reason masking works, and it
+        imposes three non negotiable rules.
       </p>
     </div>
 
     <div class="note prose" style="margin: 20px 0 28px;">
-      <p><strong>1. Noir absolu, pas « presque noir ».</strong> <code>#010101</code> se voit sur OLED en pièce sombre.</p>
-      <p><strong>2. PNG obligatoire.</strong> Le JPEG produit des artefacts de bloc autour d'une frontière noir&nbsp;/&nbsp;image : la découpe redevient visible.</p>
-      <p style="margin-bottom:0"><strong>3. Dégradés dithérés.</strong> Un fondu vers le noir sur 8&nbsp;bits fait du <em>banding</em> franc sur OLED. Il faut injecter un bruit de ±1&nbsp;LSB.</p>
+      <p><strong>1. Absolute black, not "almost black".</strong> <code>#010101</code> shows on OLED in a dark room.</p>
+      <p><strong>2. PNG only.</strong> JPEG produces block artefacts around a black&nbsp;/&nbsp;image boundary: the cutout becomes visible again.</p>
+      <p style="margin-bottom:0"><strong>3. Dithered gradients.</strong> A fade to black in 8&nbsp;bits bands sharply on OLED. Noise of plus or minus 1&nbsp;LSB has to be injected.</p>
     </div>
 
-    <p class="eyebrow">Géométrie des découpes</p>
+    <p class="eyebrow">Cutout geometry</p>
     <div class="table-scroll">
       <table>
         <thead>
           <tr>
-            <th>Génération</th><th>Écran (pt)</th><th>Découpe</th><th>Position</th><th>Safe area haute</th>
+            <th>Generation</th><th>Screen (pt)</th><th>Cutout</th><th>Position</th><th>Top safe area</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td>Encoche — iPhone X → 11 Pro</td>
+            <td>Notch, iPhone X to 11 Pro</td>
             <td class="n">375 × 812 @3x</td>
             <td class="n">≈ 209 × 30 pt</td>
-            <td class="n">collée au bord</td>
+            <td class="n">flush with the edge</td>
             <td class="n">44 pt</td>
           </tr>
           <tr>
-            <td>Encoche — iPhone 12 → 14 Plus</td>
+            <td>Notch, iPhone 12 to 14 Plus</td>
             <td class="n">390 × 844 @3x</td>
             <td class="n">≈ 209 × 32 pt</td>
-            <td class="n">collée au bord</td>
+            <td class="n">flush with the edge</td>
             <td class="n">47 pt</td>
           </tr>
           <tr>
-            <td>Dynamic Island — 14 Pro → 17</td>
+            <td>Dynamic Island, 14 Pro to 17</td>
             <td class="n">393 × 852 @3x</td>
             <td class="n">≈ 125 × 37 pt</td>
-            <td class="n">flottante, ≈ 11 pt du bord</td>
+            <td class="n">floating, about 11 pt down</td>
             <td class="n">59 pt</td>
           </tr>
           <tr>
-            <td>Poinçon — iPhone 18 Pro <em>(rumeur)</em></td>
-            <td class="n">—</td>
-            <td class="n">≈ 13,5 mm de large</td>
-            <td class="n">décalé vers la gauche</td>
-            <td class="n">—</td>
+            <td>Punch hole, iPhone 18 Pro <em>(rumoured)</em></td>
+            <td class="n">unknown</td>
+            <td class="n">about 13.5 mm wide</td>
+            <td class="n">offset to the left</td>
+            <td class="n">unknown</td>
           </tr>
         </tbody>
       </table>
     </div>
     <p style="font-size:13.5px;color:var(--text-3);margin-top:12px;max-width:68ch">
-      Valeurs à considérer comme des ordres de grandeur : Apple ne publie pas la géométrie exacte des
-      découpes. En pratique l'app doit <strong>mesurer</strong> l'appareil courant (safe area + modèle)
-      et garder une table de secours pour générer un fond destiné à un <em>autre</em> téléphone.
+      Treat these as orders of magnitude: Apple does not publish exact cutout geometry. In practice
+      the app has to <strong>measure</strong> the current device (safe area and model) and keep a
+      fallback table for generating a wallpaper aimed at <em>another</em> phone.
     </p>
   </section>
 
-  <!-- ══════════════════ 3. CATALOGUE ══════════════════ -->
+  <!-- 3. CATALOGUE -->
   <section>
     <div class="sec-head">
       <span class="tag">03</span>
-      <h2>Treize familles de masquage</h2>
+      <h2>Thirteen masking families</h2>
     </div>
 
     <div class="prose" style="margin-bottom: 8px;">
       <p>
-        Chaque famille est un <em>générateur</em>, pas une image : une fonction qui prend la géométrie de
-        la découpe et rend une pile de calques. Change d'appareil ci-dessous — les treize aperçus se
-        recalculent. C'est exactement le modèle que l'app devrait implémenter.
+        Each family is a <em>generator</em>, not an image: a function that takes the cutout geometry
+        and returns a stack of layers. Switch device below and the thirteen previews recompute. That
+        is exactly the model the app should implement.
       </p>
     </div>
 
     <div class="controls">
-      <div class="seg" role="group" aria-label="Type de découpe">
-        <button type="button" data-dev="notch" aria-pressed="false">Encoche</button>
+      <div class="seg" role="group" aria-label="Cutout type">
+        <button type="button" data-dev="notch" aria-pressed="false">Notch</button>
         <button type="button" data-dev="island" aria-pressed="true">Dynamic Island</button>
-        <button type="button" data-dev="punch" aria-pressed="false">Poinçon</button>
+        <button type="button" data-dev="punch" aria-pressed="false">Punch hole</button>
       </div>
       <label class="toggle">
         <input type="checkbox" id="showCut">
-        Révéler la découpe physique
+        Reveal the physical cutout
       </label>
       <span class="devspec" id="devspec"></span>
     </div>
@@ -538,138 +538,138 @@
     <div class="cards" id="cards"></div>
   </section>
 
-  <!-- ══════════════════ 4. PIPELINE ══════════════════ -->
+  <!-- 4. PIPELINE -->
   <section>
     <div class="sec-head">
       <span class="tag">04</span>
-      <h2>Le pipeline qu'il faut pour rendre ça possible</h2>
+      <h2>The pipeline this needs</h2>
     </div>
 
     <div class="prose">
       <p>
-        Sept de ces treize familles sont infaisables avec l'architecture de 2017 : elles demandent des
-        dégradés dithérés, des modes de fusion, du bruit procédural et un export à une résolution
-        supérieure à celle de l'écran. Le changement structurant est simple à énoncer :
-        <strong>arrêter de photographier une vue React Native</strong>.
+        Seven of these thirteen families are impossible on the 2017 architecture: they need dithered
+        gradients, blend modes, procedural noise and an export above screen resolution. The
+        structural change is simple to state:
+        <strong>stop photographing a React Native view</strong>.
       </p>
     </div>
 
     <div class="panel" style="margin-top:20px">
       <div class="flow">
         <div class="step">
-          <span class="k">Modèle</span>
-          <span class="v"><strong>Une recette, pas une image</strong>
-            Un objet JSON décrit tout : source (photo, dégradé, procédural), transformation (recadrage,
-            zoom, rotation), pile de masques paramétrés, géométrie de l'appareil cible. Sérialisable :
-            partageable, versionnable, re-générable pour un autre téléphone.</span>
+          <span class="k">Model</span>
+          <span class="v"><strong>A recipe, not an image</strong>
+            One JSON object describes everything: source (photo, gradient, procedural), transform
+            (framing, zoom, rotation), stack of parameterised masks, target device geometry.
+            Serialisable, therefore shareable, versionable and regenerable for another phone.</span>
         </div>
         <div class="step">
-          <span class="k">Aperçu</span>
-          <span class="v"><strong>Canvas Skia à l'échelle écran</strong>
-            <code>@shopify/react-native-skia</code> rend la recette à 120 fps, avec pincer-glisser sur la
-            photo via Reanimated&nbsp;4 et Gesture Handler. Les dégradés, le bruit fractal et les shaders
-            personnalisés sont natifs.</span>
+          <span class="k">Preview</span>
+          <span class="v"><strong>Skia canvas at screen scale</strong>
+            <code>@shopify/react-native-skia</code> draws the recipe at 120 fps, with pinch and pan
+            on the photo through Reanimated&nbsp;4 and Gesture Handler. Gradients, fractal noise and
+            custom shaders are native.</span>
         </div>
         <div class="step">
           <span class="k">Export</span>
-          <span class="v"><strong>Surface hors écran en pixels natifs</strong>
-            <code>Skia.Surface.MakeOffscreen(1290, 2796)</code> rejoue la <em>même</em> recette à la
-            résolution réelle de l'appareil, puis <code>makeImageSnapshot()</code> →
-            <code>encodeToBytes(PNG)</code> → <code>expo-media-library</code>. Qualité 1:1, indépendante de
-            l'écran d'aperçu.</span>
+          <span class="v"><strong>Offscreen surface at native pixels</strong>
+            <code>Skia.Surface.MakeOffscreen(1290, 2796)</code> replays the <em>same</em> recipe at
+            the device's real resolution, then <code>makeImageSnapshot()</code>,
+            <code>encodeToBytes(PNG)</code>, <code>expo-media-library</code>. Quality 1:1,
+            independent of the preview screen.</span>
         </div>
         <div class="step">
-          <span class="k">Coque</span>
-          <span class="v"><strong>Expo SDK 56, nouvelle archi</strong>
-            RN 0.85, Hermes v1. <code>expo-glass-effect</code> donne la vraie barre d'outils Liquid Glass
-            (UIVisualEffectView natif) sur iOS 26+, avec repli <code>expo-blur</code> en dessous.
-            <code>@expo/ui</code> pour les feuilles et sélecteurs SwiftUI, <code>expo-haptics</code> pour
-            le retour tactile au calage.</span>
+          <span class="k">Shell</span>
+          <span class="v"><strong>Expo SDK 56 or later, New Architecture</strong>
+            <code>expo-glass-effect</code> gives the real Liquid Glass toolbar (native
+            UIVisualEffectView) on iOS 26 and above, with an <code>expo-blur</code> fallback below.
+            <code>@expo/ui</code> for SwiftUI sheets and pickers, <code>expo-haptics</code> for
+            snapping feedback.</span>
         </div>
         <div class="step">
           <span class="k">Android</span>
-          <span class="v"><strong>Plus simple qu'iOS, en fait</strong>
-            Même moteur Skia, mêmes recettes. Et surtout <code>WallpaperManager.setBitmap()</code> pose le
-            fond d'écran <em>directement</em>, sans passer par la galerie ni par un recadrage — l'obstacle
-            principal d'iOS n'existe pas.</span>
+          <span class="v"><strong>Simpler than iOS, in fact</strong>
+            Same Skia engine, same recipes. And above all
+            <code>WallpaperManager.setBitmap()</code> applies the wallpaper <em>directly</em>, with
+            no gallery and no cropping, so the main iOS obstacle does not exist.</span>
+            does not exist.</span>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ══════════════════ 5. DERNIER KILOMÈTRE ══════════════════ -->
+  <!-- 5. THE LAST MILE -->
   <section>
     <div class="sec-head">
       <span class="tag">05</span>
-      <h2>Le vrai problème : poser le fond d'écran</h2>
+      <h2>The real problem: applying the wallpaper</h2>
     </div>
 
     <div class="prose">
       <p>
-        Un masque au pixel près ne sert à rien si iOS le décale de quatre pour cent en le posant. C'est là
-        que la v1 s'arrêtait — l'aide disait « mets-le en <em>Still</em> et aligne-le en bas » — et c'est
-        là que se joue la différence entre un jouet et un outil.
+        A pixel perfect mask is worthless if iOS shifts it by four percent while applying it. That is
+        where v1 stopped, its help text saying "set it to <em>Still</em> and align it at the bottom",
+        and it is where the difference between a toy and a tool is decided.
       </p>
     </div>
 
     <div class="grid-2" style="margin-top:20px">
       <div class="panel">
-        <h3 style="margin-bottom:10px;color:var(--warn)">Ce qui casse l'alignement</h3>
+        <h3 style="margin-bottom:10px;color:var(--warn)">What breaks alignment</h3>
         <ul class="tight" style="font-size:15px;color:var(--text-2)">
-          <li><strong>Zoom de perspective</strong> — iOS agrandit le fond d'environ 4&nbsp;% pour la parallaxe au gyroscope.</li>
-          <li><strong>Scènes spatiales (iOS 26)</strong> — sépare le sujet du fond et le fait bouger : désalignement garanti.</li>
-          <li><strong>Effet de profondeur</strong> sur l'écran verrouillé.</li>
-          <li><strong>L'éditeur de recadrage</strong> qui s'ouvre à chaque « Choisir une photo » et invite au pincement.</li>
+          <li><strong>Perspective zoom</strong>, iOS enlarges the wallpaper by about 4&nbsp;% for gyroscope parallax.</li>
+          <li><strong>Spatial scenes (iOS 26)</strong>, subject separated from background and made to move: misalignment guaranteed.</li>
+          <li><strong>Depth effect</strong> on the lock screen.</li>
+          <li><strong>The crop editor</strong> that opens on every "Choose a photo" and invites pinching.</li>
         </ul>
       </div>
       <div class="panel">
-        <h3 style="margin-bottom:10px;color:var(--signal)">Les parades</h3>
+        <h3 style="margin-bottom:10px;color:var(--signal)">The countermeasures</h3>
         <ul class="tight" style="font-size:15px;color:var(--text-2)">
-          <li><strong>Exporter à la résolution native exacte</strong> — iOS affiche alors l'image 1:1 par défaut, sans recadrage.</li>
-          <li><strong>Une App Intent + un Raccourci fourni</strong> : l'action <em>Définir le fond d'écran</em> de Raccourcis pose l'image sans ouvrir l'éditeur. Un seul geste. À valider en conditions réelles, mais c'est le différenciateur le plus fort du projet.</li>
-          <li><strong>Une mire de calibration</strong> : un fond de test qui laisse l'utilisateur mesurer et corriger un décalage résiduel, mémorisé ensuite pour tous ses exports.</li>
-          <li><strong>Des instructions ciblées par version d'iOS</strong>, pas un texte générique.</li>
+          <li><strong>Export at the exact native resolution</strong>, so iOS shows the image 1:1 by default, with no cropping.</li>
+          <li><strong>An App Intent plus a supplied Shortcut</strong>: the <em>Set Wallpaper</em> action applies the image without opening the editor. One gesture. To be validated in real conditions, but it is the project's strongest differentiator.</li>
+          <li><strong>A calibration target</strong>: a test wallpaper letting the user measure and correct a residual offset, then remembered for every export.</li>
+          <li><strong>Instructions targeted per iOS version</strong>, not a generic blurb.</li>
         </ul>
       </div>
     </div>
   </section>
 
-  <!-- ══════════════════ 6. VERDICT ══════════════════ -->
+  <!-- 6. VERDICT -->
   <section>
     <div class="sec-head">
       <span class="tag">06</span>
-      <h2>Est-ce que ça vaut le coup ?</h2>
+      <h2>Is it worth it?</h2>
     </div>
 
     <div class="verdict prose">
       <p>
-        <strong>Le calendrier joue pour toi.</strong> L'iPhone 18 Pro est attendu en septembre 2026 avec
-        une découpe nettement réduite et, selon les fuites, <em>décalée vers la gauche</em>. Un bandeau
-        noir centré devient absurde sur une découpe asymétrique : toute la catégorie « wallpaper qui cache
-        le trou » redevient un problème de design ouvert, exactement au moment où une app bien faite peut
-        se replacer.
+        <strong>The calendar is on your side.</strong> The iPhone 18 Pro is expected in September
+        2026 with a much smaller cutout and, according to leaks, <em>offset to the left</em>. A
+        centred black bar becomes absurd on an asymmetric cutout: the whole "wallpaper that hides the
+        hole" category becomes an open design problem again, exactly when a well made app can find
+        its place.
       </p>
       <p>
-        <strong>La concurrence est faible mais installée.</strong> Le App Store est plein de galeries de
-        fonds pour Dynamic Island — abonnement, pubs, 90&nbsp;% du contenu payant, aucune notion de
-        géométrie réelle. Aucune ne propose un <em>générateur</em> : recette paramétrée, export en
-        résolution native, ta photo à toi. C'est le créneau, et il est cohérent avec ce que HideTheNotch
-        était déjà en 2017.
+        <strong>The competition is weak but entrenched.</strong> The App Store is full of Dynamic
+        Island wallpaper galleries: subscriptions, ads, 90 percent of the content behind a paywall,
+        no notion of real geometry. None of them offers a <em>generator</em>: parameterised recipe,
+        native resolution export, your own photo. That is the opening, and it matches what
+        HideTheNotch already was in 2017.
       </p>
       <p style="margin-bottom:0">
-        <strong>La question à trancher d'abord.</strong> Pas « quel framework », mais
-        <em>combien de familles au lancement</em>. Trois bien faites (bandeau paramétrique, fondu dithéré,
-        génératif) valent mieux que treize approximatives — et les familles 05 à 09, celles qui demandent
-        du dessin, sont ce qui fera parler de l'app. Dis-moi lesquelles t'intéressent et je pousse un
-        prototype de l'aperçu Skia + export sur la branche.
+        <strong>The question to settle first.</strong> Not "which framework", but <em>how many
+        families at launch</em>. Three done well (parametric bar, dithered fade, generative) beat
+        thirteen done roughly, and families 05 to 09, the ones that need drawing, are what will get
+        the app talked about.
       </p>
     </div>
   </section>
 
   <p style="margin-top:56px;font-size:13px;color:var(--text-3);max-width:68ch">
-    Sources principales : documentation Expo (GlassEffect, SDK 55/56), React Native Skia (offscreen,
-    shaders), specs écrans Apple, fuites iPhone 18 Pro (AppleInsider, Macworld, GSMArena), et le code de
-    <code>MoOx/HideTheNotch</code> à la révision courante.
+    Main sources: Expo documentation (GlassEffect, SDK 55 and 56), React Native Skia (offscreen,
+    shaders), Apple screen specifications, iPhone 18 Pro leaks (AppleInsider, Macworld, GSMArena),
+    and the code of <code>MoOx/HideTheNotch</code> at the current revision.
   </p>
 
 </div>
@@ -678,26 +678,26 @@
 (function () {
   "use strict";
 
-  /* ── Géométrie des appareils (points logiques) ── */
+  /* Device geometry, in logical points */
   var DEVICES = {
     notch: {
-      label: "Encoche", W: 375, H: 812, R: 42, safeTop: 47,
-      spec: "375 × 812 pt @3x · découpe 209 × 32 pt, collée au bord · safe area 47 pt",
+      label: "Notch", W: 375, H: 812, R: 42, safeTop: 47,
+      spec: "375 x 812 pt @3x, cutout 209 x 32 pt flush with the edge, safe area 47 pt",
       cut: { kind: "notch", w: 209, h: 32, r: 20 }
     },
     island: {
       label: "Dynamic Island", W: 393, H: 852, R: 52, safeTop: 59,
-      spec: "393 × 852 pt @3x · pilule 125 × 37 pt, flottante à 11 pt · safe area 59 pt",
+      spec: "393 x 852 pt @3x, pill 125 x 37 pt floating 11 pt down, safe area 59 pt",
       cut: { kind: "pill", w: 125, h: 37, top: 11 }
     },
     punch: {
-      label: "Poinçon", W: 393, H: 852, R: 52, safeTop: 54,
-      spec: "hypothèse iPhone 18 Pro / Android · poinçon ⌀ 26 pt, décalé à 30 % de la largeur",
+      label: "Punch hole", W: 393, H: 852, R: 52, safeTop: 54,
+      spec: "iPhone 18 Pro hypothesis and Android, 26 pt hole at 30 percent of the width",
       cut: { kind: "circle", d: 26, top: 16, cxRatio: 0.30 }
     }
   };
 
-  /* Boîte englobante de la découpe */
+  /* Bounding box of the cutout */
   function box(d) {
     var c = d.cut;
     if (c.kind === "notch") return { x: (d.W - c.w) / 2, y: 0, w: c.w, h: c.h };
@@ -705,7 +705,7 @@
     return { x: d.W * c.cxRatio - c.d / 2, y: c.top, w: c.d, h: c.d };
   }
 
-  /* Forme exacte de la découpe */
+  /* Exact shape of the cutout */
   function cutShape(d, attrs) {
     var c = d.cut, b = box(d), a = attrs || 'fill="#000"';
     if (c.kind === "notch") {
@@ -721,14 +721,14 @@
     return '<circle cx="' + (b.x + b.w / 2) + '" cy="' + (b.y + b.h / 2) + '" r="' + (b.w / 2) + '" ' + a + '/>';
   }
 
-  /* Bandeau supérieur à coins bas arrondis */
+  /* Top bar with rounded bottom corners */
   function band(W, h, r) {
     if (!r) return '<rect x="0" y="0" width="' + W + '" height="' + h + '" fill="#000"/>';
     return '<path d="M0,0 H' + W + ' V' + (h - r) + ' a' + r + ',' + r + ' 0 0 1 -' + r + ',' + r +
            ' H' + r + ' a' + r + ',' + r + ' 0 0 1 -' + r + ',-' + r + ' Z" fill="#000"/>';
   }
 
-  /* ── Fonds simulant des photos ── */
+  /* Backgrounds standing in for photos */
   var BG = {
     dusk:   [["#F7B267", 0], ["#D6456E", 0.45], ["#331B4D", 1]],
     forest: [["#4C7F63", 0], ["#1D3B2E", 0.55], ["#0A1611", 1]],
@@ -751,18 +751,18 @@
            '" ry="' + (d.H * 0.18) + '" fill="#fff" opacity="0.13" filter="url(#soft' + uid + ')"/></g>';
   }
 
-  /* ── Les treize générateurs ── */
+  /* The thirteen generators */
   var TECHNIQUES = [
     {
-      id: "bar", name: "Bandeau plein", bg: "dusk",
-      chips: ["universel", "trivial"],
-      desc: "L'original. Un aplat noir jusque sous la découpe. Le seul vrai paramètre à ouvrir : la hauteur (juste la découpe, ou toute la safe area) et le rayon des coins intérieurs.",
+      id: "bar", name: "Solid bar", bg: "dusk",
+      chips: ["universal", "trivial"],
+      desc: "The original. Flat black down to below the cutout. The only real parameter worth exposing: the height (just the cutout, or the whole safe area) and the radius of the inner corners.",
       draw: function (d, b) { return band(d.W, Math.max(b.y + b.h, d.safeTop - 6), 0); }
     },
     {
-      id: "bezel", name: "Faux cadre", bg: "ocean",
-      chips: ["universel", "trivial"],
-      desc: "On prolonge le bandeau : fine bordure noire en bas et sur les côtés. L'écran se lit comme une image encadrée, la découpe devient de la bordure. Cohérent, et ça rachète l'espace perdu.",
+      id: "bezel", name: "False bezel", bg: "ocean",
+      chips: ["universal", "trivial"],
+      desc: "The bar is extended: a thin black border at the bottom and on the sides. The screen reads as a framed image and the cutout becomes part of the frame. Coherent, and it earns back the lost space.",
       draw: function (d, b) {
         var t = Math.max(b.y + b.h + 4, d.safeTop);
         return band(d.W, t, 0) +
@@ -772,9 +772,9 @@
       }
     },
     {
-      id: "fade", name: "Fondu dithéré", bg: "dune",
-      chips: ["universel", "dithering requis"], hard: 1,
-      desc: "Aplat noir sur la découpe, puis fondu progressif vers la photo. Impossible sans injecter un bruit de ±1 niveau : sinon le dégradé fait des bandes franches sur OLED.",
+      id: "fade", name: "Dithered fade", bg: "dune",
+      chips: ["universal", "dithering required"], hard: 1,
+      desc: "Flat black over the cutout, then a gradual fade into the photo. Impossible without injecting noise of plus or minus 1 level: otherwise the gradient bands sharply on OLED.",
       draw: function (d, b, uid) {
         var solid = b.y + b.h + 6, fh = 130;
         return '<defs><linearGradient id="fg' + uid + '" x1="0" y1="0" x2="0" y2="1">' +
@@ -789,9 +789,9 @@
       }
     },
     {
-      id: "dome", name: "Dôme", bg: "forest",
-      chips: ["universel", "paramétrique"],
-      desc: "Le bandeau se creuse : plus haut sur les bords, il descend en cloche là où se trouve la découpe. On ne perd de l'image que là où c'est nécessaire, et la forme se lit comme intentionnelle.",
+      id: "dome", name: "Dome", bg: "forest",
+      chips: ["universal", "parametric"],
+      desc: "The bar dips: taller at the edges, it curves down where the cutout is. You only lose image where it is necessary, and the shape reads as intentional.",
       draw: function (d, b) {
         var cx = b.x + b.w / 2, top = Math.max(b.y + b.h - 6, 22), deep = b.y + b.h + 52;
         return '<path d="M0,0 H' + d.W + ' V' + top +
@@ -800,9 +800,9 @@
       }
     },
     {
-      id: "pill", name: "Pilule étendue", bg: "plum",
-      chips: ["île / poinçon", "paramétrique"],
-      desc: "On ne cache pas la découpe, on l'agrandit : une pilule noire plus large, centrée dessus. L'œil lit un composant d'interface, pas un défaut. Ne marche que sur une découpe flottante.",
+      id: "pill", name: "Extended pill", bg: "plum",
+      chips: ["island, punch", "parametric"],
+      desc: "The cutout is not hidden but enlarged: a wider black pill centred on it. The eye reads an interface component, not a defect. Only works on a floating cutout.",
       draw: function (d, b) {
         if (d.cut.kind === "notch") return '<rect x="' + (b.x - 46) + '" y="-30" width="' + (b.w + 92) +
           '" height="' + (b.h + 52) + '" rx="' + ((b.h + 22) / 2) + '" fill="#000"/>';
@@ -812,9 +812,9 @@
       }
     },
     {
-      id: "mirror", name: "Écho symétrique", bg: "night",
-      chips: ["universel", "malin"],
-      desc: "On duplique la découpe en bas de l'écran. Le cerveau lit une composition volontaire — deux marques identiques — au lieu d'un accident matériel. Coût visuel minimal.",
+      id: "mirror", name: "Symmetric echo", bg: "night",
+      chips: ["universal", "clever"],
+      desc: "The cutout is duplicated at the bottom of the screen. The brain reads a deliberate composition, two identical marks, rather than a hardware accident. Minimal visual cost.",
       draw: function (d, b) {
         var pad = 7, ph = b.h + pad * 2, pw = b.w + pad * 2;
         var topPill = (d.cut.kind === "notch")
@@ -828,9 +828,9 @@
       }
     },
     {
-      id: "object", name: "Objet suspendu", bg: "dusk",
-      chips: ["île / poinçon", "dessin"], hard: 1,
-      desc: "La découpe devient un objet : tête de périscope, abat-jour, nacelle de montgolfière. Une tige part du bord haut, le corps noir enveloppe la découpe. Le masque disparaît dans la fiction.",
+      id: "object", name: "Hanging object", bg: "dusk",
+      chips: ["island, punch", "drawing"], hard: 1,
+      desc: "The cutout becomes an object: periscope head, lampshade, balloon gondola. A stem comes down from the top edge, the black body wraps the cutout. The mask disappears into the fiction.",
       draw: function (d, b) {
         var cx = b.x + b.w / 2, hw = b.w + 24, hh = b.h + 16;
         return '<rect x="' + (cx - 7) + '" y="0" width="14" height="' + (b.y + 8) + '" fill="#000"/>' +
@@ -841,23 +841,23 @@
       }
     },
     {
-      id: "scenic", name: "Décor organique", bg: "ocean",
-      chips: ["universel", "génératif"], gen: 1,
-      desc: "Branche, feuillage, nuée d'oiseaux, câble électrique, coulure de peinture. Une silhouette noire dont la masse couvre la découpe et dont le reste déborde librement. Variations procédurales : chaque fond est unique.",
+      id: "scenic", name: "Organic decor", bg: "ocean",
+      chips: ["universal", "generative"], gen: 1,
+      desc: "Branch, foliage, flock of birds, power cable, paint drip. A black silhouette whose mass covers the cutout and whose remainder spills out freely. Procedural variation, so every wallpaper differs.",
       draw: function (d, b) {
         var cx = b.x + b.w / 2, cy = b.y + b.h / 2, s = "";
         function leaf(x, y, rx, ry, rot) {
           return '<ellipse cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" rx="' + rx + '" ry="' + ry +
                  '" fill="#000" transform="rotate(' + rot + ' ' + x.toFixed(1) + ' ' + y.toFixed(1) + ')"/>';
         }
-        /* La branche traverse tout l'écran, elle passe par la découpe */
+        /* The branch crosses the whole screen, passing through the cutout */
         s += '<path d="M-10,' + (cy - 30) + ' C' + (d.W * 0.24) + ',' + (cy + 26) + ' ' + (d.W * 0.62) + ',' +
              (cy - 16) + ' ' + (d.W + 10) + ',' + (cy + 22) +
              '" stroke="#000" stroke-width="8" fill="none" stroke-linecap="round"/>';
-        /* Le socle noir : juste ce qu'il faut pour couvrir la découpe */
+        /* The black base: just enough to cover the cutout */
         s += '<rect x="' + (b.x - 4) + '" y="' + Math.max(b.y - 6, -10) + '" width="' + (b.w + 8) +
              '" height="' + (b.h + 12) + '" rx="' + ((b.h + 12) / 2) + '" fill="#000"/>';
-        /* Feuillage : n feuilles qui recouvrent le socle et débordent en désordre */
+        /* Foliage: n leaves covering the base and spilling out irregularly */
         var n = Math.max(3, Math.round(b.w / 44));
         for (var i = 0; i <= n; i++) {
           var t = i / n;
@@ -865,7 +865,7 @@
           var ly = cy + ((i % 2) ? 13 : -13) + ((i % 3) - 1) * 5;
           s += leaf(lx, ly, 32, 19, (i % 2 ? 24 : -28) + (i % 3) * 11);
         }
-        /* Quelques feuilles isolées ailleurs sur la branche */
+        /* A few isolated leaves elsewhere along the branch */
         var stray = [[-0.62, 34, -44], [-0.34, -30, 18], [0.42, 30, -20], [0.72, -26, 52], [0.9, 26, -8]];
         for (var j = 0; j < stray.length; j++) {
           s += leaf(cx + stray[j][0] * d.W * 0.55, cy + stray[j][1], 26, 14, stray[j][2]);
@@ -874,9 +874,9 @@
       }
     },
     {
-      id: "content", name: "Camouflage par contenu", bg: "night",
-      chips: ["universel", "analyse d'image"], hard: 1,
-      desc: "Aucun aplat ajouté : on analyse la luminance de la photo, on choisit le recadrage qui amène sa zone la plus sombre sous la découpe, puis on n'assombrit localement que le delta. Le masque cesse d'exister.",
+      id: "content", name: "Content camouflage", bg: "night",
+      chips: ["universal", "image analysis"], hard: 1,
+      desc: "Nothing flat is added: the luminance of the photo is analysed, the framing that brings its darkest area under the cutout is chosen, and only the delta is darkened locally. The mask stops existing.",
       draw: function (d, b, uid) {
         var cx = b.x + b.w / 2, cy = b.y + b.h / 2;
         return '<defs><radialGradient id="lb' + uid + '" cx="0.5" cy="0.5" r="0.5">' +
@@ -888,9 +888,9 @@
       }
     },
     {
-      id: "glass", name: "Lentille Liquid Glass", bg: "plum",
-      chips: ["île / poinçon", "shader"], hard: 1,
-      desc: "On n'efface pas la découpe : on l'habille en composant système iOS 26. Une lentille de verre — flou, réfraction, liseré spéculaire — l'entoure. Elle passe pour une fonctionnalité, pas pour un trou.",
+      id: "glass", name: "Liquid Glass lens", bg: "plum",
+      chips: ["island, punch", "shader"], hard: 1,
+      desc: "The cutout is not erased: it is dressed as an iOS 26 system component. A glass lens, blur, refraction and a specular rim, surrounds it. It passes for a feature rather than a hole.",
       draw: function (d, b, uid) {
         var pad = 15, x = b.x - pad, y = b.y - pad, w = b.w + pad * 2, h = b.h + pad * 2, r = h / 2;
         return '<defs><clipPath id="lc' + uid + '"><rect x="' + x + '" y="' + y + '" width="' + w +
@@ -907,9 +907,9 @@
       }
     },
     {
-      id: "stripes", name: "Trame dégressive", bg: "dune",
-      chips: ["universel", "génératif"], gen: 1,
-      desc: "Des bandes noires régulières s'espacent en descendant. La découpe tombe dans la première bande et devient une cellule du motif. Très lisible, entièrement procédural, décliné en rayures, grille ou trame de points.",
+      id: "stripes", name: "Decaying stripes", bg: "dune",
+      chips: ["universal", "generative"], gen: 1,
+      desc: "Regular black bands spread apart going down. The cutout falls in the first band and becomes a cell of the pattern. Very legible, fully procedural, and available as lines, grid or dots.",
       draw: function (d, b) {
         var s = '<rect x="0" y="0" width="' + d.W + '" height="' + (b.y + b.h + 8) + '" fill="#000"/>';
         var yy = b.y + b.h + 8, hgt = 26, gap = 10;
@@ -922,9 +922,9 @@
       }
     },
     {
-      id: "generative", name: "Génératif pur", bg: "forest",
-      chips: ["universel", "sans asset"], gen: 1,
-      desc: "Pas de photo du tout : dégradé maillé, bruit fractal, grain — et un puits de noir placé exactement sur la découpe. Galerie infinie, zéro asset embarqué, zéro question de droits d'image.",
+      id: "generative", name: "Pure generative", bg: "forest",
+      chips: ["universal", "no assets"], gen: 1,
+      desc: "No photo at all: mesh gradient, fractal noise, grain, and a black well placed exactly over the cutout. An endless gallery, zero bundled assets, zero rights questions.",
       draw: function (d, b, uid) {
         var cx = b.x + b.w / 2, cy = b.y + b.h / 2;
         var s = '<defs><filter id="mb' + uid + '"><feGaussianBlur stdDeviation="58"/></filter>' +
@@ -945,9 +945,9 @@
       replacesBg: true
     },
     {
-      id: "highlight", name: "Contour assumé", bg: "night",
-      chips: ["universel", "anti-masque"],
-      desc: "L'inverse du projet : un liseré lumineux souligne la découpe au lieu de la nier. Gratuit à produire, ça double la taille du catalogue et ça parle à ceux qui aiment leur Dynamic Island.",
+      id: "highlight", name: "Deliberate outline", bg: "night",
+      chips: ["universal", "anti-mask"],
+      desc: "The opposite of the project: a glowing rim underlines the cutout instead of denying it. Free to produce, it doubles the catalogue and speaks to people who like their Dynamic Island.",
       draw: function (d, b, uid) {
         var pad = 6, x = b.x - pad, y = b.y - pad, w = b.w + pad * 2, h = b.h + pad * 2;
         return '<defs><filter id="gl' + uid + '" x="-60%" y="-60%" width="220%" height="220%">' +
@@ -960,14 +960,14 @@
     }
   ];
 
-  /* ── Rendu ── */
+  /* Rendering */
   var state = { dev: "island", reveal: false };
   var cardsEl = document.getElementById("cards");
   var specEl = document.getElementById("devspec");
 
   function svgFor(t, i) {
     var d = DEVICES[state.dev], b = box(d), uid = t.id + i + state.dev;
-    var out = '<svg viewBox="0 0 ' + d.W + ' ' + d.H + '" role="img" aria-label="Aperçu : ' + t.name + '">';
+    var out = '<svg viewBox="0 0 ' + d.W + ' ' + d.H + '" role="img" aria-label="Preview: ' + t.name + '">';
     out += '<defs>' + bgDefs(uid, t.bg) +
            '<filter id="soft' + uid + '"><feGaussianBlur stdDeviation="46"/></filter>' +
            '<clipPath id="scr' + uid + '"><rect width="' + d.W + '" height="' + d.H + '" rx="' + d.R + '"/></clipPath></defs>';
@@ -975,7 +975,7 @@
     out += '<rect width="' + d.W + '" height="' + d.H + '" fill="#000"/>';
     if (!t.replacesBg) out += bgLayer(uid, d);
     out += t.draw(d, b, uid);
-    /* La découpe est du matériel : toujours dessinée par-dessus tout */
+      /* The cutout is hardware: always drawn on top of everything. */
     out += cutShape(d, 'fill="#000"');
     if (state.reveal) {
       out += cutShape(d, 'fill="none" stroke="#F0533A" stroke-width="2.5" stroke-dasharray="7 5"');

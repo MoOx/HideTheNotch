@@ -3,16 +3,12 @@ name: Build iOS simulateur
 # Build pour le simulateur iOS, sans signature donc sans compte Apple. À
 # télécharger depuis l'onglet Actions et glisser sur un simulateur ouvert.
 # Un build installable sur un vrai iPhone demande, lui, le programme
-# développeur Apple — voir v2/README.md.
+# développeur Apple — voir README.md.
 on:
   workflow_dispatch:
   # `workflow_dispatch` n'est déclenchable que depuis la branche par défaut.
   # En attendant la fusion, un marqueur dans le message de commit suffit.
   push:
-
-defaults:
-  run:
-    working-directory: v2
 
 jobs:
   simulator:
@@ -26,7 +22,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: v2/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - run: npm ci
 
@@ -58,7 +54,7 @@ jobs:
           set -eo pipefail
           APP=$(ls -d build/Build/Products/Release-iphonesimulator/*.app | head -1)
           cd "$(dirname "$APP")"
-          zip -qry "$GITHUB_WORKSPACE/v2/simulator-app.zip" "$(basename "$APP")"
+          zip -qry "$GITHUB_WORKSPACE/simulator-app.zip" "$(basename "$APP")"
 
       - name: Nom de l'artefact
         id: name
@@ -67,5 +63,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: hidethenotch-${{ steps.name.outputs.sha }}-ios-simulator
-          path: v2/simulator-app.zip
+          path: simulator-app.zip
           if-no-files-found: error

@@ -1,8 +1,8 @@
 name: iOS to TestFlight
 
 # Adapted from MoOx/certificates templates/github-workflows/ios-testflight.yml.
-# The only deviations: the Expo app lives in v2/, and APPLE_TEAM_ID comes from a
-# repository variable rather than being hardcoded.
+# The only deviation: APPLE_TEAM_ID comes from a repository variable rather than
+# being hardcoded.
 #
 # Repository secrets required (Settings > Secrets and variables > Actions):
 #
@@ -29,10 +29,6 @@ on:
 concurrency:
   group: ios-testflight
   cancel-in-progress: false
-
-defaults:
-  run:
-    working-directory: v2
 
 jobs:
   testflight:
@@ -68,7 +64,7 @@ jobs:
           [ -n "${{ secrets.CERTIFICATES_DEPLOY_KEY }}" ] || missing="$missing CERTIFICATES_DEPLOY_KEY"
           if [ -n "$missing" ]; then
             echo "Missing:$missing"
-            echo "See v2/README.md, section 'iOS signed with your Apple account'."
+            echo "See README.md, section 'iOS signed with your Apple account'."
             exit 1
           fi
           echo "All four values are present."
@@ -83,7 +79,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: v2/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - run: npm ci
 
@@ -91,7 +87,6 @@ jobs:
         with:
           ruby-version: "3.3"
           bundler-cache: true
-          working-directory: v2
 
       # Recorded so the version below can be pinned explicitly.
       - name: Xcode version in use
@@ -120,6 +115,6 @@ jobs:
           path: |
             ~/Library/Logs/gym
             ~/Library/Logs/fastlane
-            v2/fastlane/report.xml
+            fastlane/report.xml
           if-no-files-found: ignore
           retention-days: 7

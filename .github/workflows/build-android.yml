@@ -8,10 +8,6 @@ on:
   # En attendant la fusion, un marqueur dans le message de commit suffit.
   push:
 
-defaults:
-  run:
-    working-directory: v2
-
 jobs:
   apk:
     name: assembleRelease
@@ -25,7 +21,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: v2/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - uses: actions/setup-java@v4
         with:
@@ -54,7 +50,7 @@ jobs:
       # `checkReleaseBuilds` avant qu'un plugin de config puisse l'écrire —
       # donc on exclut la tâche, ce qui retire aussi ses dépendances exclusives.
       - name: Compiler
-        working-directory: v2/android
+        working-directory: android
         run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a -x lintVitalRelease
 
       - name: Nom de l'artefact
@@ -64,5 +60,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: hidethenotch-${{ steps.name.outputs.sha }}-apk
-          path: v2/android/app/build/outputs/apk/release/*.apk
+          path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error

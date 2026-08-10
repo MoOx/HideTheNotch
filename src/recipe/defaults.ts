@@ -16,6 +16,9 @@ export function defaultMask(family: MaskFamily, g: Geometry): Mask {
       return {
         type: "bar",
         height: g.kind === "island" ? Math.max(floor, g.insetTop) : Math.max(floor, 1),
+        // A little more than the cutout's own radius: enough to read as a
+        // deliberate join, not so much that it announces itself.
+        corner: 0.35,
       };
 
     case "stripes":

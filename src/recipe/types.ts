@@ -23,14 +23,19 @@ export type Source =
 
 export type MaskFamily = "bar" | "stripes" | "fade";
 
-/**
- * 01, solid bar. Height is the only setting: the corner radius is derived from
- * it, see `barRadius` in `../render/draw`.
- */
+/** 01, solid bar. */
 export type BarMask = {
   type: "bar";
   /** Bar height, in points, measured from the top edge. */
   height: number;
+  /**
+   * How round the join with the screen edge is, from 0 to 1.
+   *
+   * It was derived from the height, which was tidy and wrong: the two are
+   * independent judgements. At 1 it is exactly the display's own corner radius,
+   * so the band can be made to continue the panel rather than approximate it.
+   */
+  corner: number;
 };
 
 /**

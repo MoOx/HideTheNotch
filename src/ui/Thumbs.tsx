@@ -51,17 +51,24 @@ function Thumb({
     );
   }, [recipe, geometry, height]);
 
+  // The selection ring is a frame around the thumbnail, not a border on it.
+  // A border shares the corner with what it encloses, so a selected thumbnail
+  // clipped at the same radius as an unselected one comes out visibly rounder
+  // than its neighbours. Separating the two keeps every thumbnail identical and
+  // lets the ring have its own, larger, concentric radius.
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ selected }}
       onPress={onPress}
-      style={[styles.thumb, { height }, selected && styles.selected]}
+      style={[styles.frame, selected && styles.selected]}
     >
-      <Canvas style={{ width: THUMB_W, height }}>
-        <Picture picture={picture} />
-      </Canvas>
+      <View style={[styles.clip, { height }]}>
+        <Canvas style={{ width: THUMB_W, height }}>
+          <Picture picture={picture} />
+        </Canvas>
+      </View>
     </Pressable>
   );
 }
@@ -139,14 +146,17 @@ export function EffectRow({
   );
 }
 
+const RING = 3;
+const RADIUS = 10;
+
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", gap: 8, paddingVertical: 6 },
-  thumb: {
-    width: THUMB_W,
-    borderRadius: 10,
-    overflow: "hidden",
+  row: { flexDirection: "row", gap: 6, paddingVertical: 6 },
+  frame: {
+    padding: RING,
+    borderRadius: RADIUS + RING,
     borderWidth: 2,
     borderColor: "transparent",
   },
   selected: { borderColor: "#FFFFFF" },
+  clip: { width: THUMB_W, borderRadius: RADIUS, overflow: "hidden" },
 });

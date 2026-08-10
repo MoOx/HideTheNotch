@@ -1,5 +1,4 @@
-import type { ReactNode } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text } from "react-native";
 
 import { T } from "./theme";
 
@@ -10,17 +9,11 @@ import { T } from "./theme";
  * carries its own shadow rather than a plate: a plate would be a second piece
  * of chrome for four letters.
  */
-export function Caption({ children, icon }: { children: string; icon?: ReactNode }) {
-  return (
-    <View style={styles.row}>
-      {icon}
-      <Text style={styles.text}>{children}</Text>
-    </View>
-  );
+export function Caption({ children }: { children: string }) {
+  return <Text style={styles.text}>{children}</Text>;
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", gap: 5 },
   text: {
     color: T.text,
     fontSize: 11,

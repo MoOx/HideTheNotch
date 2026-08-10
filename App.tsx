@@ -25,13 +25,15 @@ import {
   type Recipe,
   type Source,
 } from "./src/recipe/types";
+import type { SFSymbol } from "expo-symbols";
+
 import { barMaxHeight, barMinHeight, fadeSolidEnd, type DrawContext } from "./src/render/draw";
 import { renderToFile, saveToPhotos } from "./src/render/export";
 import { useSourceImage } from "./src/render/useSourceImage";
 import { BUTTON, CornerButton } from "./src/ui/CornerButton";
 import { CurvePicker, type CurveId } from "./src/ui/CurvePicker";
 import { FamilyDots } from "./src/ui/FamilyDots";
-import { MainSlider, SLIDER_W } from "./src/ui/MainSlider";
+import { SLIDER_H_SHORT, SLIDER_W, VSlider } from "./src/ui/VSlider";
 import { HomeScreenLayer, Preview } from "./src/ui/Preview";
 import { ExportSheet, SourceSheet, SupportSheet } from "./src/ui/sheets";
 import { useShake } from "./src/hooks/useShake";
@@ -43,25 +45,31 @@ import { useShake } from "./src/hooks/useShake";
  * its setting as a single number between two bounds does not get a second
  * control, it gets a better setting.
  */
-function slider(mask: Mask, g: Geometry) {
+type Control = {
+  label: string;
+  symbol: SFSymbol;
+  value: number;
+  apply: (v: number) => Mask;
+};
+
+function slider(mask: Mask, g: Geometry): Control {
   switch (mask.type) {
     case "bar": {
       const min = barMinHeight(g);
       const max = barMaxHeight(g);
       return {
         label: FAMILY_LABEL.bar,
+        symbol: "rectangle.topthird.inset.filled",
         value: (mask.height - min) / (max - min),
-        apply: (v: number): Mask => ({
-          ...mask,
-          height: min + v * (max - min),
-        }),
+        apply: (v) => ({ ...mask, height: min + v * (max - min) }),
       };
     }
     case "stripes":
       return {
         label: FAMILY_LABEL.stripes,
+        symbol: "line.3.horizontal",
         value: mask.density,
-        apply: (v: number): Mask => ({ ...mask, density: v }),
+        apply: (v) => ({ ...mask, density: v }),
       };
     case "fade": {
       const min = fadeSolidEnd(g) + 40;
@@ -70,11 +78,9 @@ function slider(mask: Mask, g: Geometry) {
       const max = g.height;
       return {
         label: FAMILY_LABEL.fade,
+        symbol: "rectangle.tophalf.filled",
         value: (mask.fadeEnd - min) / (max - min),
-        apply: (v: number): Mask => ({
-          ...mask,
-          fadeEnd: min + v * (max - min),
-        }),
+        apply: (v) => ({ ...mask, fadeEnd: min + v * (max - min) }),
       };
     }
   }
@@ -174,7 +180,10 @@ function Editor() {
   }, []);
   const applyParam = useCallback(
     (dy: number) => {
-      const v = Math.min(1, Math.max(0, paramFrom.current - dy / PARAM_TRAVEL));
+      // Down, not up. The slider fills upward because that is what a level
+      // does, but on the wallpaper itself the finger is pushing the black
+      // around: dragging down should send it down.
+      const v = Math.min(1, Math.max(0, paramFrom.current + dy / PARAM_TRAVEL));
       setMask(controlRef.current.apply(v));
     },
     [setMask],
@@ -356,9 +365,9 @@ function Editor() {
         </View>
 
         <View style={[styles.right, { bottom: secondRow }]}>
-          <MainSlider
-            family={family}
+          <VSlider
             label={control.label}
+            symbol={control.symbol}
             value={control.value}
             onChange={(v) => setMask(control.apply(v))}
           />
@@ -373,7 +382,19 @@ function Editor() {
           </View>
         )}
 
-        <View style={[styles.right, { bottom, right: innerColumn }]}>
+        {mask.type === "bar" && (
+          <View style={[styles.right, { bottom: secondRow, right: innerColumn }]}>
+            <VSlider
+              label="Corner"
+              symbol="square.on.square"
+              height={SLIDER_H_SHORT}
+              value={mask.corner}
+              onChange={(corner) => setMask({ ...mask, corner })}
+            />
+          </View>
+        )}
+
+        <View style={[styles.left, { bottom }]}>
           <CornerButton icon="photo" label="Wallpaper" onPress={() => setSourceOpen(true)} />
         </View>
         <View style={[styles.right, { bottom }]}>
@@ -388,20 +409,19 @@ function Editor() {
           setPendingPick(true);
           setSourceOpen(false);
         }}
-        onPickPalette={(preset: GradientPresetId) => {
-          setSource({ type: "gradient", preset, seed: 1 });
-          setSourceOpen(false);
-        }}
+        // The sheet stays up: picking a gradient and then trying it against
+        // each effect is one continuous act, and closing after every tap turns
+        // it into three.
+        onPickPalette={(preset: GradientPresetId) =>
+          setSource({ type: "gradient", preset, seed: 1 })
+        }
         current={source.type === "photo" ? "photo" : source.preset}
         geometry={geometry}
         mask={mask}
         source={source}
         masks={masks}
         family={family}
-        onPickFamily={(f) => {
-          setFamily(f);
-          setSourceOpen(false);
-        }}
+        onPickFamily={setFamily}
       />
 
       <ExportSheet
@@ -440,6 +460,7 @@ const PARAM_TRAVEL = 300;
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#000" },
   pager: { position: "absolute", top: 0, bottom: 0, left: 0, flexDirection: "row" },
+  left: { position: "absolute", left: 16 },
   right: { position: "absolute", right: 16 },
   dots: { position: "absolute", left: 0, right: 0, alignItems: "center" },
 });

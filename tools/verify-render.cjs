@@ -116,8 +116,10 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
       const i = (Math.round(yPt * g.scale) * wPx + Math.round(xPt * g.scale)) * 4;
       return px[i] === 0 && px[i + 1] === 0 && px[i + 2] === 0;
     };
-    const r = barRadius(mask.height, g);
-    const below = mask.height + r * 0.4;
+    const r = barRadius(mask.corner, g);
+    // Far enough below the bar line to be well inside the fillet at x = 1, and
+    // far enough above its foot to still be outside it in the middle.
+    const below = mask.height + r * 0.3;
     const above = mask.height - 2;
 
     const edgeBelow = isBlack(1, below) && isBlack(g.width - 1, below);

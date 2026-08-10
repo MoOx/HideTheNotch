@@ -94,7 +94,7 @@ const { JsiSkApi } = require(path.join(
   });
   jobs.push({
     devName: "island", g: devices.island, family: "bar", tag: "tall",
-    mask: { type: "bar", height: 120 }, palette: "ink",
+    mask: { type: "bar", height: 120, corner: 1 }, palette: "ink",
   });
 
   for (const job of jobs) {

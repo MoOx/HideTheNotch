@@ -122,7 +122,7 @@ function black() {
 function drawMask(canvas: SkCanvas, mask: Mask, g: Geometry, source: SkShader) {
   switch (mask.type) {
     case "bar":
-      return drawBar(canvas, mask.height, g);
+      return drawBar(canvas, mask.height, mask.corner, g);
     case "stripes":
       return drawStripes(canvas, mask, g);
     case "fade":
@@ -157,26 +157,21 @@ export function barMaxHeight(g: Geometry): number {
 }
 
 /**
- * The corner radius is not a setting: it follows the height.
+ * The corner radius, from the cutout's own radius to the display's own.
  *
- * At the bottom of the range the bar is barely taller than the cutout, and a
- * tight radius makes it read as an extension of the hardware. As it grows it
- * stops being a cutout cover and becomes a band across the screen, and a band
- * that meets the edge squarely looks wrong next to a display whose own corners
- * are round. So the radius opens up towards the display's own corner radius,
- * and the shape stays of a piece with the panel at either end.
+ * It used to be derived from the height, and clamped to half of it. Both were
+ * wrong. Derived, it could not be judged separately from the height even though
+ * it plainly is a separate judgement. Clamped, it could never reach the display
+ * corner on a short band, which is exactly where it matters: the fillet hangs
+ * *below* the band line, so its size has nothing to do with the band's height.
+ * The only real constraint is that the two arcs do not meet in the middle.
  */
-export function barRadius(height: number, g: Geometry): number {
+export function barRadius(corner: number, g: Geometry): number {
   if (g.kind === "none") {
     return 0;
   }
-  const min = barMinHeight(g);
-  const max = barMaxHeight(g);
-  const t = Math.min(1, Math.max(0, (height - min) / (max - min)));
-  const r = ISLAND.r + t * (screenCorner(g) - ISLAND.r);
-  // The arc has to fit: it descends by r at the edges, and the two of them must
-  // not meet in the middle.
-  return Math.min(r, height / 2, g.width / 2);
+  const t = Math.min(1, Math.max(0, corner));
+  return Math.min(ISLAND.r + t * (screenCorner(g) - ISLAND.r), g.width / 2);
 }
 
 /**
@@ -191,8 +186,8 @@ export function barRadius(height: number, g: Geometry): number {
  * So the outline is a rectangle whose bottom edge sinks by `r` at each end,
  * joined to the bar line by a quarter circle turning the other way.
  */
-function drawBar(canvas: SkCanvas, height: number, g: Geometry) {
-  const r = barRadius(height, g);
+function drawBar(canvas: SkCanvas, height: number, corner: number, g: Geometry) {
+  const r = barRadius(corner, g);
   if (r <= 0) {
     canvas.drawRect(Skia.XYWHRect(0, 0, g.width, height), black());
     return;

@@ -3,18 +3,31 @@ import { SymbolView, type SFSymbol } from "expo-symbols";
 
 import { Glass } from "./Glass";
 
-export const BUTTON = 54;
+/**
+ * The size of a system round glass button, not a size of our own.
+ *
+ * 54 was too big next to the Photos editor's own controls. The system puts
+ * these at about 44 across with the glyph a little under half of that, which is
+ * also the smallest comfortable touch target, so the button is exactly as big
+ * as it needs to be and no bigger.
+ */
+export const BUTTON = 44;
+
+const ICON_SIZE = 20;
 
 /**
- * Two thirds of the button, at the regular weight.
+ * Optical centring for symbols that are not symmetrical.
  *
- * The first pass used 23 pt, which was not chosen so much as assumed. The
- * system's own round glass buttons put the glyph at close to two thirds of the
- * circle. Semibold on top of that was one adjustment too many: at this size the
- * strokes are already thick enough, and the heavier weight made the two buttons
- * shout.
+ * `square.and.arrow.up` is a box with an arrow escaping out of the top: its
+ * bounding box is taller than its visual mass and the weight sits low, so
+ * centring the box leaves the glyph looking high. Apple does not centre the
+ * bounding box either, it aligns symbols on a baseline grid where each glyph
+ * carries its own metrics; rendered into a plain square view that information
+ * is gone, so it has to be put back by hand. A point and a half down is what it
+ * takes for the box to look centred while the arrow overshoots, which is the
+ * intended reading.
  */
-const ICON_SIZE = Math.round(BUTTON * 0.66);
+const OPTICAL: Partial<Record<keyof typeof ICON, number>> = { export: 1.5 };
 
 /**
  * The icons, named once per platform.
@@ -54,7 +67,12 @@ export function CornerButton({ icon, label, onPress }: Props) {
         style={styles.hit}
         onPress={onPress}
       >
-        <SymbolView name={ICON[icon]} size={ICON_SIZE} tintColor="#FFFFFF" />
+        <SymbolView
+          name={ICON[icon]}
+          size={ICON_SIZE}
+          tintColor="#FFFFFF"
+          style={{ transform: [{ translateY: OPTICAL[icon] ?? 0 }] }}
+        />
       </Pressable>
     </Glass>
   );

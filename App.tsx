@@ -28,6 +28,7 @@ import {
 import type { SFSymbol } from "expo-symbols";
 
 import { barMaxHeight, barMinHeight, fadeSolidEnd, type DrawContext } from "./src/render/draw";
+import { presetSource } from "./src/render/palettes";
 import { renderToFile, saveToPhotos } from "./src/render/export";
 import { useSourceImage } from "./src/render/useSourceImage";
 import { BUTTON, CornerButton } from "./src/ui/CornerButton";
@@ -107,11 +108,7 @@ function Editor() {
     fade: defaultMask("fade", detected),
     decor: defaultMask("decor", detected),
   }));
-  const [source, setSource] = useState<Source>({
-    type: "gradient",
-    preset: "aurora",
-    seed: 1,
-  });
+  const [source, setSource] = useState<Source>(() => presetSource("aurora"));
 
   // Changing the target device changes the constraints, so we go back to that
   // device's defaults rather than keeping settings that have become wrong.
@@ -152,7 +149,7 @@ function Editor() {
   useEffect(() => {
     if (imageError) {
       Alert.alert("That photo could not be opened", imageError);
-      setSource({ type: "gradient", preset: "aurora", seed: 1 });
+      setSource(presetSource("aurora"));
     }
   }, [imageError]);
 
@@ -434,9 +431,7 @@ function Editor() {
         // The sheet stays up: picking a gradient and then trying it against
         // each effect is one continuous act, and closing after every tap turns
         // it into three.
-        onPickPalette={(preset: GradientPresetId) =>
-          setSource({ type: "gradient", preset, seed: 1 })
-        }
+        onPickPalette={(preset: GradientPresetId) => setSource(presetSource(preset))}
         current={source.type === "photo" ? "photo" : source.preset}
         geometry={geometry}
         mask={mask}

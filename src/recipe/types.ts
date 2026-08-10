@@ -9,8 +9,32 @@
 
 export type GradientPresetId = "aurora" | "haze" | "ink" | "ember" | "moss";
 
+/**
+ * One coloured point of the gradient.
+ *
+ * Position is a fraction of the screen, not points, so a recipe made on one
+ * phone renders the same composition on another. Both may sit a little outside
+ * 0 to 1: a point just off the edge pulls its colour in from beyond the frame,
+ * which is the difference between a corner that is coloured and a corner that
+ * is the end of something.
+ */
+export type MeshPoint = {
+  x: number;
+  y: number;
+  /** `#RRGGBB`. */
+  color: string;
+};
+
+/** How many the shader carries. Nine is a 3 by 3, which is already a lot. */
+export const MESH_MAX = 8;
+
 export type Source =
-  | { type: "gradient"; preset: GradientPresetId; seed: number }
+  | {
+      type: "gradient";
+      /** Which preset it came from, or null once a point has been touched. */
+      preset: GradientPresetId | null;
+      points: MeshPoint[];
+    }
   | {
       type: "photo";
       uri: string;

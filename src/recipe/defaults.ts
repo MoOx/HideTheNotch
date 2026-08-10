@@ -1,5 +1,6 @@
 import { cutoutBottom, type Geometry } from "../geometry/devices";
 import { fadeSolidEnd } from "../render/draw";
+import { presetSource } from "../render/palettes";
 import type { Mask, MaskFamily, Recipe } from "./types";
 
 /**
@@ -36,7 +37,7 @@ export function defaultMask(family: MaskFamily, g: Geometry): Mask {
 
 export function defaultRecipe(g: Geometry): Recipe {
   return {
-    source: { type: "gradient", preset: "aurora", seed: 1 },
+    source: presetSource("aurora"),
     mask: defaultMask("fade", g),
   };
 }

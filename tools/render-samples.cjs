@@ -43,6 +43,7 @@ const { JsiSkApi } = require(path.join(
   const { fadeEffect } = require(path.join(HARNESS, "render/shaders.js"));
   const { defaultMask } = require(path.join(HARNESS, "recipe/defaults.js"));
   const { ISLAND, NOTCH_WIDE } = require(path.join(HARNESS, "geometry/devices.js"));
+  const { presetSource } = require(path.join(HARNESS, "render/palettes.js"));
 
   console.log("fade shader compiled:", fadeEffect ? "yes" : "NO");
 
@@ -109,7 +110,7 @@ const { JsiSkApi } = require(path.join(
     canvas.scale(g.scale, g.scale);
 
     drawRecipe(canvas, {
-      recipe: { source: { type: "gradient", preset: job.palette, seed: 1 }, mask: job.mask },
+      recipe: { source: presetSource(job.palette), mask: job.mask },
       geometry: g,
       image: null,
     });

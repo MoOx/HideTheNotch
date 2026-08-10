@@ -36,6 +36,7 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
   } = require(path.join(HARNESS, "render/draw.js"));
   const { defaultMask } = require(path.join(HARNESS, "recipe/defaults.js"));
   const { ISLAND, NOTCH_WIDE } = require(path.join(HARNESS, "geometry/devices.js"));
+  const { presetSource } = require(path.join(HARNESS, "render/palettes.js"));
 
   const devices = {
     "Dynamic Island": {
@@ -51,6 +52,9 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
   };
 
   let failures = 0;
+
+  /** Everything but the fade check lives in the first points of the screen. */
+  const TOP = 140;
 
   /**
    * Membership test for the cutout's rounded rectangle, grown by `grow` points
@@ -68,6 +72,22 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
       const dy = Math.max(y0 + r - yPt, 0, yPt - (y1 - r));
       return dx * dx + dy * dy <= r * r;
     };
+  }
+
+  /**
+   * A short surface must never turn into a short check.
+   *
+   * Clamping the scan to the pixels that exist would quietly stop testing the
+   * rows above them, and the day a mask grows past the surface the check would
+   * go green by looking at less. So it is a failure, and a loud one.
+   */
+  function reach(hPx, g, y1, what) {
+    if (y1 * g.scale <= hPx - 1) {
+      return true;
+    }
+    console.log(`  FAIL ${what} needs ${y1.toFixed(0)} pt but only ${hPx / g.scale} pt was rendered`);
+    failures += 1;
+    return false;
   }
 
   /** Worst channel over every pixel the predicate accepts, plus how many missed. */
@@ -92,15 +112,24 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
     return { worst, bad };
   }
 
-  function render(g, mask, palette) {
+  /**
+   * Renders the recipe and returns its pixels.
+   *
+   * `heightPt` shrinks the *surface*, not the geometry: the recipe still draws
+   * for a whole screen and Skia clips it, so every pixel returned is the pixel
+   * that would be exported. Every check here looks at the top of the screen,
+   * and CanvasKit rasterises the gradient's shader per pixel on the CPU, so
+   * asking for the 800 points nobody inspects costs minutes of CI for nothing.
+   */
+  function render(g, mask, palette, heightPt) {
     const wPx = Math.round(g.width * g.scale);
-    const hPx = Math.round(g.height * g.scale);
+    const hPx = Math.round(Math.min(heightPt ?? g.height, g.height) * g.scale);
     const surface = Skia.Surface.Make(wPx, hPx);
     const canvas = surface.getCanvas();
     canvas.clear(Skia.Color("#000000"));
     canvas.scale(g.scale, g.scale);
     drawRecipe(canvas, {
-      recipe: { source: { type: "gradient", preset: palette, seed: 1 }, mask },
+      recipe: { source: presetSource(palette), mask },
       geometry: g, image: null,
     });
     surface.flush();
@@ -133,9 +162,10 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
   console.log("\n-- Cutout coverage and halo (absolute black expected) --");
   for (const [devName, g] of Object.entries(devices)) {
     for (const family of ["bar", "stripes", "fade", "decor"]) {
-      const { px, wPx, hPx } = render(g, defaultMask(family, g), "ember");
+      const { px, wPx, hPx } = render(g, defaultMask(family, g), "ember", TOP);
       const c = g.cutout;
 
+      reach(hPx, g, c.y + c.h + HALO, `${devName} ${family} halo`);
       const core = scan(px, wPx, hPx, g, inRRect(c, -2), {
         x0: c.x + 2, y0: c.y + 2, x1: c.x + c.w - 2, y1: c.y + c.h - 2,
       });
@@ -166,12 +196,13 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
   console.log("\n-- Inverted bar corner --");
   for (const [devName, g] of Object.entries(devices)) {
     const mask = defaultMask("bar", g);
-    const { px, wPx } = render(g, mask, "ember");
+    const { px, wPx, hPx } = render(g, mask, "ember", TOP);
     const isBlack = (xPt, yPt) => {
       const i = (Math.round(yPt * g.scale) * wPx + Math.round(xPt * g.scale)) * 4;
       return px[i] === 0 && px[i + 1] === 0 && px[i + 2] === 0;
     };
     const r = barRadius(mask.corner, g);
+    reach(hPx, g, mask.height + r * 0.3, `${devName} bar corner`);
     // Far enough below the bar line to be well inside the fillet at x = 1, and
     // far enough above its foot to still be outside it in the middle.
     const below = mask.height + r * 0.3;
@@ -240,7 +271,8 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
   const g = devices["Dynamic Island"];
   const solidEnd = fadeSolidEnd(g);
   const fadeEnd = 420;
-  const { px, wPx } = render(g, { type: "fade", fadeEnd, curve: 0 }, "haze");
+  const { px, wPx, hPx } = render(g, { type: "fade", fadeEnd, curve: 0 }, "haze", fadeEnd + 20);
+  reach(hPx, g, fadeEnd, "fade");
   const x = Math.floor(wPx / 2);
 
   let differing = 0;

@@ -10,10 +10,10 @@ import {
 } from "@shopify/react-native-skia";
 
 import { cutoutBottom, ISLAND, screenCorner, type Geometry } from "../geometry/devices";
-import type { Mask, Recipe, Source } from "../recipe/types";
+import { MESH_MAX, type Mask, type Recipe, type Source } from "../recipe/types";
 import { drawDecor } from "./decor";
 import { paletteById } from "./palettes";
-import { fadeEffect } from "./shaders";
+import { fadeEffect, meshEffect } from "./shaders";
 
 /**
  * Foundation B, rendering.
@@ -61,31 +61,52 @@ export function sourceShader(source: Source, g: Geometry, image: SkImage | null)
       TileMode.Clamp,
       FilterMode.Linear,
       MipmapMode.Linear,
-      m
+      m,
     );
   }
 
-  // No photo: a procedural gradient. It also serves as a fallback while the
-  // image is being decoded, so the screen is never empty.
-  const palette = paletteById(source.type === "gradient" ? source.preset : "aurora");
-
-  const base = Skia.Shader.MakeLinearGradient(
-    { x: g.width * 0.15, y: 0 },
-    { x: g.width * 0.85, y: g.height },
-    palette.stops.map((c) => Skia.Color(c)),
-    null,
-    TileMode.Clamp
+  // No photo: the gradient. It also stands in while an image is being decoded,
+  // so the screen is never empty.
+  const points = (source.type === "gradient" ? source.points : paletteById("aurora").points).slice(
+    0,
+    MESH_MAX,
   );
 
-  const halo = Skia.Shader.MakeRadialGradient(
-    { x: g.width * 0.72, y: g.height * 0.24 },
-    g.width * 0.9,
-    [Skia.Color(palette.halo + "70"), Skia.Color("#00000000")],
-    null,
-    TileMode.Clamp
-  );
+  if (!meshEffect || points.length === 0) {
+    // Without the shader, the two end colours down the screen. It bands and it
+    // is not the composition, but a flawed gradient beats a blank screen.
+    const ends = points.length ? points : paletteById("aurora").points;
+    return Skia.Shader.MakeLinearGradient(
+      { x: 0, y: 0 },
+      { x: 0, y: g.height },
+      [Skia.Color(ends[0].color), Skia.Color(ends[ends.length - 1].color)],
+      null,
+      TileMode.Clamp,
+    );
+  }
 
-  return Skia.Shader.MakeBlend(BlendMode.SrcOver, halo, base);
+  // Flat, in declaration order: two for the size, the count, the scale, then
+  // the two float4 arrays. float4 rather than float2 and float3 because an
+  // array of those is where uniform packing rules stop being obvious.
+  const uniforms: number[] = [g.width, g.height, points.length, g.scale];
+  for (let i = 0; i < MESH_MAX; i += 1) {
+    const p = points[i];
+    uniforms.push(p ? p.x : 0, p ? p.y : 0, 0, 0);
+  }
+  for (let i = 0; i < MESH_MAX; i += 1) {
+    const lin = linearRgb(points[i]?.color ?? "#000000");
+    uniforms.push(lin[0], lin[1], lin[2], 1);
+  }
+  return meshEffect.makeShader(uniforms);
+}
+
+/** `#RRGGBB` to linear light, which is where the gradient is mixed. */
+function linearRgb(hex: string): [number, number, number] {
+  const at = (i: number) => {
+    const v = parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+    return Math.pow((Number.isNaN(v) ? 0 : v) / 255, 2.2);
+  };
+  return [at(0), at(1), at(2)];
 }
 
 /**
@@ -98,7 +119,7 @@ export function coverRect(
   ih: number,
   W: number,
   H: number,
-  s: { dx: number; dy: number; zoom: number }
+  s: { dx: number; dy: number; zoom: number },
 ) {
   const base = Math.max(W / iw, H / ih);
   const scale = base * Math.max(s.zoom, 1);
@@ -324,7 +345,7 @@ function drawFade(
   canvas: SkCanvas,
   mask: { fadeEnd: number; curve: 0 | 1 | 2 },
   g: Geometry,
-  source: SkShader
+  source: SkShader,
 ) {
   const solidEnd = fadeSolidEnd(g);
 
@@ -347,8 +368,8 @@ function drawFade(
         { x: 0, y: mask.fadeEnd },
         [Skia.Color("#000000"), Skia.Color("#00000000")],
         null,
-        TileMode.Clamp
-      )
+        TileMode.Clamp,
+      ),
     );
     canvas.drawRect(Skia.XYWHRect(0, solidEnd, g.width, span), p);
     return;
@@ -356,10 +377,7 @@ function drawFade(
 
   const paint = Skia.Paint();
   paint.setShader(
-    fadeEffect.makeShaderWithChildren(
-      [solidEnd, mask.fadeEnd, mask.curve, g.scale],
-      [source]
-    )
+    fadeEffect.makeShaderWithChildren([solidEnd, mask.fadeEnd, mask.curve, g.scale], [source]),
   );
   canvas.drawRect(Skia.XYWHRect(0, solidEnd, g.width, span), paint);
 }

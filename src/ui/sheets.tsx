@@ -75,7 +75,7 @@ export function SourceSheet({
   onClose: () => void;
   onPickPhoto: () => void;
   onPickPalette: (id: GradientPresetId) => void;
-  current: GradientPresetId | "photo";
+  current: GradientPresetId | "photo" | null;
   geometry: Geometry;
   mask: Mask;
   source: Source;

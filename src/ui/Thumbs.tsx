@@ -13,7 +13,7 @@ import {
   type Source,
 } from "../recipe/types";
 import { drawRecipe } from "../render/draw";
-import { PALETTES } from "../render/palettes";
+import { PALETTES, presetSource } from "../render/palettes";
 
 const THUMB_W = 56;
 
@@ -90,7 +90,7 @@ export function PaletteRow({
 }: {
   geometry: Geometry;
   mask: Mask;
-  current: GradientPresetId | "photo";
+  current: GradientPresetId | "photo" | null;
   onPick: (id: GradientPresetId) => void;
 }) {
   return (
@@ -102,7 +102,7 @@ export function PaletteRow({
           label={p.label}
           selected={current === p.id}
           onPress={() => onPick(p.id)}
-          recipe={{ source: { type: "gradient", preset: p.id, seed: 1 }, mask }}
+          recipe={{ source: presetSource(p.id), mask }}
         />
       ))}
     </View>
@@ -141,8 +141,7 @@ export function EffectRow({
           // do not carry here; the gradient stands in and the mask, which is
           // the point of the row, is exact.
           recipe={{
-            source:
-              source.type === "gradient" ? source : { type: "gradient", preset: "aurora", seed: 1 },
+            source: source.type === "gradient" ? source : presetSource("aurora"),
             mask: masks[f],
           }}
         />

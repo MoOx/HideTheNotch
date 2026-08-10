@@ -53,7 +53,7 @@ const ICON = {
 
 /** Rows carry the same icon system as the rest of the app, see `CornerButton`. */
 function Glyph({ icon }: { icon: keyof typeof ICON }) {
-  return <SymbolView name={ICON[icon]} size={20} />;
+  return <SymbolView name={ICON[icon]} size={20} resizeMode="scaleAspectFit" />;
 }
 
 // -- Wallpaper ---------------------------------------------------------------

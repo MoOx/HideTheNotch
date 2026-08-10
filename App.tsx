@@ -33,7 +33,7 @@ import { useSourceImage } from "./src/render/useSourceImage";
 import { BUTTON, CornerButton } from "./src/ui/CornerButton";
 import { CurvePicker, type CurveId } from "./src/ui/CurvePicker";
 import { FamilyDots } from "./src/ui/FamilyDots";
-import { SLIDER_H_SHORT, SLIDER_W, VSlider } from "./src/ui/VSlider";
+import { SLIDER_H_SHORT, VSlider } from "./src/ui/VSlider";
 import { HomeScreenLayer, Preview } from "./src/ui/Preview";
 import { ExportSheet, SourceSheet, SupportSheet } from "./src/ui/sheets";
 import { useShake } from "./src/hooks/useShake";
@@ -331,11 +331,11 @@ function Editor() {
   }, [ctx]);
 
   const bottom = Math.max(insets.bottom, 14);
-  // Everything the thumb needs is on the right, in two columns: the family's
-  // own control beside the main slider, and the two buttons under them. The
-  // left half of the screen stays wallpaper.
+  // One column on the right, read from the bottom up: export button, main
+  // slider, and above it whatever else the family needs. Side by side the two
+  // controls competed for the same glance; stacked, the one that matters is
+  // the one nearest the thumb.
   const secondRow = bottom + BUTTON + 16;
-  const innerColumn = 16 + SLIDER_W + 12;
 
   return (
     <View style={styles.root}>
@@ -364,26 +364,15 @@ function Editor() {
           <FamilyDots family={family} />
         </View>
 
-        <View style={[styles.right, { bottom: secondRow }]}>
-          <VSlider
-            label={control.label}
-            symbol={control.symbol}
-            value={control.value}
-            onChange={(v) => setMask(control.apply(v))}
-          />
-        </View>
-
-        {mask.type === "fade" && (
-          <View style={[styles.right, { bottom: secondRow, right: innerColumn }]}>
+        <View style={[styles.right, styles.column, { bottom: secondRow }]}>
+          {mask.type === "fade" && (
             <CurvePicker
               value={mask.curve as CurveId}
               onChange={(curve) => setMask({ ...mask, curve })}
             />
-          </View>
-        )}
+          )}
 
-        {mask.type === "bar" && (
-          <View style={[styles.right, { bottom: secondRow, right: innerColumn }]}>
+          {mask.type === "bar" && (
             <VSlider
               label="Corner"
               symbol="square.on.square"
@@ -391,8 +380,15 @@ function Editor() {
               value={mask.corner}
               onChange={(corner) => setMask({ ...mask, corner })}
             />
-          </View>
-        )}
+          )}
+
+          <VSlider
+            label={control.label}
+            symbol={control.symbol}
+            value={control.value}
+            onChange={(v) => setMask(control.apply(v))}
+          />
+        </View>
 
         <View style={[styles.left, { bottom }]}>
           <CornerButton icon="photo" label="Wallpaper" onPress={() => setSourceOpen(true)} />
@@ -462,5 +458,6 @@ const styles = StyleSheet.create({
   pager: { position: "absolute", top: 0, bottom: 0, left: 0, flexDirection: "row" },
   left: { position: "absolute", left: 16 },
   right: { position: "absolute", right: 16 },
+  column: { alignItems: "center", gap: 14 },
   dots: { position: "absolute", left: 0, right: 0, alignItems: "center" },
 });

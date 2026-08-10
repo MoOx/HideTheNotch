@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Platform, PlatformColor, Pressable, StyleSheet, Text, View } from "react-native";
 import { Canvas, Picture, Skia, createPicture } from "@shopify/react-native-skia";
 
 import type { Geometry } from "../geometry/devices";
@@ -57,19 +57,24 @@ function Thumb({
   // than its neighbours. Separating the two keeps every thumbnail identical and
   // lets the ring have its own, larger, concentric radius.
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ selected }}
-      onPress={onPress}
-      style={[styles.frame, selected && styles.selected]}
-    >
-      <View style={[styles.clip, { height }]}>
-        <Canvas style={{ width: THUMB_W, height }}>
-          <Picture picture={picture} />
-        </Canvas>
-      </View>
-    </Pressable>
+    <View style={styles.cell}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ selected }}
+        onPress={onPress}
+        style={[styles.frame, selected && styles.selected]}
+      >
+        <View style={[styles.clip, { height }]}>
+          <Canvas style={{ width: THUMB_W, height }}>
+            <Picture picture={picture} />
+          </Canvas>
+        </View>
+      </Pressable>
+      <Text style={styles.name} numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
   );
 }
 
@@ -151,6 +156,22 @@ const RADIUS = 10;
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: 6, paddingVertical: 6 },
+  cell: { alignItems: "center", gap: 3 },
+  /**
+   * The caption under each thumbnail.
+   *
+   * No font family and no colour of our own: React Native's default face on
+   * iOS is already San Francisco, and `secondaryLabel` is the system's own
+   * grey, which follows the appearance and the accessibility settings for
+   * free. Naming a font or picking a grey is how a caption stops looking
+   * native.
+   */
+  name: {
+    fontSize: 11,
+    maxWidth: THUMB_W + 8,
+    textAlign: "center",
+    color: Platform.OS === "ios" ? PlatformColor("secondaryLabel") : "rgba(140,140,146,1)",
+  },
   frame: {
     padding: RING,
     borderRadius: RADIUS + RING,

@@ -1,5 +1,6 @@
 import { useMemo, useRef } from "react";
 import { StyleSheet, View } from "react-native";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import * as Haptics from "expo-haptics";
@@ -50,6 +51,17 @@ export function VSlider({ value, onChange, label, symbol, height = SLIDER_H }: P
   const start = useRef(0);
   const lastNotch = useRef(-1);
 
+  // The volume control swells while you hold it. `isInteractive` on the glass
+  // does something like that on its own, but it scales the material inside a
+  // frame that does not move, so the effect arrives clipped: a bar inside a
+  // bar. Scaling the whole control instead makes the frame, the fill and the
+  // symbol grow together, which is what the system control actually does.
+  const grow = useSharedValue(0);
+  const growStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 + grow.value * 0.07 }],
+    transformOrigin: "center bottom",
+  }));
+
   const pan = useMemo(
     () =>
       Gesture.Pan()
@@ -58,6 +70,7 @@ export function VSlider({ value, onChange, label, symbol, height = SLIDER_H }: P
         .onBegin(() => {
           start.current = live.current;
           lastNotch.current = Math.round(live.current * 10);
+          grow.value = withTiming(1, { duration: 140 });
         })
         .onUpdate((e) => {
           const v = Math.min(1, Math.max(0, start.current - e.translationY / height));
@@ -68,8 +81,11 @@ export function VSlider({ value, onChange, label, symbol, height = SLIDER_H }: P
             void Haptics.selectionAsync();
           }
           onChangeRef.current(v);
+        })
+        .onFinalize(() => {
+          grow.value = withTiming(0, { duration: 220 });
         }),
-    [height],
+    [height, grow],
   );
 
   const filled = Math.round(Math.min(1, Math.max(0, value)) * height);
@@ -78,18 +94,21 @@ export function VSlider({ value, onChange, label, symbol, height = SLIDER_H }: P
     <View style={styles.wrap} pointerEvents="box-none">
       <Caption>{label}</Caption>
       <GestureDetector gesture={pan}>
-        <Glass style={[styles.body, { height }]} radius={SLIDER_W / 2} interactive>
-          <View style={[styles.fill, { height: filled }]} />
-          <View style={styles.foot} pointerEvents="none">
-            <SymbolView
-              name={symbol}
-              size={20}
-              weight="semibold"
-              // Dimmed, and dark: it spends most of its life on the white fill.
-              tintColor="rgba(20,17,16,0.38)"
-            />
-          </View>
-        </Glass>
+        <Animated.View style={growStyle}>
+          <Glass style={[styles.body, { height }]} radius={SLIDER_W / 2}>
+            <View style={[styles.fill, { height: filled }]} />
+            <View style={styles.foot} pointerEvents="none">
+              <SymbolView
+                name={symbol}
+                size={20}
+                weight="semibold"
+                resizeMode="scaleAspectFit"
+                // Dimmed, and dark: it spends most of its life on the white fill.
+                tintColor="rgba(20,17,16,0.38)"
+              />
+            </View>
+          </Glass>
+        </Animated.View>
       </GestureDetector>
     </View>
   );
@@ -97,6 +116,8 @@ export function VSlider({ value, onChange, label, symbol, height = SLIDER_H }: P
 
 const styles = StyleSheet.create({
   wrap: { alignItems: "center", gap: 8 },
+  // Growing from the foot, so the control does not walk up the screen when it
+  // swells: the bottom edge is where the thumb is.
   body: { width: SLIDER_W, justifyContent: "flex-end" },
   fill: { backgroundColor: "rgba(255,255,255,0.92)" },
   foot: {

@@ -16,20 +16,6 @@ export const BUTTON = 44;
 const ICON_SIZE = 20;
 
 /**
- * Optical centring for symbols that are not symmetrical.
- *
- * `square.and.arrow.up` is a box with an arrow escaping out of the top: its
- * bounding box is taller than its visual mass and the weight sits low, so
- * centring the box leaves the glyph looking high. Apple does not centre the
- * bounding box either, it aligns symbols on a baseline grid where each glyph
- * carries its own metrics; rendered into a plain square view that information
- * is gone, so it has to be put back by hand. A point and a half down is what it
- * takes for the box to look centred while the arrow overshoots, which is the
- * intended reading.
- */
-const OPTICAL: Partial<Record<keyof typeof ICON, number>> = { export: 1.5 };
-
-/**
  * The icons, named once per platform.
  *
  * `expo-symbols` draws an SF Symbol on iOS and a Material Symbol on Android
@@ -70,8 +56,8 @@ export function CornerButton({ icon, label, onPress }: Props) {
         <SymbolView
           name={ICON[icon]}
           size={ICON_SIZE}
+          resizeMode="scaleAspectFit"
           tintColor="#FFFFFF"
-          style={{ transform: [{ translateY: OPTICAL[icon] ?? 0 }] }}
         />
       </Pressable>
     </Glass>

@@ -34,6 +34,7 @@ import { useSourceImage } from "./src/render/useSourceImage";
 import { BUTTON, CornerButton } from "./src/ui/CornerButton";
 import { CurvePicker, type CurveId } from "./src/ui/CurvePicker";
 import { DecorPicker } from "./src/ui/DecorPicker";
+import { MeshEditor } from "./src/ui/MeshEditor";
 import { FamilyDots } from "./src/ui/FamilyDots";
 import { SLIDER_H_SHORT, VSlider } from "./src/ui/VSlider";
 import { HomeScreenLayer, Preview } from "./src/ui/Preview";
@@ -110,6 +111,13 @@ function Editor() {
   }));
   const [source, setSource] = useState<Source>(() => presetSource("aurora"));
 
+  // Which gradient point is being worked on, and whether we are in the editor
+  // at all. Both live here rather than in the editor so that leaving and coming
+  // back does not reset the selection, and so the gestures below can be told to
+  // stand down without asking a child what it is doing.
+  const [editing, setEditing] = useState(false);
+  const [picked, setPicked] = useState<number | null>(null);
+
   // Changing the target device changes the constraints, so we go back to that
   // device's defaults rather than keeping settings that have become wrong.
   const geomKey = `${geometry.width}x${geometry.height}:${geometry.kind}`;
@@ -137,8 +145,16 @@ function Editor() {
   useEffect(() => {
     peekT.value = withTiming(peeking ? 1 : 0, { duration: 170 });
   }, [peeking, peekT]);
-  const chromeStyle = useAnimatedStyle(() => ({ opacity: 1 - peekT.value }));
+  // The editor takes the screen over the same way the peek does, and for the
+  // same reason: the sliders belong to the mask, and while the gradient is
+  // being placed they are furniture in front of the thing being judged.
+  const hideT = useSharedValue(0);
+  const chromeStyle = useAnimatedStyle(() => ({ opacity: (1 - peekT.value) * (1 - hideT.value) }));
   const homeStyle = useAnimatedStyle(() => ({ opacity: peekT.value }));
+
+  useEffect(() => {
+    hideT.value = withTiming(editing ? 1 : 0, { duration: 200 });
+  }, [editing, hideT]);
 
   useShake(() => setSupportOpen(true), !busy);
 
@@ -208,6 +224,11 @@ function Editor() {
   const pan = useMemo(
     () =>
       Gesture.Pan()
+        // In the editor the wallpaper is the control surface: a drag belongs to
+        // whichever point is under the finger, and paging to the next effect
+        // in the middle of placing a colour would be the app taking the gesture
+        // back.
+        .enabled(!editing)
         .onBegin(() => {
           "worklet";
           axis.value = 0;
@@ -245,17 +266,18 @@ function Editor() {
           pageX.value = withTiming(-target * W, { duration: 220 });
           runOnJS(commitFamily)(target);
         }),
-    [W, axis, pageFrom, pageX, beginParam, applyParam, commitFamily],
+    [W, axis, pageFrom, pageX, beginParam, applyParam, commitFamily, editing],
   );
 
   const peek = useMemo(
     () =>
       Gesture.LongPress()
         .runOnJS(true)
+        .enabled(!editing)
         .minDuration(150)
         .onStart(() => setPeeking(true))
         .onFinalize(() => setPeeking(false)),
-    [],
+    [editing],
   );
   const canvasGestures = useMemo(() => Gesture.Race(pan, peek), [pan, peek]);
   const pagerStyle = useAnimatedStyle(() => ({ transform: [{ translateX: pageX.value }] }));
@@ -279,6 +301,7 @@ function Editor() {
         ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
     });
     if (!res.canceled && res.assets[0]) {
+      setEditing(false);
       setSource({
         type: "photo",
         uri: res.assets[0].uri,
@@ -351,7 +374,14 @@ function Editor() {
           <Animated.View style={[styles.pager, { width: W * FAMILY_ORDER.length }, pagerStyle]}>
             {FAMILY_ORDER.map((f) => (
               <View key={f} style={{ width: W }}>
-                <Preview source={source} mask={masks[f]} geometry={geometry} image={image} />
+                {/* In the editor only the page being looked at is drawn. A drag
+                    changes the source on every frame, and the source is what
+                    all four pages share: left alone they would each redraw a
+                    full screen of gradient per frame to sit still off screen,
+                    where the pager cannot go because the gesture is off. */}
+                {(!editing || f === family) && (
+                  <Preview source={source} mask={masks[f]} geometry={geometry} image={image} />
+                )}
               </View>
             ))}
           </Animated.View>
@@ -363,9 +393,26 @@ function Editor() {
         </View>
       </GestureDetector>
 
+      {editing && source.type === "gradient" && (
+        <MeshEditor
+          points={source.points}
+          selected={picked}
+          geometry={geometry}
+          bottom={bottom}
+          // Moving a point makes it no longer the preset it came from, so the
+          // row in the sheet stops claiming one is selected.
+          onChange={(points) => setSource({ type: "gradient", preset: null, points })}
+          onSelect={setPicked}
+          onDone={() => {
+            setEditing(false);
+            setPicked(null);
+          }}
+        />
+      )}
+
       <Animated.View
         style={[StyleSheet.absoluteFill, chromeStyle]}
-        pointerEvents={peeking ? "none" : "box-none"}
+        pointerEvents={peeking || editing ? "none" : "box-none"}
       >
         <View style={[styles.dots, { bottom: bottom + BUTTON / 2 - 4 }]}>
           <FamilyDots family={family} />
@@ -432,6 +479,10 @@ function Editor() {
         // each effect is one continuous act, and closing after every tap turns
         // it into three.
         onPickPalette={(preset: GradientPresetId) => setSource(presetSource(preset))}
+        onEditGradient={() => {
+          setSourceOpen(false);
+          setEditing(true);
+        }}
         current={source.type === "photo" ? "photo" : source.preset}
         geometry={geometry}
         mask={mask}

@@ -49,6 +49,7 @@ const ICON = {
   share: { ios: "square.and.arrow.up" as SFSymbol, android: "ios_share" as const },
   mail: { ios: "envelope" as SFSymbol, android: "mail" as const },
   web: { ios: "safari" as SFSymbol, android: "public" as const },
+  points: { ios: "circle.grid.2x2" as SFSymbol, android: "gradient" as const },
 };
 
 /** Rows carry the same icon system as the rest of the app, see `CornerButton`. */
@@ -63,6 +64,7 @@ export function SourceSheet({
   onClose,
   onPickPhoto,
   onPickPalette,
+  onEditGradient,
   current,
   geometry,
   mask,
@@ -75,6 +77,7 @@ export function SourceSheet({
   onClose: () => void;
   onPickPhoto: () => void;
   onPickPalette: (id: GradientPresetId) => void;
+  onEditGradient: () => void;
   current: GradientPresetId | "photo" | null;
   geometry: Geometry;
   mask: Mask;
@@ -102,6 +105,20 @@ export function SourceSheet({
           <RNHostView matchContents>
             <PaletteRow geometry={geometry} mask={mask} current={current} onPick={onPickPalette} />
           </RNHostView>
+          {/* The row picks a starting point; this is where it stops being a
+              preset. It reads as the next step down the section rather than as
+              a mode, which is what it is: the same gradient, by its points. */}
+          <ListItem
+            onPress={source.type === "gradient" ? onEditGradient : undefined}
+            leading={<Glyph icon="points" />}
+            supportingText={
+              source.type === "gradient"
+                ? `${source.points.length} colours, drag them where you want them`
+                : "Pick a gradient first"
+            }
+          >
+            Edit the colours
+          </ListItem>
         </FieldGroup.Section>
 
         <FieldGroup.Section title="Effects" modifiers={TIGHT}>

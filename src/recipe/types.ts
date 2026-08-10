@@ -25,8 +25,14 @@ export type MeshPoint = {
   color: string;
 };
 
-/** How many the shader carries. Nine is a 3 by 3, which is already a lot. */
-export const MESH_MAX = 8;
+/**
+ * How many the shader carries.
+ *
+ * Two more than a preset ships with, so there is always somewhere to put a new
+ * one, and few enough that the handles do not become a pile. The shader's loop
+ * is generated from this number, so the two cannot drift apart.
+ */
+export const MESH_MAX = 10;
 
 export type Source =
   | {

@@ -1,5 +1,7 @@
 import { Skia } from "@shopify/react-native-skia";
 
+import { MESH_MAX } from "../recipe/types";
+
 /**
  * Foundation C, the fade.
  *
@@ -91,8 +93,8 @@ const MESH_SKSL = `
 uniform float2 uRes;
 uniform float  uCount;
 uniform float  uScale;
-uniform float4 uPt[8];
-uniform float4 uCol[8];
+uniform float4 uPt[${MESH_MAX}];
+uniform float4 uCol[${MESH_MAX}];
 
 float hash(float2 p) {
   return fract(sin(dot(p, float2(12.9898, 78.233))) * 43758.5453123);
@@ -103,7 +105,7 @@ half4 main(float2 xy) {
 
   float3 acc = float3(0.0);
   float wsum = 0.0;
-  for (int i = 0; i < 8; i++) {
+  for (int i = 0; i < ${MESH_MAX}; i++) {
     // The trip count has to be constant, but the break may test a uniform, so
     // an unused slot costs nothing rather than one dead exp per pixel.
     if (float(i) >= uCount) { break; }

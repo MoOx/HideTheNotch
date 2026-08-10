@@ -133,18 +133,27 @@ function drawMask(canvas: SkCanvas, mask: Mask, g: Geometry, source: SkShader) {
 /**
  * How far the bar can be dragged.
  *
- * Past an eighth of the screen the bar stops being a way to hide the cutout and
- * becomes a letterbox: there is nothing to gain above it, and every point of
- * height is a point of wallpaper lost.
+ * Past a sixteenth of the screen the bar stops being a way to hide the cutout
+ * and becomes a letterbox: there is nothing to gain above it, and every point
+ * of height is a point of wallpaper lost.
  */
-export const BAR_MAX_FRACTION = 1 / 8;
+export const BAR_MAX_FRACTION = 1 / 16;
 
 export function barMinHeight(g: Geometry): number {
   return Math.max(cutoutBottom(g), 1);
 }
 
+/**
+ * A sixteenth of the screen, or a little above the cutout, whichever is more.
+ *
+ * A sixteenth is about 53 pt on a current iPhone, and the bottom of the Dynamic
+ * Island is already at 48: taken literally the setting would have five points
+ * of travel and the slider would be furniture. The floor cannot come down,
+ * since anything shorter stops covering the cutout, so the ceiling gets the
+ * 24 pt that keeps the control a control.
+ */
 export function barMaxHeight(g: Geometry): number {
-  return Math.max(g.height * BAR_MAX_FRACTION, barMinHeight(g) + 1);
+  return Math.max(g.height * BAR_MAX_FRACTION, barMinHeight(g) + 24);
 }
 
 /**

@@ -1,8 +1,9 @@
 import { useMemo } from "react";
-import { Pressable, StyleSheet } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { Canvas, Path, Skia } from "@shopify/react-native-skia";
 import * as Haptics from "expo-haptics";
 
+import { Caption } from "./Caption";
 import { Glass } from "./Glass";
 import { T } from "./theme";
 
@@ -46,45 +47,47 @@ export function CurvePicker({
   onChange: (v: CurveId) => void;
 }) {
   const paths = useMemo(
-    () =>
-      ([0, 1, 2] as CurveId[]).map((id) => Skia.Path.MakeFromSVGString(SHAPE[id])),
-    []
+    () => ([0, 1, 2] as CurveId[]).map((id) => Skia.Path.MakeFromSVGString(SHAPE[id])),
+    [],
   );
 
   return (
-    <Glass style={styles.column} radius={CELL / 2 + 4}>
-      {([0, 1, 2] as CurveId[]).map((id) => {
-        const on = id === value;
-        const path = paths[id];
-        return (
-          <Pressable
-            key={id}
-            accessibilityRole="radio"
-            accessibilityState={{ selected: on }}
-            accessibilityLabel={LABEL[id]}
-            style={[styles.cell, on && styles.cellOn]}
-            onPress={() => {
-              if (id !== value) {
-                void Haptics.selectionAsync();
-                onChange(id);
-              }
-            }}
-          >
-            {path && (
-              <Canvas style={styles.glyph}>
-                <Path
-                  path={path}
-                  style="stroke"
-                  strokeWidth={2}
-                  strokeCap="round"
-                  color={on ? "#141110" : T.text}
-                />
-              </Canvas>
-            )}
-          </Pressable>
-        );
-      })}
-    </Glass>
+    <View style={styles.wrap} pointerEvents="box-none">
+      <Caption>Style</Caption>
+      <Glass style={styles.column} radius={CELL / 2 + 4}>
+        {([0, 1, 2] as CurveId[]).map((id) => {
+          const on = id === value;
+          const path = paths[id];
+          return (
+            <Pressable
+              key={id}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: on }}
+              accessibilityLabel={LABEL[id]}
+              style={[styles.cell, on && styles.cellOn]}
+              onPress={() => {
+                if (id !== value) {
+                  void Haptics.selectionAsync();
+                  onChange(id);
+                }
+              }}
+            >
+              {path && (
+                <Canvas style={styles.glyph}>
+                  <Path
+                    path={path}
+                    style="stroke"
+                    strokeWidth={2}
+                    strokeCap="round"
+                    color={on ? "#141110" : T.text}
+                  />
+                </Canvas>
+              )}
+            </Pressable>
+          );
+        })}
+      </Glass>
+    </View>
   );
 }
 
@@ -93,6 +96,7 @@ const CELL = 44;
 const GLYPH = 26;
 
 const styles = StyleSheet.create({
+  wrap: { alignItems: "center", gap: 8 },
   column: { flexDirection: "column", padding: 4, gap: 2 },
   cell: {
     width: CELL,

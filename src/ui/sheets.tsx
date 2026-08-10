@@ -1,11 +1,33 @@
 import { Linking, Platform } from "react-native";
 import { BottomSheet, FieldGroup, ListItem, RNHostView, Text } from "@expo/ui";
+import { listSectionMargins } from "@expo/ui/swift-ui/modifiers";
 import * as Application from "expo-application";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 
 import type { Geometry } from "../geometry/devices";
-import type { GradientPresetId, Mask } from "../recipe/types";
-import { PaletteRow } from "./PaletteThumb";
+import type { GradientPresetId, Mask, MaskFamily, Source } from "../recipe/types";
+import { EffectRow, PaletteRow } from "./Thumbs";
+
+/**
+ * Half the default inset grouped margin.
+ *
+ * A form inside a sheet inherits the full width inset of a settings screen,
+ * which on a sheet leaves the content floating in a lot of nothing. iOS 26
+ * only, and inert elsewhere.
+ */
+const TIGHT =
+  Platform.OS === "ios" ? [listSectionMargins({ length: 10, edges: "horizontal" })] : [];
+
+/**
+ * Explicit heights rather than fit to content.
+ *
+ * A SwiftUI `Form` wants to fill its container, so a sheet asked to size itself
+ * to one has nothing to measure. These fractions are what the content actually
+ * needs, and they are the reason the export sheet is no longer half a screen of
+ * empty space.
+ */
+const SHEET_WALLPAPER = [{ fraction: 0.62 }] as const;
+const SHEET_EXPORT = [{ fraction: 0.36 }] as const;
 
 const SUPPORT_EMAIL = "apps+hide-the-notch@moox.io";
 const WEBSITE = "https://moox.io/apps/hide-the-notch";
@@ -44,6 +66,10 @@ export function SourceSheet({
   current,
   geometry,
   mask,
+  source,
+  masks,
+  family,
+  onPickFamily,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -52,11 +78,15 @@ export function SourceSheet({
   current: GradientPresetId | "photo";
   geometry: Geometry;
   mask: Mask;
+  source: Source;
+  masks: Record<MaskFamily, Mask>;
+  family: MaskFamily;
+  onPickFamily: (f: MaskFamily) => void;
 }) {
   return (
-    <BottomSheet isPresented={visible} onDismiss={onClose} snapPoints={["half"]}>
+    <BottomSheet isPresented={visible} onDismiss={onClose} snapPoints={[...SHEET_WALLPAPER]}>
       <FieldGroup>
-        <FieldGroup.Section title="Wallpaper">
+        <FieldGroup.Section title="Wallpaper" modifiers={TIGHT}>
           <ListItem
             onPress={onPickPhoto}
             leading={<Glyph icon="photo" />}
@@ -66,15 +96,22 @@ export function SourceSheet({
           </ListItem>
         </FieldGroup.Section>
 
-        <FieldGroup.Section title="Gradients">
+        <FieldGroup.Section title="Gradients" modifiers={TIGHT}>
           {/* The thumbnails are the picker: a row of names would say nothing
               about something whose entire content is how it looks. */}
           <RNHostView matchContents>
-            <PaletteRow
+            <PaletteRow geometry={geometry} mask={mask} current={current} onPick={onPickPalette} />
+          </RNHostView>
+        </FieldGroup.Section>
+
+        <FieldGroup.Section title="Effects" modifiers={TIGHT}>
+          <RNHostView matchContents>
+            <EffectRow
               geometry={geometry}
-              mask={mask}
-              current={current}
-              onPick={onPickPalette}
+              source={source}
+              masks={masks}
+              current={family}
+              onPick={onPickFamily}
             />
           </RNHostView>
         </FieldGroup.Section>
@@ -101,13 +138,13 @@ export function ExportSheet({
   busy: boolean;
 }) {
   const px = `${Math.round(target.width * target.scale)} x ${Math.round(
-    target.height * target.scale
+    target.height * target.scale,
   )}`;
 
   return (
-    <BottomSheet isPresented={visible} onDismiss={onClose} snapPoints={["half"]}>
+    <BottomSheet isPresented={visible} onDismiss={onClose} snapPoints={[...SHEET_EXPORT]}>
       <FieldGroup>
-        <FieldGroup.Section title="Export">
+        <FieldGroup.Section title="Export" modifiers={TIGHT}>
           <ListItem
             onPress={busy ? undefined : onSave}
             leading={<Glyph icon="save" />}
@@ -158,9 +195,9 @@ export function SupportSheet({
     `&body=${encodeURIComponent(`\n\n---\n${diagnostics}\n`)}`;
 
   return (
-    <BottomSheet isPresented={visible} onDismiss={onClose} snapPoints={["half"]}>
+    <BottomSheet isPresented={visible} onDismiss={onClose} snapPoints={[...SHEET_EXPORT]}>
       <FieldGroup>
-        <FieldGroup.Section title="Support">
+        <FieldGroup.Section title="Support" modifiers={TIGHT}>
           <ListItem
             onPress={() => void Linking.openURL(mailto)}
             leading={<Glyph icon="mail" />}
@@ -177,7 +214,7 @@ export function SupportSheet({
           </ListItem>
         </FieldGroup.Section>
 
-        <FieldGroup.Section title="Attached to the email">
+        <FieldGroup.Section title="Attached to the email" modifiers={TIGHT}>
           <Text textStyle={{ fontSize: 12 }}>{diagnostics}</Text>
         </FieldGroup.Section>
       </FieldGroup>

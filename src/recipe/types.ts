@@ -76,8 +76,16 @@ export type Recipe = {
  */
 export const FAMILY_ORDER: MaskFamily[] = ["fade", "bar", "stripes"];
 
+/**
+ * What each family is called on screen.
+ *
+ * "Blinds" rather than "stripes" or "dashes": the pattern is horizontal slats
+ * thinning as they go down, and a venetian blind is the everyday object that
+ * looks exactly like it. Naming it after a thing people own beats naming it
+ * after the drawing primitive.
+ */
 export const FAMILY_LABEL: Record<MaskFamily, string> = {
-  bar: "Bar",
-  stripes: "Stripes",
   fade: "Fade",
+  bar: "Band",
+  stripes: "Blinds",
 };

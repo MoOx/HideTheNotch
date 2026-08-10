@@ -1,11 +1,13 @@
 import { useMemo, useRef } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 
+import type { MaskFamily } from "../recipe/types";
+import { Caption } from "./Caption";
 import { BUTTON } from "./CornerButton";
+import { FamilyGlyph } from "./FamilyGlyph";
 import { Glass } from "./Glass";
-import { T } from "./theme";
 
 // The same width as the button below it: two shapes on the same edge that are
 // nearly but not quite aligned read as a mistake.
@@ -16,7 +18,8 @@ type Props = {
   /** Current value, normalised to 0 to 1. */
   value: number;
   onChange: (value: number) => void;
-  /** One word. What the control does, not what it is worth. */
+  /** The family, which names the control and supplies its glyph. */
+  family: MaskFamily;
   label: string;
 };
 
@@ -29,7 +32,7 @@ type Props = {
  * exactly over the part of the wallpaper being judged and needs a precision the
  * setting never deserved.
  */
-export function MainSlider({ value, onChange, label }: Props) {
+export function MainSlider({ value, onChange, family, label }: Props) {
   // The gesture is built once. Reading `value` inside it would put it in the
   // dependency list, and the detector would then be handed a new gesture on
   // every frame of the drag, which cancels the drag it is in the middle of.
@@ -60,14 +63,14 @@ export function MainSlider({ value, onChange, label }: Props) {
           }
           onChangeRef.current(v);
         }),
-    []
+    [],
   );
 
   const filled = Math.round(Math.min(1, Math.max(0, value)) * SLIDER_H);
 
   return (
     <View style={styles.wrap} pointerEvents="box-none">
-      <Text style={styles.label}>{label}</Text>
+      <Caption icon={<FamilyGlyph family={family} color="#FFFFFF" />}>{label}</Caption>
       <GestureDetector gesture={pan}>
         <Glass style={styles.body} radius={SLIDER_W / 2 - 4}>
           <View style={[styles.fill, { height: filled }]} />
@@ -79,17 +82,6 @@ export function MainSlider({ value, onChange, label }: Props) {
 
 const styles = StyleSheet.create({
   wrap: { alignItems: "center", gap: 8 },
-  label: {
-    color: T.text,
-    fontSize: 11,
-    fontWeight: "600",
-    letterSpacing: 0.2,
-    // The label sits directly on the wallpaper, which can be any colour at all.
-    // A shadow costs nothing and removes the one case where it disappears.
-    textShadowColor: "rgba(0,0,0,0.55)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
   body: {
     width: SLIDER_W,
     height: SLIDER_H,

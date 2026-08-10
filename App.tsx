@@ -1,6 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, StyleSheet, View } from "react-native";
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { GestureDetector, GestureHandlerRootView, Gesture } from "react-native-gesture-handler";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -12,6 +17,7 @@ import type { Geometry } from "./src/geometry/devices";
 import { useDeviceGeometry } from "./src/geometry/useGeometry";
 import { defaultMask } from "./src/recipe/defaults";
 import {
+  FAMILY_LABEL,
   FAMILY_ORDER,
   type GradientPresetId,
   type Mask,
@@ -25,7 +31,7 @@ import { useSourceImage } from "./src/render/useSourceImage";
 import { BUTTON, CornerButton } from "./src/ui/CornerButton";
 import { CurvePicker, type CurveId } from "./src/ui/CurvePicker";
 import { FamilyDots } from "./src/ui/FamilyDots";
-import { MainSlider } from "./src/ui/MainSlider";
+import { MainSlider, SLIDER_W } from "./src/ui/MainSlider";
 import { HomeScreenLayer, Preview } from "./src/ui/Preview";
 import { ExportSheet, SourceSheet, SupportSheet } from "./src/ui/sheets";
 import { useShake } from "./src/hooks/useShake";
@@ -43,7 +49,7 @@ function slider(mask: Mask, g: Geometry) {
       const min = barMinHeight(g);
       const max = barMaxHeight(g);
       return {
-        label: "Height",
+        label: FAMILY_LABEL.bar,
         value: (mask.height - min) / (max - min),
         apply: (v: number): Mask => ({
           ...mask,
@@ -53,15 +59,17 @@ function slider(mask: Mask, g: Geometry) {
     }
     case "stripes":
       return {
-        label: "Density",
+        label: FAMILY_LABEL.stripes,
         value: mask.density,
         apply: (v: number): Mask => ({ ...mask, density: v }),
       };
     case "fade": {
       const min = fadeSolidEnd(g) + 40;
-      const max = g.height * 0.8;
+      // All the way to the bottom edge: a fade that stops at four fifths has a
+      // last fifth of untouched wallpaper under it, which is a seam.
+      const max = g.height;
       return {
-        label: "Fade",
+        label: FAMILY_LABEL.fade,
         value: (mask.fadeEnd - min) / (max - min),
         apply: (v: number): Mask => ({
           ...mask,
@@ -121,9 +129,7 @@ function Editor() {
 
   useShake(() => setSupportOpen(true), !busy);
 
-  const { image, error: imageError } = useSourceImage(
-    source.type === "photo" ? source.uri : null,
-  );
+  const { image, error: imageError } = useSourceImage(source.type === "photo" ? source.uri : null);
 
   // A photo that fails to load used to leave the screen unchanged, which reads
   // as the app ignoring the tap. Say so instead, and fall back to where we were.
@@ -135,35 +141,97 @@ function Editor() {
   }, [imageError]);
 
   const recipe: Recipe = useMemo(() => ({ source, mask: masks[family] }), [source, masks, family]);
-  const ctx: DrawContext = useMemo(
-    () => ({ recipe, geometry, image }),
-    [recipe, geometry, image],
-  );
+  const ctx: DrawContext = useMemo(() => ({ recipe, geometry, image }), [recipe, geometry, image]);
 
   const setMask = useCallback((m: Mask) => setMasks((prev) => ({ ...prev, [m.type]: m })), []);
 
-  const step = useCallback((dir: 1 | -1) => {
-    setFamily((f) => {
-      const i = FAMILY_ORDER.indexOf(f);
-      return FAMILY_ORDER[(i + dir + FAMILY_ORDER.length) % FAMILY_ORDER.length];
+  const mask = masks[family];
+  const control = slider(mask, geometry);
+
+  // -- The wallpaper as a set of pages ---------------------------------------
+  //
+  // The families sit side by side and slide, the way home screen pages do,
+  // rather than being swapped out from under the finger. The gesture picks its
+  // axis on the first few points of movement and keeps it: sideways pages,
+  // up and down drives the same value the slider drives, so the main setting is
+  // adjustable without reaching for anything.
+  const W = geometry.width;
+  const index = FAMILY_ORDER.indexOf(family);
+  const pageX = useSharedValue(-index * W);
+  const axis = useSharedValue(0);
+  const pageFrom = useSharedValue(0);
+
+  useEffect(() => {
+    pageX.value = withTiming(-index * W, { duration: 260 });
+  }, [index, W, pageX]);
+
+  const controlRef = useRef(control);
+  controlRef.current = control;
+  const paramFrom = useRef(0);
+
+  const beginParam = useCallback(() => {
+    paramFrom.current = controlRef.current.value;
+  }, []);
+  const applyParam = useCallback(
+    (dy: number) => {
+      const v = Math.min(1, Math.max(0, paramFrom.current - dy / PARAM_TRAVEL));
+      setMask(controlRef.current.apply(v));
+    },
+    [setMask],
+  );
+  const commitFamily = useCallback((i: number) => {
+    setFamily((prev) => {
+      const next = FAMILY_ORDER[i];
+      if (prev !== next) {
+        void Haptics.selectionAsync();
+      }
+      return next;
     });
-    void Haptics.selectionAsync();
   }, []);
 
-  // Swiping left and right changes family. Pressing shows the wallpaper as a
-  // home screen, which is the only way to judge whether the mask reads as
-  // hardware, and lets go of it again on release.
-  const swipe = useMemo(
+  const pan = useMemo(
     () =>
       Gesture.Pan()
-        .runOnJS(true)
-        .activeOffsetX([-24, 24])
-        .failOffsetY([-18, 18])
+        .onBegin(() => {
+          "worklet";
+          axis.value = 0;
+          pageFrom.value = pageX.value;
+          runOnJS(beginParam)();
+        })
+        .onUpdate((e) => {
+          "worklet";
+          if (axis.value === 0) {
+            if (Math.abs(e.translationX) < 8 && Math.abs(e.translationY) < 8) {
+              return;
+            }
+            axis.value = Math.abs(e.translationX) > Math.abs(e.translationY) ? 1 : 2;
+          }
+          if (axis.value === 1) {
+            const last = -(FAMILY_ORDER.length - 1) * W;
+            pageX.value = Math.min(0, Math.max(last, pageFrom.value + e.translationX));
+          } else {
+            runOnJS(applyParam)(e.translationY);
+          }
+        })
         .onEnd((e) => {
-          if (Math.abs(e.translationX) > 48) step(e.translationX < 0 ? 1 : -1);
+          "worklet";
+          if (axis.value !== 1) {
+            return;
+          }
+          const raw = -pageX.value / W;
+          let target = Math.round(raw);
+          if (e.velocityX < -500) {
+            target = Math.ceil(raw);
+          } else if (e.velocityX > 500) {
+            target = Math.floor(raw);
+          }
+          target = Math.min(FAMILY_ORDER.length - 1, Math.max(0, target));
+          pageX.value = withTiming(-target * W, { duration: 220 });
+          runOnJS(commitFamily)(target);
         }),
-    [step],
+    [W, axis, pageFrom, pageX, beginParam, applyParam, commitFamily],
   );
+
   const peek = useMemo(
     () =>
       Gesture.LongPress()
@@ -173,7 +241,8 @@ function Editor() {
         .onFinalize(() => setPeeking(false)),
     [],
   );
-  const canvasGestures = useMemo(() => Gesture.Race(swipe, peek), [swipe, peek]);
+  const canvasGestures = useMemo(() => Gesture.Race(pan, peek), [pan, peek]);
+  const pagerStyle = useAnimatedStyle(() => ({ transform: [{ translateX: pageX.value }] }));
 
   const pickPhoto = useCallback(async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -185,6 +254,13 @@ function Editor() {
       mediaTypes: ["images"],
       quality: 1,
       exif: false,
+      // iPhones shoot HEIC, and the picker hands back the container untouched
+      // when the asset already is one. Skia has no HEIC decoder, so every photo
+      // taken with the phone failed to open. "Compatible" asks the system for a
+      // JPEG representation instead, which it transcodes itself, losslessly as
+      // far as we are concerned since quality stays at 1.
+      preferredAssetRepresentationMode:
+        ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
     });
     if (!res.canceled && res.assets[0]) {
       setSource({
@@ -245,18 +321,26 @@ function Editor() {
     }
   }, [ctx]);
 
-  const mask = masks[family];
-  const control = slider(mask, geometry);
   const bottom = Math.max(insets.bottom, 14);
-  // The second row sits directly above the buttons: main control on the right,
-  // whatever the family needs on the left, family dots between them.
+  // Everything the thumb needs is on the right, in two columns: the family's
+  // own control beside the main slider, and the two buttons under them. The
+  // left half of the screen stays wallpaper.
   const secondRow = bottom + BUTTON + 16;
+  const innerColumn = 16 + SLIDER_W + 12;
 
   return (
     <View style={styles.root}>
       <GestureDetector gesture={canvasGestures}>
         <View style={StyleSheet.absoluteFill}>
-          <Preview ctx={ctx} />
+          <Animated.View style={[styles.pager, { width: W * FAMILY_ORDER.length }, pagerStyle]}>
+            {FAMILY_ORDER.map((f) => (
+              <View key={f} style={{ width: W }}>
+                <Preview source={source} mask={masks[f]} geometry={geometry} image={image} />
+              </View>
+            ))}
+          </Animated.View>
+          {/* The icons do not travel with the pages: they are the room the
+              wallpaper is being judged in, not one of the things on offer. */}
           <Animated.View style={[StyleSheet.absoluteFill, homeStyle]} pointerEvents="none">
             <HomeScreenLayer geometry={geometry} />
           </Animated.View>
@@ -271,8 +355,9 @@ function Editor() {
           <FamilyDots family={family} />
         </View>
 
-        <View style={[styles.slider, { bottom: secondRow }]}>
+        <View style={[styles.right, { bottom: secondRow }]}>
           <MainSlider
+            family={family}
             label={control.label}
             value={control.value}
             onChange={(v) => setMask(control.apply(v))}
@@ -280,7 +365,7 @@ function Editor() {
         </View>
 
         {mask.type === "fade" && (
-          <View style={[styles.left, { bottom: secondRow }]}>
+          <View style={[styles.right, { bottom: secondRow, right: innerColumn }]}>
             <CurvePicker
               value={mask.curve as CurveId}
               onChange={(curve) => setMask({ ...mask, curve })}
@@ -288,11 +373,11 @@ function Editor() {
           </View>
         )}
 
-        <View style={[styles.left, { bottom }]}>
-          <CornerButton icon="photo" label="Source" onPress={() => setSourceOpen(true)} />
+        <View style={[styles.right, { bottom, right: innerColumn }]}>
+          <CornerButton icon="photo" label="Wallpaper" onPress={() => setSourceOpen(true)} />
         </View>
         <View style={[styles.right, { bottom }]}>
-          <CornerButton icon="save" label="Save" onPress={() => setExportOpen(true)} />
+          <CornerButton icon="export" label="Export" onPress={() => setExportOpen(true)} />
         </View>
       </Animated.View>
 
@@ -310,6 +395,13 @@ function Editor() {
         current={source.type === "photo" ? "photo" : source.preset}
         geometry={geometry}
         mask={mask}
+        source={source}
+        masks={masks}
+        family={family}
+        onPickFamily={(f) => {
+          setFamily(f);
+          setSourceOpen(false);
+        }}
       />
 
       <ExportSheet
@@ -342,10 +434,12 @@ export default function App() {
   );
 }
 
+/** How far the finger travels for the full range of the main setting. */
+const PARAM_TRAVEL = 300;
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#000" },
-  left: { position: "absolute", left: 16 },
+  pager: { position: "absolute", top: 0, bottom: 0, left: 0, flexDirection: "row" },
   right: { position: "absolute", right: 16 },
-  slider: { position: "absolute", right: 16 },
   dots: { position: "absolute", left: 0, right: 0, alignItems: "center" },
 });

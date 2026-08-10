@@ -6,13 +6,13 @@ import { Glass } from "./Glass";
 export const BUTTON = 54;
 
 /**
- * Two thirds of the button, and semibold.
+ * Two thirds of the button, at the regular weight.
  *
  * The first pass used 23 pt, which was not chosen so much as assumed. The
  * system's own round glass buttons put the glyph at close to two thirds of the
- * circle, and they use the semibold weight: at this size a regular weight
- * symbol on translucent glass loses its thin strokes against a bright
- * wallpaper.
+ * circle. Semibold on top of that was one adjustment too many: at this size the
+ * strokes are already thick enough, and the heavier weight made the two buttons
+ * shout.
  */
 const ICON_SIZE = Math.round(BUTTON * 0.66);
 
@@ -25,7 +25,10 @@ const ICON_SIZE = Math.round(BUTTON * 0.66);
  */
 export const ICON = {
   photo: { ios: "photo" as SFSymbol, android: "image" as const },
-  save: { ios: "square.and.arrow.down" as SFSymbol, android: "download" as const },
+  // The button opens the export sheet rather than saving, so it carries the
+  // share mark, the arrow leaving the box. The row inside the sheet that does
+  // save keeps the arrow going into the tray.
+  export: { ios: "square.and.arrow.up" as SFSymbol, android: "ios_share" as const },
 } as const;
 
 type Props = {
@@ -51,7 +54,7 @@ export function CornerButton({ icon, label, onPress }: Props) {
         style={styles.hit}
         onPress={onPress}
       >
-        <SymbolView name={ICON[icon]} size={ICON_SIZE} weight="semibold" tintColor="#FFFFFF" />
+        <SymbolView name={ICON[icon]} size={ICON_SIZE} tintColor="#FFFFFF" />
       </Pressable>
     </Glass>
   );

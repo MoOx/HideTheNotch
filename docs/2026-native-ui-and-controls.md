@@ -257,6 +257,69 @@ check caught exactly this the first time it ran.
 - The **export target picker** is gone. It changed the preview live for a choice
   with no visible meaning until export.
 
+---
+
+## 7. Family 08, decor
+
+The first family that is a **drawing** rather than a shape derived from the
+cutout. Three patterns, one density slider, and a seed: tapping the pattern you
+are already on reshuffles it, which is where the randomness lives without
+costing a button.
+
+| Pattern | What it is |
+| --- | --- |
+| `rig` | a ceiling lamp, and a smaller one either side once there is room |
+| `vine` | leaves along the top edge with strands hanging out of them |
+| `garland` | a cable, a lantern where it hangs lowest, bulbs along the rest |
+
+### The mistake this family nearly shipped with
+
+The plan was a black plate in the exact shape of the cutout, drawn first, so
+coverage was guaranteed and the drawing only had to be nice. That plate was the
+cutout plus a point and a half.
+
+It hides the hole and it draws the hole. Black exactly over the cutout means
+there is no longer a luminance boundary anywhere near the camera, so the hole
+itself is gone; but the black then **ends where the hole ends**, so the
+wallpaper spends its effort reproducing the cutout's own outline, in black, at
+full contrast. The other three families never meet this because their black
+spans the screen: the only edge they share with the cutout is a straight
+horizontal line, which is a line and not a silhouette.
+
+Two things came out of it. The plate now stands off the cutout by 9 pt and
+carries a 12 pt radius of its own, well under the island's 18.67, so what
+reaches the glass is a plate that happens to contain a hole. And `verify` grew
+the check that was missing: black over the cutout **inset** by 2 pt, and black
+over the cutout **grown** by 8 pt, on the left and the right, for every family.
+The first check alone passes a mask that is a picture of the cutout.
+
+### Drawing notes
+
+- The lamp is the plate, widened. Hanging a narrower shade under the plate was
+  the obvious composition and it reads as a lamp that came with packaging: the
+  plate shows above it as a box. The shade has to start at the plate's width,
+  which means it meets the screen edge, which is what a ceiling light does.
+- A shade's bottom rim is an ellipse seen from below, so the silhouette's lower
+  edge dips in the middle. One control point, and the trapezoid becomes a lamp.
+- The foliage is one path, not a row of leaves. Overlapping leaves leave slivers
+  between them for the plate to show through; a single canopy whose lower edge
+  is a run of lobes cannot. Lobes of uneven width with their points off centre,
+  and controls placed far along in x and barely down in y so each lobe bellies
+  out before it turns into its point. Controls halfway give straight lines, and
+  straight lines with even spacing are a saw blade, which the eye names much
+  faster than it names a leaf.
+- Skia has no tapered stroke, so the hanging stems are outlines built by hand:
+  walk the curve, step off along the normal by half the width there, come back
+  down the other side. A stem at one width is a wire.
+
+### Judging it
+
+Off device, `tools/` renders the three patterns at three densities on both a
+Dynamic Island and a notch. The contact sheet must draw **where the hole is**,
+or the black plate and the black drawing merge and every composition looks
+covered. Two rounds of this were spent fixing an ear on the notch that no user
+could ever see, and one real error hid behind the same confusion.
+
 ### Parked, deliberately
 
 - Home screen screenshot as preview backdrop, from section 2.

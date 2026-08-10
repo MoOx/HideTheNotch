@@ -11,6 +11,7 @@ import {
 
 import { cutoutBottom, ISLAND, screenCorner, type Geometry } from "../geometry/devices";
 import type { Mask, Recipe, Source } from "../recipe/types";
+import { drawDecor } from "./decor";
 import { paletteById } from "./palettes";
 import { fadeEffect } from "./shaders";
 
@@ -127,6 +128,8 @@ function drawMask(canvas: SkCanvas, mask: Mask, g: Geometry, source: SkShader) {
       return drawStripes(canvas, mask, g);
     case "fade":
       return drawFade(canvas, mask, g, source);
+    case "decor":
+      return drawDecor(canvas, mask, g);
   }
 }
 

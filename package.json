@@ -42,7 +42,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "typecheck": "tsc --noEmit",
-    "build:harness": "tsc --ignoreConfig src/render/draw.ts src/render/shaders.ts src/render/palettes.ts src/render/homescreen.ts src/geometry/devices.ts src/recipe/defaults.ts --outDir .harness --module commonjs --target es2020 --skipLibCheck --esModuleInterop",
+    "build:harness": "tsc --ignoreConfig src/render/draw.ts src/render/shaders.ts src/render/palettes.ts src/render/homescreen.ts src/render/decor.ts src/geometry/devices.ts src/recipe/defaults.ts --outDir .harness --module commonjs --target es2020 --skipLibCheck --esModuleInterop",
     "verify": "npm run build:harness && node tools/verify-render.cjs",
     "samples": "npm run build:harness && node tools/render-samples.cjs"
   },

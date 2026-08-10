@@ -24,6 +24,9 @@ export function defaultMask(family: MaskFamily, g: Geometry): Mask {
     case "stripes":
       return { type: "stripes", density: 0.45 };
 
+    case "decor":
+      return { type: "decor", pattern: "rig", density: 0.4, seed: 1 };
+
     case "fade":
       // The S curve: it leaves the black flat under the cutout and meets the
       // wallpaper without a corner, so it is the one that never shows a seam.

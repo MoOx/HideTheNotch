@@ -21,7 +21,7 @@ export type Source =
       zoom: number;
     };
 
-export type MaskFamily = "bar" | "stripes" | "fade";
+export type MaskFamily = "bar" | "stripes" | "fade" | "decor";
 
 /** 01, solid bar. */
 export type BarMask = {
@@ -68,7 +68,19 @@ export type FadeMask = {
   curve: 0 | 1 | 2;
 };
 
-export type Mask = BarMask | StripesMask | FadeMask;
+/** 08, decor. */
+export type DecorPattern = "rig" | "vine" | "garland";
+
+export type DecorMask = {
+  type: "decor";
+  pattern: DecorPattern;
+  /** How much of it there is: 0 one object, 1 a scene. */
+  density: number;
+  /** Same seed, same drawing, so a result can be got back. */
+  seed: number;
+};
+
+export type Mask = BarMask | StripesMask | FadeMask | DecorMask;
 
 export type Recipe = {
   source: Source;
@@ -79,7 +91,7 @@ export type Recipe = {
  * The fade comes first: it is the one that reads as intentional on any
  * wallpaper, so it is what the app should open on.
  */
-export const FAMILY_ORDER: MaskFamily[] = ["fade", "bar", "stripes"];
+export const FAMILY_ORDER: MaskFamily[] = ["fade", "bar", "stripes", "decor"];
 
 /**
  * What each family is called on screen.
@@ -93,4 +105,5 @@ export const FAMILY_LABEL: Record<MaskFamily, string> = {
   fade: "Fade",
   bar: "Band",
   stripes: "Blinds",
+  decor: "Decor",
 };

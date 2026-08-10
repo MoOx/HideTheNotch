@@ -1,9 +1,12 @@
 /**
- * Checks, on real pixels, the two properties the whole app rests on:
+ * Checks, on real pixels, the properties the whole app rests on:
  *
  *  1. The cutout is covered by ABSOLUTE black (0,0,0). An "almost black" shows
  *     on OLED in a dark room.
- *  2. The fade does not band: over an 8 bit ramp, a value must never stay
+ *  2. The black stands off the cutout by a margin. Black that stops where the
+ *     hole stops hides the hole and draws its outline in its place, which is
+ *     the same wallpaper the app exists to replace.
+ *  3. The fade does not band: over an 8 bit ramp, a value must never stay
  *     constant across a long run of rows.
  */
 const path = require("path");
@@ -49,6 +52,46 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
 
   let failures = 0;
 
+  /**
+   * Membership test for the cutout's rounded rectangle, grown by `grow` points
+   * (negative insets it). Sampling the bounding box instead would ask for black
+   * in the four corner areas, which are display, not hole.
+   */
+  function inRRect(c, grow) {
+    const x0 = c.x - grow;
+    const y0 = c.y - grow;
+    const x1 = c.x + c.w + grow;
+    const y1 = c.y + c.h + grow;
+    const r = Math.max(c.r + grow, 0);
+    return (xPt, yPt) => {
+      const dx = Math.max(x0 + r - xPt, 0, xPt - (x1 - r));
+      const dy = Math.max(y0 + r - yPt, 0, yPt - (y1 - r));
+      return dx * dx + dy * dy <= r * r;
+    };
+  }
+
+  /** Worst channel over every pixel the predicate accepts, plus how many missed. */
+  function scan(px, wPx, hPx, g, inside, bounds) {
+    const yFrom = Math.max(Math.ceil(bounds.y0 * g.scale), 0);
+    const yTo = Math.min(Math.floor(bounds.y1 * g.scale), hPx - 1);
+    const xFrom = Math.max(Math.ceil(bounds.x0 * g.scale), 0);
+    const xTo = Math.min(Math.floor(bounds.x1 * g.scale), wPx - 1);
+    let worst = 0;
+    let bad = 0;
+    for (let y = yFrom; y <= yTo; y += 1) {
+      for (let x = xFrom; x <= xTo; x += 1) {
+        if (!inside(x / g.scale, y / g.scale)) {
+          continue;
+        }
+        const i = (y * wPx + x) * 4;
+        const v = Math.max(px[i], px[i + 1], px[i + 2]);
+        if (v > worst) worst = v;
+        if (v !== 0) bad += 1;
+      }
+    }
+    return { worst, bad };
+  }
+
   function render(g, mask, palette) {
     const wPx = Math.round(g.width * g.scale);
     const hPx = Math.round(g.height * g.scale);
@@ -70,33 +113,45 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
     return { px, wPx, hPx };
   }
 
-  // -- 1. Absolute black over the cutout -------------------------------------
-  console.log("\n-- Cutout coverage (absolute black expected) --");
+  // -- 1. Absolute black over the cutout, and a margin beside it -------------
+  //
+  // Two scans of the same shape at two sizes. Inset by 2 pt, every pixel must be
+  // black or the hole shows in a dark room.
+  //
+  // Grown by HALO, every pixel beside the cutout must be black too, and that is
+  // the check that nearly went missing. Black stopping exactly where the hole
+  // stops does hide the hole, in the sense that there is no longer a boundary
+  // near it, but it hands the cutout's own outline back to the eye drawn in
+  // black at full contrast. A mask can pass "the cutout is covered" and still
+  // be a picture of the cutout.
+  //
+  // Beside, not below. A family that spans the screen shares only a straight
+  // horizontal edge with the cutout, which is a line and not a silhouette, and
+  // how far below the cutout that edge sits is each family's own decision: the
+  // bar's whole minimum is that it may sit exactly on it.
+  const HALO = 8;
+  console.log("\n-- Cutout coverage and halo (absolute black expected) --");
   for (const [devName, g] of Object.entries(devices)) {
-    for (const family of ["bar", "stripes", "fade"]) {
-      const { px, wPx } = render(g, defaultMask(family, g), "ember");
+    for (const family of ["bar", "stripes", "fade", "decor"]) {
+      const { px, wPx, hPx } = render(g, defaultMask(family, g), "ember");
       const c = g.cutout;
-      // The 2 pt margin avoids sampling the antialiased edge.
-      const x0 = Math.ceil((c.x + 2) * g.scale);
-      const x1 = Math.floor((c.x + c.w - 2) * g.scale);
-      const y0 = Math.ceil((c.y + 2) * g.scale);
-      const y1 = Math.floor((c.y + c.h - 2) * g.scale);
 
-      let worst = 0;
-      let bad = 0;
-      for (let y = y0; y <= y1; y += 1) {
-        for (let x = x0; x <= x1; x += 1) {
-          const i = (y * wPx + x) * 4;
-          const v = Math.max(px[i], px[i + 1], px[i + 2]);
-          if (v > worst) worst = v;
-          if (v !== 0) bad += 1;
-        }
-      }
-      const ok = worst === 0;
+      const core = scan(px, wPx, hPx, g, inRRect(c, -2), {
+        x0: c.x + 2, y0: c.y + 2, x1: c.x + c.w - 2, y1: c.y + c.h - 2,
+      });
+      const halo = scan(px, wPx, hPx, g, inRRect(c, HALO), {
+        // Stopping a point short of the cutout's bottom keeps the bar at its
+        // minimum out of it: that edge lands exactly there, and its own
+        // antialiased row is not a hole showing through.
+        x0: c.x - HALO, y0: 0, x1: c.x + c.w + HALO, y1: c.y + c.h - 1,
+      });
+
+      const ok = core.worst === 0 && halo.worst === 0;
       if (!ok) failures += 1;
       console.log(
         `  ${ok ? "ok  " : "FAIL"} ${devName.padEnd(15)} ${family.padEnd(8)} ` +
-          `max channel = ${worst}${bad ? `  (${bad} non black pixels)` : ""}`
+          `cutout max ${core.worst}, +${HALO} pt halo max ${halo.worst}` +
+          `${halo.bad ? `  (${halo.bad} non black pixels in the halo)` : ""}`
       );
     }
   }

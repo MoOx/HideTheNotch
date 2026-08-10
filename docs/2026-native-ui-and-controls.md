@@ -320,6 +320,79 @@ or the black plate and the black drawing merge and every composition looks
 covered. Two rounds of this were spent fixing an ear on the notch that no user
 could ever see, and one real error hid behind the same confusion.
 
+---
+
+## 8. The gradient, as points
+
+The five presets were three stops down a linear gradient with a radial halo laid
+over them. They are now the same colours placed as **points**, drawn by a shader
+that lets each one pull its colour over the screen. Nothing about the presets is
+lost, since a pair of points across the top is a band of that colour, and the
+thing that matters is gained: the result is editable, with no second kind of
+gradient to keep working and no import step between a preset and something the
+user has moved.
+
+### The weight
+
+    w = exp(-d² · 6) / (d² + 0.004)
+
+Two things at once, and it needs both.
+
+| | |
+| --- | --- |
+| `1 / d²` | inverse distance weighting. It goes to infinity at the point, so the colour **at** a point is that point's colour. That is what makes dragging a handle mean something |
+| `exp(-d² · 6)` | the fence. Inverse distance alone reaches the whole screen: every point pulls on every pixel, which gives creases where two influences trade places and colours washed toward the average everywhere else. By the far edge the Gaussian has fallen to a quarter of a percent, so a point governs its own region and lets go of the rest |
+
+A plain Gaussian was the other candidate and is smoother than either. It was
+rejected on one point: its colour at a point is a blend, so a point set to pure
+red gives a pink handle, and a direct manipulation interface cannot be built on
+a control that does not do what it says.
+
+Mixed in linear light and dithered, for the same two reasons as the fade.
+
+Each preset carries an eighth point that is not obvious: an anchor in the middle
+under the halo, in the **mid** colour. Without it the two mid points sit out at
+the edges, nothing holds the centre, and the halo runs the whole height of the
+screen as a column of light. In the dark colour instead it reaches higher than
+the dark at the corners and the bottom of the wallpaper becomes a plume.
+
+### What it cost the harness
+
+`verify` went from seconds to three minutes. CanvasKit rasterises a runtime
+effect per pixel on the CPU, and the harness was rendering 850 points of screen
+to inspect the first 60. It now renders only the part each check reads, with a
+guard that fails loudly rather than quietly checking fewer rows the day a mask
+grows past the surface. Back to about 48 seconds.
+
+On the device this does not arise: the same loop is nothing to a GPU.
+
+### The editor
+
+The wallpaper is the control. There is no diagram of the gradient anywhere: the
+handles sit on what they are changing, at the position they are changing, and
+the screen redraws under the finger.
+
+- **Reached from the wallpaper sheet**, under the gradients it follows on from.
+- **Drag** to move, **tap** to select, **tap the wallpaper** to put the panel
+  away. Without that last one, a point dragged to the bottom of the screen ends
+  up under the panel that appeared because it was selected, with no way back.
+- Points may go a little past the edge. A point just off screen pulls its colour
+  in from beyond the frame, which is the difference between a corner that is
+  coloured and a corner where something ends, and it is the first thing anyone
+  tries.
+- The dot is 30 across, the area that catches the finger is 48.
+- **Colour is each platform's own answer.** iOS gets the system `ColorPicker`,
+  whose panel has a spectrum, a grid, sliders and an eyedropper that lifts a
+  colour off the wallpaper underneath. Android has nothing equivalent to
+  present, so it gets hue, saturation and brightness on three Material sliders.
+  They are separate files rather than one branch, because `@expo/ui/swift-ui`
+  asks for its native view at import time and a `Platform.OS` check in the body
+  would already be too late.
+- **Only the page being looked at is drawn** while editing. A drag changes the
+  source every frame, the source is what all four pager pages share, and left
+  alone they each redrew a full screen of gradient per frame in order to sit
+  still off screen, where the pager cannot go because its gesture is off.
+
 ### Parked, deliberately
 
 - Home screen screenshot as preview backdrop, from section 2.

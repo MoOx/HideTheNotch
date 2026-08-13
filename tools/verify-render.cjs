@@ -161,7 +161,7 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
   const HALO = 8;
   console.log("\n-- Cutout coverage and halo (absolute black expected) --");
   for (const [devName, g] of Object.entries(devices)) {
-    for (const family of ["bar", "stripes", "fade", "decor"]) {
+    for (const family of ["bar", "stripes", "fade"]) {
       const { px, wPx, hPx } = render(g, defaultMask(family, g), "ember", TOP);
       const c = g.cutout;
 

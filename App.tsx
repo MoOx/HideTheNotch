@@ -33,7 +33,6 @@ import { renderToFile, saveToPhotos } from "./src/render/export";
 import { useSourceImage } from "./src/render/useSourceImage";
 import { BUTTON, CornerButton } from "./src/ui/CornerButton";
 import { CurvePicker, type CurveId } from "./src/ui/CurvePicker";
-import { DecorPicker } from "./src/ui/DecorPicker";
 import { MeshEditor } from "./src/ui/MeshEditor";
 import { FamilyDots } from "./src/ui/FamilyDots";
 import { SLIDER_H_SHORT, VSlider } from "./src/ui/VSlider";
@@ -74,13 +73,6 @@ function slider(mask: Mask, g: Geometry): Control {
         value: mask.density,
         apply: (v) => ({ ...mask, density: v }),
       };
-    case "decor":
-      return {
-        label: FAMILY_LABEL.decor,
-        symbol: "sparkles",
-        value: mask.density,
-        apply: (v) => ({ ...mask, density: v }),
-      };
     case "fade": {
       const min = fadeSolidEnd(g) + 40;
       // All the way to the bottom edge: a fade that stops at four fifths has a
@@ -107,7 +99,6 @@ function Editor() {
     bar: defaultMask("bar", detected),
     stripes: defaultMask("stripes", detected),
     fade: defaultMask("fade", detected),
-    decor: defaultMask("decor", detected),
   }));
   const [source, setSource] = useState<Source>(() => presetSource("aurora"));
 
@@ -126,7 +117,6 @@ function Editor() {
       bar: defaultMask("bar", geometry),
       stripes: defaultMask("stripes", geometry),
       fade: defaultMask("fade", geometry),
-      decor: defaultMask("decor", geometry),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [geomKey]);
@@ -423,22 +413,6 @@ function Editor() {
             <CurvePicker
               value={mask.curve as CurveId}
               onChange={(curve) => setMask({ ...mask, curve })}
-            />
-          )}
-
-          {mask.type === "decor" && (
-            <DecorPicker
-              value={mask.pattern}
-              // Tapping the pattern you are already on reshuffles it. The seed
-              // needs a control and this is the one place it can live without
-              // adding a button that would need explaining.
-              onChange={(pattern) =>
-                setMask(
-                  pattern === mask.pattern
-                    ? { ...mask, seed: mask.seed + 1 }
-                    : { ...mask, pattern },
-                )
-              }
             />
           )}
 

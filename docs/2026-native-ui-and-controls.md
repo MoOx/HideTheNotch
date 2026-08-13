@@ -259,20 +259,40 @@ check caught exactly this the first time it ran.
 
 ---
 
-## 7. Family 08, decor
+## 7. Family 08, decor: built, and taken back out
 
-The first family that is a **drawing** rather than a shape derived from the
-cutout. Three patterns, one density slider, and a seed: tapping the pattern you
-are already on reshuffles it, which is where the randomness lives without
-costing a button.
+**This family is not in the app. It was written, judged, and removed.** The
+section stays so nobody starts it again from the same place, and because one
+thing that came out of it is still load bearing.
 
-| Pattern | What it is |
-| --- | --- |
-| `rig` | a ceiling lamp, and a smaller one either side once there is room |
-| `vine` | leaves along the top edge with strands hanging out of them |
-| `garland` | a cable, a lantern where it hangs lowest, bulbs along the rest |
+The idea was a shape hanging from the top edge that happens to cover the cutout,
+rather than a band that admits to covering it. Three patterns, one density
+slider, and a seed that reshuffled when you tapped the pattern you were already
+on: `rig`, a ceiling lamp; `vine`, leaves along the top edge with strands
+hanging out of them; `garland`, a cable with a lantern where it hangs lowest.
 
-### The mistake this family nearly shipped with
+### Why it went
+
+The drawings were not good enough. Not broken, not wrong: just not up to the
+rest of the app. Every one of them was reworked more than once, and each rework
+fixed the thing that had been named and left something else that had not. A
+family whose whole content is how a drawing looks does not get to be
+approximately good.
+
+There is also a constraint that made it harder than it looked, and that anyone
+picking this up again will meet on the second afternoon rather than the first:
+
+**Whatever this family draws, it has to be at least as wide as the cutout plus a
+margin, from the top edge down past the bottom of the cutout.** On a Dynamic
+Island that is a shape 143 pt wide and 57 pt tall before the object starts. On a
+notch it is 227 pt wide, more than half the screen. So the object cannot be a
+small lamp hanging on a cord: the mass at the top is forced, and the only real
+freedom is the shape of its lower edge. That is why the lamp had to *be* the
+plate rather than hang under it, and why the foliage worked best as one canopy
+with a leafy underside. It is not a limitation of the drawings, it is the shape
+of the problem, and a fourth attempt would meet it too.
+
+### The mistake it caught, which is worth keeping
 
 The plan was a black plate in the exact shape of the cutout, drawn first, so
 coverage was guaranteed and the drawing only had to be nice. That plate was the
@@ -280,47 +300,27 @@ cutout plus a point and a half.
 
 It hides the hole and it draws the hole. Black exactly over the cutout means
 there is no longer a luminance boundary anywhere near the camera, so the hole
-itself is gone; but the black then **ends where the hole ends**, so the
-wallpaper spends its effort reproducing the cutout's own outline, in black, at
-full contrast. The other three families never meet this because their black
-spans the screen: the only edge they share with the cutout is a straight
-horizontal line, which is a line and not a silhouette.
+itself is gone; but the black then **ends where the hole ends**, so the wallpaper
+spends its effort reproducing the cutout's own outline, in black, at full
+contrast. The other three families never meet this because their black spans the
+screen: the only edge they share with the cutout is a straight horizontal line,
+which is a line and not a silhouette.
 
-Two things came out of it. The plate now stands off the cutout by 9 pt and
-carries a 12 pt radius of its own, well under the island's 18.67, so what
-reaches the glass is a plate that happens to contain a hole. And `verify` grew
-the check that was missing: black over the cutout **inset** by 2 pt, and black
-over the cutout **grown** by 8 pt, on the left and the right, for every family.
-The first check alone passes a mask that is a picture of the cutout.
+`verify` grew the check that was missing and **keeps it**: black over the cutout
+inset by 2 pt, and black over the cutout grown by 8 pt on the left and the
+right, for every family. Coverage alone passes a mask that is a picture of the
+cutout. Beside and not below, because how far under the cutout a full width
+family stops is that family's own decision, and the bar's whole minimum is that
+it may stop exactly on it.
 
-### Drawing notes
+### The other thing learned, about judging
 
-- The lamp is the plate, widened. Hanging a narrower shade under the plate was
-  the obvious composition and it reads as a lamp that came with packaging: the
-  plate shows above it as a box. The shade has to start at the plate's width,
-  which means it meets the screen edge, which is what a ceiling light does.
-- A shade's bottom rim is an ellipse seen from below, so the silhouette's lower
-  edge dips in the middle. One control point, and the trapezoid becomes a lamp.
-- The foliage is one path, not a row of leaves. Overlapping leaves leave slivers
-  between them for the plate to show through; a single canopy whose lower edge
-  is a run of lobes cannot. Lobes of uneven width with their points off centre,
-  and controls placed far along in x and barely down in y so each lobe bellies
-  out before it turns into its point. Controls halfway give straight lines, and
-  straight lines with even spacing are a saw blade, which the eye names much
-  faster than it names a leaf.
-- Skia has no tapered stroke, so the hanging stems are outlines built by hand:
-  walk the curve, step off along the normal by half the width there, come back
-  down the other side. A stem at one width is a wire.
+The off device contact sheet has to **draw where the hole is**. Without that
+marker the black plate and the black drawing merge into one silhouette, and
+every composition looks covered. Two rounds went into fixing an ear on the notch
+that no user could ever see, and a real error hid behind the same confusion for
+as long.
 
-### Judging it
-
-Off device, `tools/` renders the three patterns at three densities on both a
-Dynamic Island and a notch. The contact sheet must draw **where the hole is**,
-or the black plate and the black drawing merge and every composition looks
-covered. Two rounds of this were spent fixing an ear on the notch that no user
-could ever see, and one real error hid behind the same confusion.
-
----
 
 ## 8. The gradient, as points
 
@@ -373,9 +373,18 @@ handles sit on what they are changing, at the position they are changing, and
 the screen redraws under the finger.
 
 - **Reached from the wallpaper sheet**, under the gradients it follows on from.
-- **Drag** to move, **tap** to select, **tap the wallpaper** to put the panel
-  away. Without that last one, a point dragged to the bottom of the screen ends
-  up under the panel that appeared because it was selected, with no way back.
+- **A point is moved by dragging anywhere, not by dragging the point.** Tap one
+  to pick it up, then drag any part of the wallpaper and it follows, one to one.
+  Dragging the handle still works and is what most people reach for, but it
+  cannot be the only way: a point parked under the home indicator or up by the
+  status bar belongs to iOS while a finger is there, and the first swipe goes to
+  the system rather than to the app. The first build had exactly that dead zone.
+  With the whole screen acting as a trackpad for whichever point is held, where
+  that point happens to sit stops being something anyone has to think about.
+- **A long press on a point opens its own menu**, with the colour and Delete.
+  The first build put those in a panel pinned along the bottom, which was both
+  permanently in the way of the thing being judged and, for a point dragged low,
+  sitting on top of the very handle that opened it.
 - Points may go a little past the edge. A point just off screen pulls its colour
   in from beyond the frame, which is the difference between a corner that is
   coloured and a corner where something ends, and it is the first thing anyone
@@ -384,14 +393,51 @@ the screen redraws under the finger.
 - **Colour is each platform's own answer.** iOS gets the system `ColorPicker`,
   whose panel has a spectrum, a grid, sliders and an eyedropper that lifts a
   colour off the wallpaper underneath. Android has nothing equivalent to
-  present, so it gets hue, saturation and brightness on three Material sliders.
-  They are separate files rather than one branch, because `@expo/ui/swift-ui`
-  asks for its native view at import time and a `Platform.OS` check in the body
-  would already be too late.
+  present, so it gets hue, saturation and brightness on three Material sliders,
+  folded behind one row so the menu still reads as a menu. They are separate
+  files rather than one branch, because `@expo/ui/swift-ui` asks for its native
+  view at import time and a `Platform.OS` check in the body would already be too
+  late.
+- **The background gesture has to be told what it may not have.** The handles,
+  the menu and the bottom bar are drawn over a full screen gesture area, and a
+  recogniser attached to a view underneath still sees touches that land on the
+  views above it: React Native's press handling and this library's recognisers
+  are two separate systems and neither cancels the other. Left alone, tapping
+  Delete would also tap the wallpaper, and dragging a handle would run two pans
+  over the same point. So the background asks whether the touch started on
+  something else, exactly, from the handle positions it already has and from the
+  two panels' measured boxes.
 - **Only the page being looked at is drawn** while editing. A drag changes the
-  source every frame, the source is what all four pager pages share, and left
+  source every frame, the source is what all the pager pages share, and left
   alone they each redrew a full screen of gradient per frame in order to sit
   still off screen, where the pager cannot go because its gesture is off.
+
+---
+
+## 9. How big is a button
+
+The two corner buttons were 54 pt, went to 44, and are back at 54. Worth
+writing down, because the reasoning that took them to 44 sounded right.
+
+**44 x 44 pt is the minimum tappable area** in the Human Interface Guidelines.
+It is a floor under every control, not the size of a button. Reading it as "the
+system puts these at about 44 across" makes every prominent round button in the
+app the smallest thing the guidelines permit, next to system controls that are
+visibly larger: a `large` button configuration is 50 pt tall before any circular
+padding, and the round glass controls in the Photos editor and over the camera
+land in the low fifties.
+
+So: 54, with a 24 pt glyph, a shade under half, which is the proportion the
+system's own buttons use. Section 3 had already asked for a slider "roughly
+56 pt wide" beside them, so the column agrees with itself again.
+
+The curve picker's cells follow from the same number, minus the glass column's
+own padding, so that the *outside* of that control is as wide as the slider.
+Matching the cell to the button instead, which is what it did, made the column
+eight points wider than the slider and left the right hand edge of the interface
+out of true.
+
+---
 
 ### Parked, deliberately
 

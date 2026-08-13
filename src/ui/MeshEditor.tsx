@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useRef } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import * as Haptics from "expo-haptics";
@@ -10,6 +10,7 @@ import { Caption } from "./Caption";
 import { ColorControl } from "./ColorControl";
 import { Glass } from "./Glass";
 import { BUTTON } from "./CornerButton";
+import { T } from "./theme";
 
 /**
  * The icons, named once per platform, the way the rest of the app names them:
@@ -27,6 +28,15 @@ const HANDLE = 30;
 const HIT = 48;
 /** How far outside the screen a point may be pushed, as a fraction of it. */
 const OVERSHOOT = 0.12;
+const MENU_W = 240;
+
+type Box = { x: number; y: number; width: number; height: number };
+
+function inside(box: Box | null, x: number, y: number) {
+  return (
+    box !== null && x >= box.x && x <= box.x + box.width && y >= box.y && y <= box.y + box.height
+  );
+}
 
 /**
  * Editing the gradient by its points.
@@ -37,6 +47,23 @@ const OVERSHOOT = 0.12;
  * whole reason the gradient was rebuilt as points, and it is why the shader's
  * weight had to be exact at a point: a handle whose colour is not the colour it
  * carries would be a lie the size of the screen.
+ *
+ * Two things follow from this being a full screen editor on a phone that keeps
+ * system gestures along its edges.
+ *
+ * **A point is moved by dragging anywhere, not by dragging the point.** Tap one
+ * to pick it up, then drag any part of the wallpaper and it follows, one to
+ * one. Dragging the handle itself still works and is what most people will
+ * reach for, but it cannot be the only way: a point parked under the home
+ * indicator or up by the status bar belongs to iOS while a finger is there, and
+ * the first swipe goes to the system rather than to us. With the whole screen
+ * acting as a trackpad for whichever point is held, where that point happens to
+ * sit stops being something anyone has to think about.
+ *
+ * **A long press on a point opens its own menu.** Colour and delete live there
+ * rather than in a panel pinned along the bottom, so nothing permanent sits
+ * over the wallpaper while it is being judged, and no panel can end up covering
+ * the point that opened it.
  *
  * Handles may be dragged a little past the edge. A point just off screen pulls
  * its colour in from beyond the frame, which is the difference between a corner
@@ -62,16 +89,22 @@ export function MeshEditor({
   onDone: () => void;
 }) {
   const { width, height } = geometry;
+  const [menuFor, setMenuFor] = useState<number | null>(null);
 
   // The list during a drag, so a move reads from where the point actually is
   // rather than from a prop that is one render behind the finger.
   const live = useRef(points);
   live.current = points;
+  const held = useRef(selected);
+  held.current = selected;
 
   const move = useCallback(
     (i: number, x: number, y: number) => {
       const clamp = (v: number) => Math.min(1 + OVERSHOOT, Math.max(-OVERSHOOT, v));
       const next = live.current.slice();
+      if (!next[i]) {
+        return;
+      }
       next[i] = { ...next[i], x: clamp(x), y: clamp(y) };
       live.current = next;
       onChange(next);
@@ -93,42 +126,104 @@ export function MeshEditor({
   }, [points, onChange, onSelect]);
 
   const remove = useCallback(() => {
-    if (selected === null || points.length <= 2) {
+    if (menuFor === null || points.length <= 2) {
       return;
     }
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    onChange(points.filter((_, i) => i !== selected));
+    onChange(points.filter((_, i) => i !== menuFor));
+    setMenuFor(null);
     onSelect(null);
-  }, [selected, points, onChange, onSelect]);
+  }, [menuFor, points, onChange, onSelect]);
 
   const recolour = useCallback(
     (hex: string) => {
-      if (selected === null) {
+      if (menuFor === null) {
         return;
       }
       const next = points.slice();
-      next[selected] = { ...next[selected], color: hex };
+      next[menuFor] = { ...next[menuFor], color: hex };
       live.current = next;
       onChange(next);
     },
-    [selected, points, onChange],
+    [menuFor, points, onChange],
   );
 
-  // Tapping the wallpaper puts the panel away. Without it a point dragged to
-  // the bottom of the screen ends up underneath the panel that appeared because
-  // it was selected, and there is no way to reach it again. The handles are
-  // drawn after this, so they take a touch that lands on one.
-  const deselect = useMemo(
-    () =>
-      Gesture.Tap()
-        .runOnJS(true)
-        .onEnd(() => onSelect(null)),
+  const openMenu = useCallback(
+    (i: number) => {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      onSelect(i);
+      setMenuFor(i);
+    },
     [onSelect],
   );
 
+  // What the background gesture may not have.
+  //
+  // The handles, the menu and the bottom bar are drawn over a full screen
+  // gesture area, and a gesture recogniser attached to a view underneath still
+  // sees touches that land on the views above it: React Native's own press
+  // handling and this library's recognisers are two separate systems and
+  // neither cancels the other. Left alone, tapping Delete would also tap the
+  // wallpaper, and dragging a handle would run two pans over the same point.
+  //
+  // So the background asks, in its own coordinates, whether the touch started
+  // on something else. The handles it knows exactly, since it has their
+  // positions; the two panels report their boxes as they lay out.
+  const menuBox = useRef<Box | null>(null);
+  const barBox = useRef<Box | null>(null);
+  const onChrome = useCallback(
+    (x: number, y: number) => {
+      if (inside(menuBox.current, x, y) || inside(barBox.current, x, y)) {
+        return true;
+      }
+      return live.current.some(
+        (p) => Math.abs(p.x * width - x) <= HIT / 2 && Math.abs(p.y * height - y) <= HIT / 2,
+      );
+    },
+    [width, height],
+  );
+
+  // The wallpaper, as a trackpad for the held point and as the way out of a
+  // selection. A tap that does not travel puts the menu away and lets the point
+  // go; a drag moves it one to one from wherever the finger started.
+  const from = useRef({ x: 0, y: 0 });
+  const skip = useRef(false);
+  const background = useMemo(() => {
+    const pan = Gesture.Pan()
+      .runOnJS(true)
+      .minDistance(6)
+      .onBegin((e) => {
+        skip.current = onChrome(e.x, e.y);
+        const i = held.current;
+        const p = i === null ? null : live.current[i];
+        from.current = p ? { x: p.x, y: p.y } : { x: 0, y: 0 };
+      })
+      .onUpdate((e) => {
+        const i = held.current;
+        if (skip.current || i === null) {
+          return;
+        }
+        move(i, from.current.x + e.translationX / width, from.current.y + e.translationY / height);
+      });
+
+    const tap = Gesture.Tap()
+      .runOnJS(true)
+      .onEnd((e) => {
+        if (onChrome(e.x, e.y)) {
+          return;
+        }
+        setMenuFor(null);
+        onSelect(null);
+      });
+
+    return Gesture.Race(pan, tap);
+  }, [move, width, height, onSelect, onChrome]);
+
+  const menuPoint = menuFor === null ? null : points[menuFor];
+
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-      <GestureDetector gesture={deselect}>
+      <GestureDetector gesture={background}>
         <View style={StyleSheet.absoluteFill} />
       </GestureDetector>
 
@@ -142,28 +237,32 @@ export function MeshEditor({
           selected={selected === i}
           onMove={move}
           onSelect={onSelect}
+          onLongPress={openMenu}
         />
       ))}
 
-      <View style={[styles.bar, { bottom }]} pointerEvents="box-none">
-        {selected !== null && points[selected] ? (
-          <Glass style={styles.panel}>
-            <Caption>Point colour</Caption>
-            <ColorControl value={points[selected].color} onChange={recolour} />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Remove this point"
-              accessibilityState={{ disabled: points.length <= 2 }}
-              onPress={remove}
-              style={styles.remove}
-            >
-              <Glyph icon="remove" dim={points.length <= 2} />
-            </Pressable>
-          </Glass>
-        ) : (
-          <Caption>Drag a point, or tap one to change its colour</Caption>
-        )}
+      {menuPoint ? (
+        <Menu
+          point={menuPoint}
+          width={width}
+          height={height}
+          canRemove={points.length > 2}
+          onLayout={(box) => (menuBox.current = box)}
+          onColor={recolour}
+          onRemove={remove}
+        />
+      ) : null}
 
+      <View
+        style={[styles.bar, { bottom }]}
+        pointerEvents="box-none"
+        onLayout={(e) => (barBox.current = e.nativeEvent.layout)}
+      >
+        <Caption>
+          {selected === null
+            ? "Tap a point to pick it up"
+            : "Drag anywhere to move it, long press it for options"}
+        </Caption>
         <View style={styles.buttons}>
           <Round
             icon="add"
@@ -186,6 +285,12 @@ export function MeshEditor({
  * slides smoothly over a picture that updates later would be showing a promise
  * instead of a result. It is the same trade the vertical drag on the main
  * parameter already makes.
+ *
+ * Pan and long press race. The pan needs six points of travel before it can
+ * take over, so a finger that stays put reaches the long press and a finger
+ * that sets off is dragging before it can. Picking the point up happens in the
+ * pan's `onBegin`, which runs on touch down, so a plain tap does it without
+ * either gesture having to win.
  */
 function Handle({
   point,
@@ -195,6 +300,7 @@ function Handle({
   selected,
   onMove,
   onSelect,
+  onLongPress,
 }: {
   point: MeshPoint;
   index: number;
@@ -203,29 +309,35 @@ function Handle({
   selected: boolean;
   onMove: (i: number, x: number, y: number) => void;
   onSelect: (i: number | null) => void;
+  onLongPress: (i: number) => void;
 }) {
   const from = useRef({ x: 0, y: 0 });
   const at = useRef(point);
   at.current = point;
 
-  const gesture = useMemo(
-    () =>
-      Gesture.Pan()
-        .runOnJS(true)
-        .minDistance(0)
-        .onBegin(() => {
-          from.current = { x: at.current.x, y: at.current.y };
-          onSelect(index);
-        })
-        .onUpdate((e) => {
-          onMove(
-            index,
-            from.current.x + e.translationX / width,
-            from.current.y + e.translationY / height,
-          );
-        }),
-    [index, width, height, onMove, onSelect],
-  );
+  const gesture = useMemo(() => {
+    const pan = Gesture.Pan()
+      .runOnJS(true)
+      .minDistance(6)
+      .onBegin(() => {
+        from.current = { x: at.current.x, y: at.current.y };
+        onSelect(index);
+      })
+      .onUpdate((e) => {
+        onMove(
+          index,
+          from.current.x + e.translationX / width,
+          from.current.y + e.translationY / height,
+        );
+      });
+
+    const hold = Gesture.LongPress()
+      .runOnJS(true)
+      .minDuration(380)
+      .onStart(() => onLongPress(index));
+
+    return Gesture.Race(pan, hold);
+  }, [index, width, height, onMove, onSelect, onLongPress]);
 
   return (
     <GestureDetector gesture={gesture}>
@@ -242,6 +354,58 @@ function Handle({
         />
       </View>
     </GestureDetector>
+  );
+}
+
+/**
+ * The point's own menu, beside the point.
+ *
+ * It opens below the handle in the top half of the screen and above it in the
+ * bottom half, so it never covers the thing it belongs to. In the second case
+ * it is anchored by its bottom edge, which means it does not have to know its
+ * own height: it is taller on Android, where choosing a colour is three sliders
+ * rather than a system panel.
+ */
+function Menu({
+  point,
+  width,
+  height,
+  canRemove,
+  onLayout,
+  onColor,
+  onRemove,
+}: {
+  point: MeshPoint;
+  width: number;
+  height: number;
+  canRemove: boolean;
+  onLayout: (box: Box) => void;
+  onColor: (hex: string) => void;
+  onRemove: () => void;
+}) {
+  const px = point.x * width;
+  const py = point.y * height;
+  const left = Math.min(Math.max(px - MENU_W / 2, 12), width - MENU_W - 12);
+  const place = py > height / 2 ? { bottom: height - py + HIT / 2 } : { top: py + HIT / 2 };
+
+  return (
+    <Glass
+      style={[styles.menu, { left, ...place }]}
+      onLayout={(e) => onLayout(e.nativeEvent.layout)}
+    >
+      <ColorControl value={point.color} onChange={onColor} />
+      <View style={styles.rule} />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Delete this point"
+        accessibilityState={{ disabled: !canRemove }}
+        onPress={canRemove ? onRemove : undefined}
+        style={styles.row}
+      >
+        <Text style={[styles.rowText, !canRemove && styles.rowTextOff]}>Delete</Text>
+        <Glyph icon="remove" dim={!canRemove} />
+      </Pressable>
+    </Glass>
   );
 }
 
@@ -317,6 +481,21 @@ const styles = StyleSheet.create({
     borderWidth: 4,
     transform: [{ scale: 1.18 }],
   },
+  menu: {
+    position: "absolute",
+    width: MENU_W,
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+  },
+  rule: { height: StyleSheet.hairlineWidth, backgroundColor: T.stroke },
+  row: {
+    height: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  rowText: { color: T.text, fontSize: 15 },
+  rowTextOff: { color: T.textFaint },
   bar: {
     position: "absolute",
     left: 16,
@@ -324,8 +503,6 @@ const styles = StyleSheet.create({
     gap: 12,
     alignItems: "center",
   },
-  panel: { alignSelf: "stretch", padding: 14, gap: 8 },
-  remove: { alignSelf: "flex-end", padding: 4 },
   buttons: { flexDirection: "row", gap: 12 },
   round: {
     width: BUTTON,

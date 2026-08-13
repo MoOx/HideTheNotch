@@ -26,7 +26,7 @@ export function ColorControl({
       <ColorPicker
         selection={value}
         supportsOpacity={false}
-        label="Colour"
+        label="Choose color"
         onSelectionChange={(next) => onChange(normalise(next))}
       />
     </Host>

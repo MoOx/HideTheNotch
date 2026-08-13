@@ -101,12 +101,12 @@ const SWATCH = 26;
 
 const styles = StyleSheet.create({
   row: {
-    height: 44,
+    height: T.row,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  rowText: { color: T.text, fontSize: 15 },
+  rowText: { color: T.text, fontSize: T.rowText },
   swatch: {
     width: SWATCH,
     height: SWATCH,

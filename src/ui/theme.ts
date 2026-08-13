@@ -14,4 +14,14 @@ export const T = {
   accent: "#F0533A",
   radius: 20,
   gap: 10,
+  /**
+   * A row in a menu: its height, and the size of the text in it.
+   *
+   * 17 pt is the system body size, which is what SwiftUI's own controls use for
+   * their label. The colour row in the point menu *is* one of those controls, so
+   * anything sitting next to it has to be told the same number or the two lines
+   * of the same menu come out at two different sizes.
+   */
+  row: 44,
+  rowText: 17,
 } as const;

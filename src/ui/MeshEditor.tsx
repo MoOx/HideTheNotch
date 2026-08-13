@@ -1,10 +1,10 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import * as Haptics from "expo-haptics";
 
-import type { Geometry } from "../geometry/devices";
+import { cutoutBottom, type Geometry } from "../geometry/devices";
 import { MESH_MAX, type MeshPoint } from "../recipe/types";
 import { Caption } from "./Caption";
 import { ColorControl } from "./ColorControl";
@@ -28,6 +28,22 @@ const HANDLE = 30;
 const HIT = 48;
 /** How far outside the screen a point may be pushed, as a fraction of it. */
 const OVERSHOOT = 0.12;
+
+/**
+ * The top of the screen is out of bounds, and both reasons are good.
+ *
+ * A handle up there cannot be picked up at all: the status bar and the cutout's
+ * band belong to iOS, and a touch that starts in them is the system's, so
+ * unlike the bottom there is not even a first tap to be had. And there would be
+ * nothing to gain if there were, because that band is exactly what every mask
+ * paints black. A colour placed under the mask is a colour nobody will see.
+ *
+ * The floor clears the safe area, or the cutout when it reaches lower, by half
+ * a handle, so the whole dot sits in the part of the screen that answers.
+ */
+function floorY(g: Geometry) {
+  return (Math.max(g.insetTop, cutoutBottom(g)) + HANDLE / 2) / g.height;
+}
 const MENU_W = 240;
 
 type Box = { x: number; y: number; width: number; height: number };
@@ -98,19 +114,41 @@ export function MeshEditor({
   const held = useRef(selected);
   held.current = selected;
 
+  const minY = floorY(geometry);
+  const place = useCallback(
+    (p: MeshPoint, x: number, y: number): MeshPoint => ({
+      ...p,
+      x: Math.min(1 + OVERSHOOT, Math.max(-OVERSHOOT, x)),
+      y: Math.min(1 + OVERSHOOT, Math.max(minY, y)),
+    }),
+    [minY],
+  );
+
   const move = useCallback(
     (i: number, x: number, y: number) => {
-      const clamp = (v: number) => Math.min(1 + OVERSHOOT, Math.max(-OVERSHOOT, v));
       const next = live.current.slice();
       if (!next[i]) {
         return;
       }
-      next[i] = { ...next[i], x: clamp(x), y: clamp(y) };
+      next[i] = place(next[i], x, y);
       live.current = next;
       onChange(next);
     },
-    [onChange],
+    [onChange, place],
   );
+
+  // A recipe made before the floor existed, or on a phone with a shallower one,
+  // can arrive with a point that cannot be reached. Bring them down once, on
+  // the way in, rather than leave a handle that does not answer. The presets
+  // already sit below it, so opening the editor on one changes nothing.
+  useEffect(() => {
+    if (!live.current.some((p) => p.y < minY)) {
+      return;
+    }
+    const next = live.current.map((p) => place(p, p.x, p.y));
+    live.current = next;
+    onChange(next);
+  }, [minY, place, onChange]);
 
   const add = useCallback(() => {
     if (points.length >= MESH_MAX) {
@@ -489,12 +527,12 @@ const styles = StyleSheet.create({
   },
   rule: { height: StyleSheet.hairlineWidth, backgroundColor: T.stroke },
   row: {
-    height: 44,
+    height: T.row,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  rowText: { color: T.text, fontSize: 15 },
+  rowText: { color: T.text, fontSize: T.rowText },
   rowTextOff: { color: T.textFaint },
   bar: {
     position: "absolute",

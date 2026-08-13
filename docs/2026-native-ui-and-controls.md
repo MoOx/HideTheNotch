@@ -385,10 +385,25 @@ the screen redraws under the finger.
   The first build put those in a panel pinned along the bottom, which was both
   permanently in the way of the thing being judged and, for a point dragged low,
   sitting on top of the very handle that opened it.
-- Points may go a little past the edge. A point just off screen pulls its colour
-  in from beyond the frame, which is the difference between a corner that is
-  coloured and a corner where something ends, and it is the first thing anyone
-  tries.
+- Points may go a little past the left, right and bottom edges. A point just off
+  screen pulls its colour in from beyond the frame, which is the difference
+  between a corner that is coloured and a corner where something ends, and it is
+  the first thing anyone tries.
+- **The top of the screen is out of bounds**, and both reasons are good. A
+  handle up there cannot be picked up at all: the status bar and the cutout's
+  band belong to iOS, so unlike the bottom there is not even a first tap to be
+  had. And there would be nothing to gain if there were, because that band is
+  exactly what every mask paints black, so a colour placed under the mask is a
+  colour nobody will see. The floor clears the safe area, or the cutout when it
+  reaches lower, by half a handle. The presets sit below it already, so opening
+  the editor on one moves nothing; a recipe that arrives from somewhere else is
+  brought down once on the way in, because an unreachable handle is worse than a
+  point that shifted.
+- The colour row is one native control and Delete is ours, so they have to be
+  told to agree: the host stretches rather than sizing itself to the picker,
+  which left it short of the right edge, and the row height and text size are
+  one number in the theme, which is the system's body size, because the SwiftUI
+  label is going to use it whatever we do.
 - The dot is 30 across, the area that catches the finger is 48.
 - **Colour is each platform's own answer.** iOS gets the system `ColorPicker`,
   whose panel has a spectrum, a grid, sliders and an eyedropper that lifts a

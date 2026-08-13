@@ -20,6 +20,13 @@ export type Palette = {
  * height give a band with a straight edge, and a straight edge across a
  * wallpaper is the one thing that makes a gradient look generated.
  *
+ * Nothing sits in the top tenth. The editor will not let a point go up there,
+ * since that band is what the mask paints black and what iOS keeps its own
+ * touches in, and a preset whose points jumped the moment the editor opened
+ * would be an editor that edits before it is used. There is no loss: above the
+ * highest point the gradient simply is that point's colour, which is what the
+ * top of the screen was showing anyway.
+ *
  * The eighth point is the one that is not obvious: an anchor in the middle,
  * below the halo. Without it the two mid points sit out at the edges, nothing
  * holds the centre, and the halo runs the whole height of the screen as a
@@ -36,8 +43,8 @@ function ramp(
   midAt: [number, number],
 ): MeshPoint[] {
   return [
-    { x: 0.08, y: 0.0, color: top },
-    { x: 0.92, y: 0.07, color: top },
+    { x: 0.08, y: 0.1, color: top },
+    { x: 0.92, y: 0.16, color: top },
     { x: haloAt[0], y: haloAt[1], color: halo },
     { x: 0.1, y: midAt[0], color: mid },
     { x: 0.9, y: midAt[1], color: mid },

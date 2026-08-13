@@ -1,6 +1,8 @@
 import { StyleSheet } from "react-native";
 import { ColorPicker, Host } from "@expo/ui/swift-ui";
 
+import { T } from "./theme";
+
 /**
  * Choosing a colour, on iOS.
  *
@@ -22,7 +24,17 @@ export function ColorControl({
   onChange: (hex: string) => void;
 }) {
   return (
-    <Host matchContents style={styles.host}>
+    // Vertically only. `matchContents` on both axes sizes the host to what
+    // SwiftUI asks for, which for a labelled picker is just wide enough for the
+    // label and the swatch: the row then sat short of the menu's right edge
+    // while Delete underneath reached it. Matching height alone lets React
+    // Native hand SwiftUI the full width, and a `ColorPicker` given a width
+    // spreads to it, label leading and swatch trailing, which is the row this
+    // wanted to be all along.
+    // Dark whatever the phone is set to. The chrome floats over a wallpaper and
+    // is always dark, so a SwiftUI island inheriting a light appearance would
+    // put dark text on dark glass.
+    <Host matchContents={MATCH} colorScheme="dark" style={styles.host}>
       <ColorPicker
         selection={value}
         supportsOpacity={false}
@@ -32,6 +44,8 @@ export function ColorControl({
     </Host>
   );
 }
+
+const MATCH = { vertical: true } as const;
 
 /**
  * The picker can hand back `#RRGGBBAA` or a shorthand. The recipe stores six
@@ -47,5 +61,6 @@ function normalise(hex: string): string {
 }
 
 const styles = StyleSheet.create({
-  host: { minHeight: 40 },
+  /** Stretched, and the same height as the row under it. */
+  host: { alignSelf: "stretch", minHeight: T.row, justifyContent: "center" },
 });

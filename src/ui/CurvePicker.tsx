@@ -4,6 +4,7 @@ import { Canvas, Path, Skia } from "@shopify/react-native-skia";
 import * as Haptics from "expo-haptics";
 
 import { Caption } from "./Caption";
+import { BUTTON } from "./CornerButton";
 import { Glass } from "./Glass";
 import { T } from "./theme";
 
@@ -91,9 +92,15 @@ export function CurvePicker({
   );
 }
 
-/** Cells sized like the corner buttons, so the whole chrome is on one scale. */
-const CELL = 44;
-const GLYPH = 26;
+/**
+ * Sized from the corner buttons so the whole chrome is on one scale, and minus
+ * the glass column's own padding so the *outside* of this control is as wide as
+ * the slider beside it. Matching the cell to the button instead, which is what
+ * this used to do, made the column eight points wider than the slider and left
+ * the right hand edge of the interface out of true.
+ */
+const CELL = BUTTON - 8;
+const GLYPH = 28;
 
 const styles = StyleSheet.create({
   wrap: { alignItems: "center", gap: 8 },

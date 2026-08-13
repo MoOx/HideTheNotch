@@ -6,14 +6,23 @@ import { Glass } from "./Glass";
 /**
  * The size of a system round glass button, not a size of our own.
  *
- * 54 was too big next to the Photos editor's own controls. The system puts
- * these at about 44 across with the glyph a little under half of that, which is
- * also the smallest comfortable touch target, so the button is exactly as big
- * as it needs to be and no bigger.
+ * This was 44 for a while, on the reasoning that the system puts these at about
+ * 44 across. That number is real but it is the wrong number: **44 pt is the
+ * minimum tappable area** in the Human Interface Guidelines, the floor under
+ * every control, and reading it as the size of a prominent round button makes
+ * every prominent round button the smallest thing the guidelines allow.
+ *
+ * The buttons this app sits next to, the round glass controls in the Photos
+ * editor and over the camera, are visibly bigger than that: a `large` button
+ * configuration is 50 pt tall before any circular padding, and those land in
+ * the low fifties. 54 with a 24 pt glyph, which is where this started, matches
+ * them and is what the plan already asked for when it sized the slider beside
+ * it at "roughly 56".
  */
-export const BUTTON = 44;
+export const BUTTON = 54;
 
-const ICON_SIZE = 20;
+/** A shade under half, which is the proportion the system's own buttons use. */
+const ICON_SIZE = 24;
 
 /**
  * The icons, named once per platform.

@@ -1,0 +1,66 @@
+name: iOS simulator build
+
+# Build for the iOS simulator, unsigned and therefore without an Apple account.
+# Download it from the Actions tab and drop it onto a running simulator. A build
+# installable on a real iPhone needs the Apple Developer Program, see README.md.
+on:
+  workflow_dispatch:
+  # workflow_dispatch can only be triggered from the default branch. Until this
+  # is merged, a marker in the commit message does the job.
+  push:
+
+jobs:
+  simulator:
+    name: xcodebuild -sdk iphonesimulator
+    runs-on: macos-latest
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[build-ios]')
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci
+
+      - name: Generate the native project
+        run: npx expo prebuild --platform ios --no-install
+
+      - name: CocoaPods
+        run: npx pod-install
+
+      # The project name derives from the app name, so read it rather than
+      # hardcoding it, to avoid breaking on every rename.
+      - name: Build
+        run: |
+          set -eo pipefail
+          WORKSPACE=$(ls -d ios/*.xcworkspace | head -1)
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          echo "workspace=$WORKSPACE scheme=$SCHEME"
+          xcodebuild \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package the .app
+        run: |
+          set -eo pipefail
+          APP=$(ls -d build/Build/Products/Release-iphonesimulator/*.app | head -1)
+          cd "$(dirname "$APP")"
+          zip -qry "$GITHUB_WORKSPACE/simulator-app.zip" "$(basename "$APP")"
+
+      - name: Artifact name
+        id: name
+        run: echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hidethenotch-${{ steps.name.outputs.sha }}-ios-simulator
+          path: simulator-app.zip
+          if-no-files-found: error

@@ -1,75 +1,74 @@
-# OSX
-#
-.DS_Store
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
-# Xcode
-#
-build/
-*.pbxuser
-!default.pbxuser
-*.mode1v3
-!default.mode1v3
-*.mode2v3
-!default.mode2v3
-*.perspectivev3
-!default.perspectivev3
-xcuserdata
-*.xccheckout
-*.moved-aside
-DerivedData
-*.hmap
-*.ipa
-*.xcuserstate
-project.xcworkspace
-
-# Android/IntelliJ
-#
-build/
-.idea
-.gradle
-local.properties
-*.iml
-
-# node.js
-#
+# dependencies
 node_modules/
-npm-debug.log
-yarn-error.log
 
-# BUCK
-buck-out/
-\.buckd/
-*.keystore
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+# generated native folders
+/ios
+/android
+
+# harnais de vérification hors appareil
+.harness/
+renders/
 
 # fastlane
-**/fastlane/report.xml
-**/fastlane/Preview.html
-**/fastlane/screenshots/*/*.png
-**/fastlane/screenshots/README.txt
-**/fastlane/screenshots/screenshots.html
-**/fastlane/background.png
-**/fastlane/metadata
-**/fastlane/Appfile
-**/fastlane/Deliverfile
-**/fastlane/README.md
-**/Preview.html
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+build/
+*.ipa
+*.dSYM.zip
 
-# custom
-assets/wallpapers
-assets/iOS
-assets/Android
-assets/website
-website/*
-
-# sensible files
-*.zip
-*.p12
-*.cer
-*.certSigningRequest
-*.mobileprovision
-*/sentry.properties
-src/sentry.endpoint.js
-
-# heavy files
-ios/HideTheNotch/Images.xcassets/LaunchImage.launchimage/*
-ios/HideTheNotch/Images.xcassets/AppIcon.appiconset/*
+# --- mobile builds (shared certificates repository) -------------------------
+# Local clone of the certificates repository
+.certificates/
+# Secrets decrypted on the fly by the Fastfile
+.secrets/
+# Local variables (holds MATCH_PASSWORD / SECRETS_PASSPHRASE)
+.env
+!.env.example
+# Build outputs
+build/
+*.ipa
+*.dSYM.zip
+*.aab
+*.apk
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output

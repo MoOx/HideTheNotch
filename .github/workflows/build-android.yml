@@ -1,0 +1,62 @@
+name: Android APK
+
+# Builds the APK entirely on GitHub: no Expo account, no EAS credits, no Google
+# account. The repository is public, so standard runners are free.
+on:
+  workflow_dispatch:
+  # workflow_dispatch can only be triggered from the default branch. Until this
+  # is merged, a marker in the commit message does the job.
+  push:
+
+jobs:
+  apk:
+    name: assembleRelease
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[build-apk]')
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - run: npm ci
+
+      - name: Generate the native project
+        run: npx expo prebuild --platform android --no-install
+
+      # The Expo template signs release builds with the debug keystore, so
+      # nothing has to be supplied for a test APK.
+      #
+      # -PreactNativeArchitectures=arm64-v8a: a test APK does not need the x86
+      # slices, which only serve emulators. Add x86_64 to test on one.
+      #
+      # -x lintVitalRelease: AGP runs lintVital on release builds, including
+      # inside dependency modules, and it fails on react-native-skia and
+      # expo-modules-core for reasons unrelated to this app. Turning it off
+      # through the DSL does not work, since AGP reads checkReleaseBuilds during
+      # its own configuration, before a config plugin can write to it. So we
+      # exclude the task, which also drops its exclusive dependencies.
+      - name: Build
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a -x lintVitalRelease
+
+      - name: Artifact name
+        id: name
+        run: echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hidethenotch-${{ steps.name.outputs.sha }}-apk
+          path: android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error

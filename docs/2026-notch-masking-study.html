@@ -1,0 +1,1030 @@
+<title>Hide The Notch, visual directions for a rewrite</title>
+<style>
+  /* Tokens: dark by default, the subject is the pixel that is switched off */
+  :root {
+    --ground:      #131110;
+    --surface:     #1C1917;
+    --surface-2:   #241F1C;
+    --line:        #38312D;
+    --line-soft:   #2A2421;
+    --text:        #EFE9E4;
+    --text-2:      #A69B93;
+    --text-3:      #776C65;
+    --accent:      #F0533A;   /* rubylith, the masking film of photoengraving */
+    --accent-dim:  #8C3223;
+    --accent-wash: rgba(240, 83, 58, 0.10);
+    --signal:      #6FD3B8;
+    --warn:        #E8A33D;
+    --shadow:      0 1px 0 rgba(255,255,255,0.03), 0 8px 30px rgba(0,0,0,0.45);
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --ground:      #F3F0EE;
+      --surface:     #FFFFFF;
+      --surface-2:   #F8F5F3;
+      --line:        #DED6D1;
+      --line-soft:   #EAE3DF;
+      --text:        #1E1917;
+      --text-2:      #5F544E;
+      --text-3:      #8B7F78;
+      --accent:      #C93A22;
+      --accent-dim:  #E8907E;
+      --accent-wash: rgba(201, 58, 34, 0.07);
+      --signal:      #1E7F66;
+      --warn:        #9B6410;
+      --shadow:      0 1px 0 rgba(255,255,255,0.6), 0 6px 24px rgba(60,40,32,0.10);
+    }
+  }
+  :root[data-theme="light"] {
+    --ground:      #F3F0EE;
+    --surface:     #FFFFFF;
+    --surface-2:   #F8F5F3;
+    --line:        #DED6D1;
+    --line-soft:   #EAE3DF;
+    --text:        #1E1917;
+    --text-2:      #5F544E;
+    --text-3:      #8B7F78;
+    --accent:      #C93A22;
+    --accent-dim:  #E8907E;
+    --accent-wash: rgba(201, 58, 34, 0.07);
+    --signal:      #1E7F66;
+    --warn:        #9B6410;
+    --shadow:      0 1px 0 rgba(255,255,255,0.6), 0 6px 24px rgba(60,40,32,0.10);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 17px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px 96px; }
+  .prose { max-width: 68ch; }
+
+  /* Type */
+  h1, h2, h3, .eyebrow, .mono, code, th, .num {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  h1 {
+    font-size: clamp(30px, 5.2vw, 50px);
+    line-height: 1.06;
+    letter-spacing: -0.035em;
+    font-weight: 600;
+    margin: 0 0 18px;
+    text-wrap: balance;
+  }
+  h2 {
+    font-size: clamp(20px, 2.6vw, 26px);
+    line-height: 1.2;
+    letter-spacing: -0.025em;
+    font-weight: 600;
+    margin: 0;
+    text-wrap: balance;
+  }
+  h3 {
+    font-size: 15px;
+    letter-spacing: -0.01em;
+    font-weight: 600;
+    margin: 0;
+  }
+  p { margin: 0 0 16px; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+  strong { font-weight: 650; color: var(--text); }
+
+  .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    font-weight: 600;
+    margin: 0 0 10px;
+  }
+
+  /* Masthead */
+  .masthead {
+    border-bottom: 1px solid var(--line);
+    padding: 64px 0 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .lede {
+    font-size: clamp(17px, 2vw, 20px);
+    line-height: 1.55;
+    color: var(--text-2);
+    max-width: 62ch;
+    margin: 0;
+  }
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    margin-top: 22px;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px;
+    color: var(--text-3);
+    letter-spacing: 0.02em;
+  }
+
+  /* Sections */
+  section { padding-top: 64px; }
+  .sec-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 24px;
+    border-top: 1px solid var(--line-soft);
+    padding-top: 18px;
+  }
+  .sec-head .tag {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    text-transform: uppercase;
+    flex: none;
+    padding-top: 4px;
+  }
+
+  /* Blocks */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 22px 24px;
+    box-shadow: var(--shadow);
+  }
+  .panel + .panel { margin-top: 14px; }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 14px;
+    align-items: start;
+  }
+  .note {
+    border-left: 2px solid var(--accent);
+    background: var(--accent-wash);
+    padding: 14px 18px;
+    border-radius: 0 6px 6px 0;
+    font-size: 15.5px;
+    color: var(--text-2);
+  }
+  .note strong { color: var(--text); }
+  .note p:last-child { margin-bottom: 0; }
+
+  ul.tight { margin: 0; padding-left: 20px; }
+  ul.tight li { margin-bottom: 9px; }
+  ul.tight li::marker { color: var(--text-3); }
+
+  code {
+    font-size: 0.88em;
+    background: var(--surface-2);
+    border: 1px solid var(--line-soft);
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--text);
+  }
+
+  /* Spec table */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 620px;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 14px 10px 0;
+    border-bottom: 1px solid var(--line-soft);
+    vertical-align: top;
+  }
+  th {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    font-weight: 600;
+    border-bottom-color: var(--line);
+  }
+  td.n { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; color: var(--text-2); }
+
+  /* Catalogue controls */
+  .controls {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: var(--ground);
+    background: color-mix(in srgb, var(--ground) 92%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--line);
+    padding: 12px 0;
+    margin-bottom: 26px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 22px;
+  }
+  .seg {
+    display: inline-flex;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--surface);
+  }
+  .seg button {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px;
+    letter-spacing: 0.01em;
+    padding: 8px 13px;
+    background: transparent;
+    color: var(--text-2);
+    border: 0;
+    border-right: 1px solid var(--line);
+    cursor: pointer;
+    transition: background 0.14s ease, color 0.14s ease;
+  }
+  .seg button:last-child { border-right: 0; }
+  .seg button:hover { color: var(--text); background: var(--surface-2); }
+  .seg button[aria-pressed="true"] {
+    background: var(--accent);
+    color: #FFF3F0;
+  }
+  .toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px;
+    color: var(--text-2);
+    cursor: pointer;
+    user-select: none;
+  }
+  .toggle input { accent-color: var(--accent); width: 15px; height: 15px; }
+  .devspec {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11.5px;
+    color: var(--text-3);
+    letter-spacing: 0.01em;
+  }
+
+  /* Technique cards */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+    gap: 16px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow);
+  }
+  .stage {
+    background: #0A0908;
+    padding: 18px 0 16px;
+    display: flex;
+    justify-content: center;
+    border-bottom: 1px solid var(--line);
+    background-image: radial-gradient(circle at 50% 0%, #1a1614 0%, #0A0908 70%);
+  }
+  .stage svg {
+    width: 132px;
+    height: auto;
+    display: block;
+    filter: drop-shadow(0 10px 22px rgba(0,0,0,0.7));
+  }
+  .card-body {
+    padding: 15px 16px 17px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    flex: 1;
+  }
+  .card-body p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-2);
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 4px; }
+  .chip {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.03em;
+    padding: 3px 7px;
+    border-radius: 4px;
+    border: 1px solid var(--line);
+    color: var(--text-3);
+    white-space: nowrap;
+  }
+  .chip.gen { color: var(--signal); border-color: color-mix(in srgb, var(--signal) 40%, transparent); }
+  .chip.hard { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
+
+  /* Pipeline steps */
+  .flow { display: flex; flex-direction: column; gap: 0; }
+  .step {
+    display: grid;
+    grid-template-columns: 92px 1fr;
+    gap: 20px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--line-soft);
+    align-items: start;
+  }
+  .step:last-child { border-bottom: 0; }
+  .step .k {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    padding-top: 3px;
+  }
+  .step .v { font-size: 15px; color: var(--text-2); }
+  .step .v strong { display: block; color: var(--text); font-size: 15.5px; margin-bottom: 3px; font-weight: 600; }
+
+  .verdict {
+    border: 1px solid var(--accent-dim);
+    background: var(--accent-wash);
+    border-radius: 12px;
+    padding: 26px 28px;
+  }
+  .verdict h2 { margin-bottom: 12px; }
+
+  @media (max-width: 620px) {
+    body { font-size: 16px; }
+    .wrap { padding: 0 18px 72px; }
+    .step { grid-template-columns: 1fr; gap: 4px; }
+    .controls { gap: 10px 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Research note, August 2026</p>
+    <h1>Hiding the notch, nine years on</h1>
+    <p class="lede">
+      A post mortem of HideTheNotch (2017), an inventory of the masking techniques that exist today,
+      and thirteen families of solutions to settle before writing a single line of code.
+    </p>
+    <div class="meta-row">
+      <span>Repo · MoOx/HideTheNotch</span>
+      <span>v1 · RN 0.49 · nov. 2017</span>
+      <span>Cible · Expo SDK 56 / RN 0.85</span>
+    </div>
+  </header>
+
+  <!-- 1. AUTOPSIE -->
+  <section>
+    <div class="sec-head">
+      <span class="tag">01</span>
+      <h2>What v1 did</h2>
+    </div>
+
+    <div class="prose">
+      <p>
+        The 2017 app is 789 lines. A full screen <code>ImageBackground</code>, a stack of PNGs laid
+        over it at <code>position:&nbsp;absolute&nbsp;/&nbsp;top:&nbsp;0</code>, and
+        <code>captureRef()</code> from <em>react-native-view-shot</em> to photograph that view and
+        push it into the camera roll. Four masks: <em>Rounded Notch</em>, <em>Rounded Slim
+        Notch</em>, <em>Hard Notch</em>, <em>Hard Slim Notch</em>, four bitmaps with no parameters.
+      </p>
+      <p>
+        It was the right answer at the time: exactly one device in the world had a notch, and it was
+        entirely described by <code>src/platform.js</code> in eight lines,
+        <code>isIPhoneX = height === 812 &amp;&amp; width === 375</code>.
+      </p>
+    </div>
+
+    <div class="grid-2" style="margin-top: 24px;">
+      <div class="panel">
+        <h3 style="margin-bottom:10px">What aged well</h3>
+        <ul class="tight" style="font-size:15px;color:var(--text-2)">
+          <li>The core intuition: on OLED, <code>#000000</code> placed next to a cutout literally makes it vanish.</li>
+          <li>The product gesture: you do not install a "theme", you <strong>export an image</strong> that the user applies.</li>
+          <li>The catalogue of bundled backgrounds plus personal photo import, with author credit shown.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3 style="margin-bottom:10px">The five ceilings</h3>
+        <ul class="tight" style="font-size:15px;color:var(--text-2)">
+          <li><strong>One known device.</strong> Every new iPhone shifted the mask out of alignment.</li>
+          <li><strong>Bitmap masks.</strong> Nothing to adjust: no height, no radius, no colour.</li>
+          <li><strong>Export equals screenshot.</strong> The source photo is shrunk to screen size <em>before</em> capture. No reframing, no zoom (the <code>ScrollView</code> pinch is commented out in the code).</li>
+          <li><strong>No Dynamic Island</strong>, it did not exist.</li>
+          <li><strong>The last mile untreated:</strong> nothing stops iOS from re-zooming the wallpaper when it is applied, which breaks pixel alignment.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. PHYSIQUE -->
+  <section>
+    <div class="sec-head">
+      <span class="tag">02</span>
+      <h2>Pourquoi l'astuce marche (et quand elle casse)</h2>
+    </div>
+
+    <div class="prose">
+      <p>
+        Every iPhone with a cutout is OLED: a black pixel is an <em>off</em> pixel, optically
+        identical to the panel around the camera. That is the only reason masking works, and it
+        imposes three non negotiable rules.
+      </p>
+    </div>
+
+    <div class="note prose" style="margin: 20px 0 28px;">
+      <p><strong>1. Absolute black, not "almost black".</strong> <code>#010101</code> shows on OLED in a dark room.</p>
+      <p><strong>2. PNG only.</strong> JPEG produces block artefacts around a black&nbsp;/&nbsp;image boundary: the cutout becomes visible again.</p>
+      <p style="margin-bottom:0"><strong>3. Dithered gradients.</strong> A fade to black in 8&nbsp;bits bands sharply on OLED. Noise of plus or minus 1&nbsp;LSB has to be injected.</p>
+    </div>
+
+    <p class="eyebrow">Cutout geometry</p>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Generation</th><th>Screen (pt)</th><th>Cutout</th><th>Position</th><th>Top safe area</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Notch, iPhone X to 11 Pro</td>
+            <td class="n">375 × 812 @3x</td>
+            <td class="n">≈ 209 × 30 pt</td>
+            <td class="n">flush with the edge</td>
+            <td class="n">44 pt</td>
+          </tr>
+          <tr>
+            <td>Notch, iPhone 12 to 14 Plus</td>
+            <td class="n">390 × 844 @3x</td>
+            <td class="n">≈ 209 × 32 pt</td>
+            <td class="n">flush with the edge</td>
+            <td class="n">47 pt</td>
+          </tr>
+          <tr>
+            <td>Dynamic Island, 14 Pro to 17</td>
+            <td class="n">393 × 852 @3x</td>
+            <td class="n">≈ 125 × 37 pt</td>
+            <td class="n">floating, about 11 pt down</td>
+            <td class="n">59 pt</td>
+          </tr>
+          <tr>
+            <td>Punch hole, iPhone 18 Pro <em>(rumoured)</em></td>
+            <td class="n">unknown</td>
+            <td class="n">about 13.5 mm wide</td>
+            <td class="n">offset to the left</td>
+            <td class="n">unknown</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:13.5px;color:var(--text-3);margin-top:12px;max-width:68ch">
+      Treat these as orders of magnitude: Apple does not publish exact cutout geometry. In practice
+      the app has to <strong>measure</strong> the current device (safe area and model) and keep a
+      fallback table for generating a wallpaper aimed at <em>another</em> phone.
+    </p>
+  </section>
+
+  <!-- 3. CATALOGUE -->
+  <section>
+    <div class="sec-head">
+      <span class="tag">03</span>
+      <h2>Thirteen masking families</h2>
+    </div>
+
+    <div class="prose" style="margin-bottom: 8px;">
+      <p>
+        Each family is a <em>generator</em>, not an image: a function that takes the cutout geometry
+        and returns a stack of layers. Switch device below and the thirteen previews recompute. That
+        is exactly the model the app should implement.
+      </p>
+    </div>
+
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Cutout type">
+        <button type="button" data-dev="notch" aria-pressed="false">Notch</button>
+        <button type="button" data-dev="island" aria-pressed="true">Dynamic Island</button>
+        <button type="button" data-dev="punch" aria-pressed="false">Punch hole</button>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="showCut">
+        Reveal the physical cutout
+      </label>
+      <span class="devspec" id="devspec"></span>
+    </div>
+
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <!-- 4. PIPELINE -->
+  <section>
+    <div class="sec-head">
+      <span class="tag">04</span>
+      <h2>The pipeline this needs</h2>
+    </div>
+
+    <div class="prose">
+      <p>
+        Seven of these thirteen families are impossible on the 2017 architecture: they need dithered
+        gradients, blend modes, procedural noise and an export above screen resolution. The
+        structural change is simple to state:
+        <strong>stop photographing a React Native view</strong>.
+      </p>
+    </div>
+
+    <div class="panel" style="margin-top:20px">
+      <div class="flow">
+        <div class="step">
+          <span class="k">Model</span>
+          <span class="v"><strong>A recipe, not an image</strong>
+            One JSON object describes everything: source (photo, gradient, procedural), transform
+            (framing, zoom, rotation), stack of parameterised masks, target device geometry.
+            Serialisable, therefore shareable, versionable and regenerable for another phone.</span>
+        </div>
+        <div class="step">
+          <span class="k">Preview</span>
+          <span class="v"><strong>Skia canvas at screen scale</strong>
+            <code>@shopify/react-native-skia</code> draws the recipe at 120 fps, with pinch and pan
+            on the photo through Reanimated&nbsp;4 and Gesture Handler. Gradients, fractal noise and
+            custom shaders are native.</span>
+        </div>
+        <div class="step">
+          <span class="k">Export</span>
+          <span class="v"><strong>Offscreen surface at native pixels</strong>
+            <code>Skia.Surface.MakeOffscreen(1290, 2796)</code> replays the <em>same</em> recipe at
+            the device's real resolution, then <code>makeImageSnapshot()</code>,
+            <code>encodeToBytes(PNG)</code>, <code>expo-media-library</code>. Quality 1:1,
+            independent of the preview screen.</span>
+        </div>
+        <div class="step">
+          <span class="k">Shell</span>
+          <span class="v"><strong>Expo SDK 56 or later, New Architecture</strong>
+            <code>expo-glass-effect</code> gives the real Liquid Glass toolbar (native
+            UIVisualEffectView) on iOS 26 and above, with an <code>expo-blur</code> fallback below.
+            <code>@expo/ui</code> for SwiftUI sheets and pickers, <code>expo-haptics</code> for
+            snapping feedback.</span>
+        </div>
+        <div class="step">
+          <span class="k">Android</span>
+          <span class="v"><strong>Simpler than iOS, in fact</strong>
+            Same Skia engine, same recipes. And above all
+            <code>WallpaperManager.setBitmap()</code> applies the wallpaper <em>directly</em>, with
+            no gallery and no cropping, so the main iOS obstacle does not exist.</span>
+            does not exist.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. THE LAST MILE -->
+  <section>
+    <div class="sec-head">
+      <span class="tag">05</span>
+      <h2>The real problem: applying the wallpaper</h2>
+    </div>
+
+    <div class="prose">
+      <p>
+        A pixel perfect mask is worthless if iOS shifts it by four percent while applying it. That is
+        where v1 stopped, its help text saying "set it to <em>Still</em> and align it at the bottom",
+        and it is where the difference between a toy and a tool is decided.
+      </p>
+    </div>
+
+    <div class="grid-2" style="margin-top:20px">
+      <div class="panel">
+        <h3 style="margin-bottom:10px;color:var(--warn)">What breaks alignment</h3>
+        <ul class="tight" style="font-size:15px;color:var(--text-2)">
+          <li><strong>Perspective zoom</strong>, iOS enlarges the wallpaper by about 4&nbsp;% for gyroscope parallax.</li>
+          <li><strong>Spatial scenes (iOS 26)</strong>, subject separated from background and made to move: misalignment guaranteed.</li>
+          <li><strong>Depth effect</strong> on the lock screen.</li>
+          <li><strong>The crop editor</strong> that opens on every "Choose a photo" and invites pinching.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3 style="margin-bottom:10px;color:var(--signal)">The countermeasures</h3>
+        <ul class="tight" style="font-size:15px;color:var(--text-2)">
+          <li><strong>Export at the exact native resolution</strong>, so iOS shows the image 1:1 by default, with no cropping.</li>
+          <li><strong>An App Intent plus a supplied Shortcut</strong>: the <em>Set Wallpaper</em> action applies the image without opening the editor. One gesture. To be validated in real conditions, but it is the project's strongest differentiator.</li>
+          <li><strong>A calibration target</strong>: a test wallpaper letting the user measure and correct a residual offset, then remembered for every export.</li>
+          <li><strong>Instructions targeted per iOS version</strong>, not a generic blurb.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. VERDICT -->
+  <section>
+    <div class="sec-head">
+      <span class="tag">06</span>
+      <h2>Is it worth it?</h2>
+    </div>
+
+    <div class="verdict prose">
+      <p>
+        <strong>The calendar is on your side.</strong> The iPhone 18 Pro is expected in September
+        2026 with a much smaller cutout and, according to leaks, <em>offset to the left</em>. A
+        centred black bar becomes absurd on an asymmetric cutout: the whole "wallpaper that hides the
+        hole" category becomes an open design problem again, exactly when a well made app can find
+        its place.
+      </p>
+      <p>
+        <strong>The competition is weak but entrenched.</strong> The App Store is full of Dynamic
+        Island wallpaper galleries: subscriptions, ads, 90 percent of the content behind a paywall,
+        no notion of real geometry. None of them offers a <em>generator</em>: parameterised recipe,
+        native resolution export, your own photo. That is the opening, and it matches what
+        HideTheNotch already was in 2017.
+      </p>
+      <p style="margin-bottom:0">
+        <strong>The question to settle first.</strong> Not "which framework", but <em>how many
+        families at launch</em>. Three done well (parametric bar, dithered fade, generative) beat
+        thirteen done roughly, and families 05 to 09, the ones that need drawing, are what will get
+        the app talked about.
+      </p>
+    </div>
+  </section>
+
+  <p style="margin-top:56px;font-size:13px;color:var(--text-3);max-width:68ch">
+    Main sources: Expo documentation (GlassEffect, SDK 55 and 56), React Native Skia (offscreen,
+    shaders), Apple screen specifications, iPhone 18 Pro leaks (AppleInsider, Macworld, GSMArena),
+    and the code of <code>MoOx/HideTheNotch</code> at the current revision.
+  </p>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* Device geometry, in logical points */
+  var DEVICES = {
+    notch: {
+      label: "Notch", W: 375, H: 812, R: 42, safeTop: 47,
+      spec: "375 x 812 pt @3x, cutout 209 x 32 pt flush with the edge, safe area 47 pt",
+      cut: { kind: "notch", w: 209, h: 32, r: 20 }
+    },
+    island: {
+      label: "Dynamic Island", W: 393, H: 852, R: 52, safeTop: 59,
+      spec: "393 x 852 pt @3x, pill 125 x 37 pt floating 11 pt down, safe area 59 pt",
+      cut: { kind: "pill", w: 125, h: 37, top: 11 }
+    },
+    punch: {
+      label: "Punch hole", W: 393, H: 852, R: 52, safeTop: 54,
+      spec: "iPhone 18 Pro hypothesis and Android, 26 pt hole at 30 percent of the width",
+      cut: { kind: "circle", d: 26, top: 16, cxRatio: 0.30 }
+    }
+  };
+
+  /* Bounding box of the cutout */
+  function box(d) {
+    var c = d.cut;
+    if (c.kind === "notch") return { x: (d.W - c.w) / 2, y: 0, w: c.w, h: c.h };
+    if (c.kind === "pill")  return { x: (d.W - c.w) / 2, y: c.top, w: c.w, h: c.h };
+    return { x: d.W * c.cxRatio - c.d / 2, y: c.top, w: c.d, h: c.d };
+  }
+
+  /* Exact shape of the cutout */
+  function cutShape(d, attrs) {
+    var c = d.cut, b = box(d), a = attrs || 'fill="#000"';
+    if (c.kind === "notch") {
+      var r = c.r;
+      return '<path d="M' + b.x + ',0 H' + (b.x + b.w) + ' V' + (b.h - r) +
+             ' a' + r + ',' + r + ' 0 0 1 -' + r + ',' + r +
+             ' H' + (b.x + r) + ' a' + r + ',' + r + ' 0 0 1 -' + r + ',-' + r + ' Z" ' + a + '/>';
+    }
+    if (c.kind === "pill") {
+      return '<rect x="' + b.x + '" y="' + b.y + '" width="' + b.w + '" height="' + b.h +
+             '" rx="' + (b.h / 2) + '" ' + a + '/>';
+    }
+    return '<circle cx="' + (b.x + b.w / 2) + '" cy="' + (b.y + b.h / 2) + '" r="' + (b.w / 2) + '" ' + a + '/>';
+  }
+
+  /* Top bar with rounded bottom corners */
+  function band(W, h, r) {
+    if (!r) return '<rect x="0" y="0" width="' + W + '" height="' + h + '" fill="#000"/>';
+    return '<path d="M0,0 H' + W + ' V' + (h - r) + ' a' + r + ',' + r + ' 0 0 1 -' + r + ',' + r +
+           ' H' + r + ' a' + r + ',' + r + ' 0 0 1 -' + r + ',-' + r + ' Z" fill="#000"/>';
+  }
+
+  /* Backgrounds standing in for photos */
+  var BG = {
+    dusk:   [["#F7B267", 0], ["#D6456E", 0.45], ["#331B4D", 1]],
+    forest: [["#4C7F63", 0], ["#1D3B2E", 0.55], ["#0A1611", 1]],
+    ocean:  [["#8FC7E8", 0], ["#2C6E9B", 0.5], ["#0E2A44", 1]],
+    dune:   [["#EFC08A", 0], ["#C4784A", 0.5], ["#5E3320", 1]],
+    night:  [["#0B1220", 0], ["#1E3457", 0.5], ["#4E7BA8", 1]],
+    plum:   [["#E7A6C4", 0], ["#8E4D86", 0.5], ["#2C1A38", 1]]
+  };
+
+  function bgDefs(uid, key) {
+    var stops = BG[key].map(function (s) {
+      return '<stop offset="' + s[1] + '" stop-color="' + s[0] + '"/>';
+    }).join("");
+    return '<linearGradient id="bg' + uid + '" x1="0" y1="0" x2="0.25" y2="1">' + stops + '</linearGradient>';
+  }
+
+  function bgLayer(uid, d) {
+    return '<g id="bgg' + uid + '"><rect width="' + d.W + '" height="' + d.H + '" fill="url(#bg' + uid + ')"/>' +
+           '<ellipse cx="' + (d.W * 0.7) + '" cy="' + (d.H * 0.22) + '" rx="' + (d.W * 0.55) +
+           '" ry="' + (d.H * 0.18) + '" fill="#fff" opacity="0.13" filter="url(#soft' + uid + ')"/></g>';
+  }
+
+  /* The thirteen generators */
+  var TECHNIQUES = [
+    {
+      id: "bar", name: "Solid bar", bg: "dusk",
+      chips: ["universal", "trivial"],
+      desc: "The original. Flat black down to below the cutout. The only real parameter worth exposing: the height (just the cutout, or the whole safe area) and the radius of the inner corners.",
+      draw: function (d, b) { return band(d.W, Math.max(b.y + b.h, d.safeTop - 6), 0); }
+    },
+    {
+      id: "bezel", name: "False bezel", bg: "ocean",
+      chips: ["universal", "trivial"],
+      desc: "The bar is extended: a thin black border at the bottom and on the sides. The screen reads as a framed image and the cutout becomes part of the frame. Coherent, and it earns back the lost space.",
+      draw: function (d, b) {
+        var t = Math.max(b.y + b.h + 4, d.safeTop);
+        return band(d.W, t, 0) +
+          '<rect x="0" y="' + (d.H - 40) + '" width="' + d.W + '" height="40" fill="#000"/>' +
+          '<rect x="0" y="0" width="9" height="' + d.H + '" fill="#000"/>' +
+          '<rect x="' + (d.W - 9) + '" y="0" width="9" height="' + d.H + '" fill="#000"/>';
+      }
+    },
+    {
+      id: "fade", name: "Dithered fade", bg: "dune",
+      chips: ["universal", "dithering required"], hard: 1,
+      desc: "Flat black over the cutout, then a gradual fade into the photo. Impossible without injecting noise of plus or minus 1 level: otherwise the gradient bands sharply on OLED.",
+      draw: function (d, b, uid) {
+        var solid = b.y + b.h + 6, fh = 130;
+        return '<defs><linearGradient id="fg' + uid + '" x1="0" y1="0" x2="0" y2="1">' +
+               '<stop offset="0" stop-color="#000" stop-opacity="1"/>' +
+               '<stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>' +
+               '<filter id="nz' + uid + '"><feTurbulence baseFrequency="0.85" numOctaves="2" stitchTiles="stitch"/>' +
+               '<feColorMatrix type="saturate" values="0"/></filter></defs>' +
+               '<rect x="0" y="0" width="' + d.W + '" height="' + solid + '" fill="#000"/>' +
+               '<rect x="0" y="' + solid + '" width="' + d.W + '" height="' + fh + '" fill="url(#fg' + uid + ')"/>' +
+               '<rect x="0" y="' + solid + '" width="' + d.W + '" height="' + fh +
+               '" filter="url(#nz' + uid + ')" opacity="0.16" style="mix-blend-mode:overlay"/>';
+      }
+    },
+    {
+      id: "dome", name: "Dome", bg: "forest",
+      chips: ["universal", "parametric"],
+      desc: "The bar dips: taller at the edges, it curves down where the cutout is. You only lose image where it is necessary, and the shape reads as intentional.",
+      draw: function (d, b) {
+        var cx = b.x + b.w / 2, top = Math.max(b.y + b.h - 6, 22), deep = b.y + b.h + 52;
+        return '<path d="M0,0 H' + d.W + ' V' + top +
+               ' C' + (cx + 130) + ',' + top + ' ' + (cx + 74) + ',' + deep + ' ' + cx + ',' + deep +
+               ' C' + (cx - 74) + ',' + deep + ' ' + (cx - 130) + ',' + top + ' 0,' + top + ' Z" fill="#000"/>';
+      }
+    },
+    {
+      id: "pill", name: "Extended pill", bg: "plum",
+      chips: ["island, punch", "parametric"],
+      desc: "The cutout is not hidden but enlarged: a wider black pill centred on it. The eye reads an interface component, not a defect. Only works on a floating cutout.",
+      draw: function (d, b) {
+        if (d.cut.kind === "notch") return '<rect x="' + (b.x - 46) + '" y="-30" width="' + (b.w + 92) +
+          '" height="' + (b.h + 52) + '" rx="' + ((b.h + 22) / 2) + '" fill="#000"/>';
+        var pw = Math.min(b.w + 108, d.W - 34), ph = b.h + 16;
+        return '<rect x="' + (b.x + b.w / 2 - pw / 2) + '" y="' + (b.y - 8) + '" width="' + pw +
+               '" height="' + ph + '" rx="' + (ph / 2) + '" fill="#000"/>';
+      }
+    },
+    {
+      id: "mirror", name: "Symmetric echo", bg: "night",
+      chips: ["universal", "clever"],
+      desc: "The cutout is duplicated at the bottom of the screen. The brain reads a deliberate composition, two identical marks, rather than a hardware accident. Minimal visual cost.",
+      draw: function (d, b) {
+        var pad = 7, ph = b.h + pad * 2, pw = b.w + pad * 2;
+        var topPill = (d.cut.kind === "notch")
+          ? '<rect x="' + (b.x - pad) + '" y="' + (b.y - 30) + '" width="' + pw +
+            '" height="' + (b.h + 30 + pad) + '" rx="' + (ph / 2) + '" fill="#000"/>'
+          : '<rect x="' + (b.x - pad) + '" y="' + (b.y - pad) + '" width="' + pw + '" height="' + ph +
+            '" rx="' + (ph / 2) + '" fill="#000"/>';
+        return topPill +
+          '<rect x="' + (b.x - pad) + '" y="' + (d.H - 34 - ph) + '" width="' + pw + '" height="' + ph +
+          '" rx="' + (ph / 2) + '" fill="#000"/>';
+      }
+    },
+    {
+      id: "object", name: "Hanging object", bg: "dusk",
+      chips: ["island, punch", "drawing"], hard: 1,
+      desc: "The cutout becomes an object: periscope head, lampshade, balloon gondola. A stem comes down from the top edge, the black body wraps the cutout. The mask disappears into the fiction.",
+      draw: function (d, b) {
+        var cx = b.x + b.w / 2, hw = b.w + 24, hh = b.h + 16;
+        return '<rect x="' + (cx - 7) + '" y="0" width="14" height="' + (b.y + 8) + '" fill="#000"/>' +
+               '<rect x="' + (cx - hw / 2) + '" y="' + (b.y - 8) + '" width="' + hw + '" height="' + hh +
+               '" rx="11" fill="#000"/>' +
+               '<rect x="' + (cx + hw / 2 - 4) + '" y="' + (b.y + b.h / 2 - 6) + '" width="46" height="13" rx="6.5" fill="#000"/>' +
+               '<circle cx="' + (cx + hw / 2 + 46) + '" cy="' + (b.y + b.h / 2) + '" r="11" fill="#000"/>';
+      }
+    },
+    {
+      id: "scenic", name: "Organic decor", bg: "ocean",
+      chips: ["universal", "generative"], gen: 1,
+      desc: "Branch, foliage, flock of birds, power cable, paint drip. A black silhouette whose mass covers the cutout and whose remainder spills out freely. Procedural variation, so every wallpaper differs.",
+      draw: function (d, b) {
+        var cx = b.x + b.w / 2, cy = b.y + b.h / 2, s = "";
+        function leaf(x, y, rx, ry, rot) {
+          return '<ellipse cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" rx="' + rx + '" ry="' + ry +
+                 '" fill="#000" transform="rotate(' + rot + ' ' + x.toFixed(1) + ' ' + y.toFixed(1) + ')"/>';
+        }
+        /* The branch crosses the whole screen, passing through the cutout */
+        s += '<path d="M-10,' + (cy - 30) + ' C' + (d.W * 0.24) + ',' + (cy + 26) + ' ' + (d.W * 0.62) + ',' +
+             (cy - 16) + ' ' + (d.W + 10) + ',' + (cy + 22) +
+             '" stroke="#000" stroke-width="8" fill="none" stroke-linecap="round"/>';
+        /* The black base: just enough to cover the cutout */
+        s += '<rect x="' + (b.x - 4) + '" y="' + Math.max(b.y - 6, -10) + '" width="' + (b.w + 8) +
+             '" height="' + (b.h + 12) + '" rx="' + ((b.h + 12) / 2) + '" fill="#000"/>';
+        /* Foliage: n leaves covering the base and spilling out irregularly */
+        var n = Math.max(3, Math.round(b.w / 44));
+        for (var i = 0; i <= n; i++) {
+          var t = i / n;
+          var lx = b.x - 12 + t * (b.w + 24);
+          var ly = cy + ((i % 2) ? 13 : -13) + ((i % 3) - 1) * 5;
+          s += leaf(lx, ly, 32, 19, (i % 2 ? 24 : -28) + (i % 3) * 11);
+        }
+        /* A few isolated leaves elsewhere along the branch */
+        var stray = [[-0.62, 34, -44], [-0.34, -30, 18], [0.42, 30, -20], [0.72, -26, 52], [0.9, 26, -8]];
+        for (var j = 0; j < stray.length; j++) {
+          s += leaf(cx + stray[j][0] * d.W * 0.55, cy + stray[j][1], 26, 14, stray[j][2]);
+        }
+        return s;
+      }
+    },
+    {
+      id: "content", name: "Content camouflage", bg: "night",
+      chips: ["universal", "image analysis"], hard: 1,
+      desc: "Nothing flat is added: the luminance of the photo is analysed, the framing that brings its darkest area under the cutout is chosen, and only the delta is darkened locally. The mask stops existing.",
+      draw: function (d, b, uid) {
+        var cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+        return '<defs><radialGradient id="lb' + uid + '" cx="0.5" cy="0.5" r="0.5">' +
+               '<stop offset="0" stop-color="#000" stop-opacity="1"/>' +
+               '<stop offset="0.55" stop-color="#000" stop-opacity="1"/>' +
+               '<stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient></defs>' +
+               '<ellipse cx="' + cx + '" cy="' + cy + '" rx="' + (d.W * 0.8) + '" ry="' + (b.h + 80) +
+               '" fill="url(#lb' + uid + ')"/>';
+      }
+    },
+    {
+      id: "glass", name: "Liquid Glass lens", bg: "plum",
+      chips: ["island, punch", "shader"], hard: 1,
+      desc: "The cutout is not erased: it is dressed as an iOS 26 system component. A glass lens, blur, refraction and a specular rim, surrounds it. It passes for a feature rather than a hole.",
+      draw: function (d, b, uid) {
+        var pad = 15, x = b.x - pad, y = b.y - pad, w = b.w + pad * 2, h = b.h + pad * 2, r = h / 2;
+        return '<defs><clipPath id="lc' + uid + '"><rect x="' + x + '" y="' + y + '" width="' + w +
+               '" height="' + h + '" rx="' + r + '"/></clipPath>' +
+               '<filter id="bl' + uid + '"><feGaussianBlur stdDeviation="11"/></filter>' +
+               '<linearGradient id="gs' + uid + '" x1="0" y1="0" x2="0" y2="1">' +
+               '<stop offset="0" stop-color="#fff" stop-opacity="0.42"/>' +
+               '<stop offset="0.5" stop-color="#fff" stop-opacity="0.08"/>' +
+               '<stop offset="1" stop-color="#fff" stop-opacity="0.24"/></linearGradient></defs>' +
+               '<g clip-path="url(#lc' + uid + ')"><use href="#bgg' + uid + '" filter="url(#bl' + uid + ')"/>' +
+               '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="#fff" opacity="0.14"/></g>' +
+               '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="' + r +
+               '" fill="none" stroke="url(#gs' + uid + ')" stroke-width="1.6"/>';
+      }
+    },
+    {
+      id: "stripes", name: "Decaying stripes", bg: "dune",
+      chips: ["universal", "generative"], gen: 1,
+      desc: "Regular black bands spread apart going down. The cutout falls in the first band and becomes a cell of the pattern. Very legible, fully procedural, and available as lines, grid or dots.",
+      draw: function (d, b) {
+        var s = '<rect x="0" y="0" width="' + d.W + '" height="' + (b.y + b.h + 8) + '" fill="#000"/>';
+        var yy = b.y + b.h + 8, hgt = 26, gap = 10;
+        for (var i = 0; i < 7 && yy < d.H * 0.55; i++) {
+          yy += gap;
+          s += '<rect x="0" y="' + yy.toFixed(1) + '" width="' + d.W + '" height="' + hgt.toFixed(1) + '" fill="#000"/>';
+          yy += hgt; hgt *= 0.72; gap *= 1.22;
+        }
+        return s;
+      }
+    },
+    {
+      id: "generative", name: "Pure generative", bg: "forest",
+      chips: ["universal", "no assets"], gen: 1,
+      desc: "No photo at all: mesh gradient, fractal noise, grain, and a black well placed exactly over the cutout. An endless gallery, zero bundled assets, zero rights questions.",
+      draw: function (d, b, uid) {
+        var cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+        var s = '<defs><filter id="mb' + uid + '"><feGaussianBlur stdDeviation="58"/></filter>' +
+                '<radialGradient id="wl' + uid + '" cx="0.5" cy="0.5" r="0.5">' +
+                '<stop offset="0" stop-color="#000" stop-opacity="1"/>' +
+                '<stop offset="0.62" stop-color="#000" stop-opacity="1"/>' +
+                '<stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient></defs>';
+        s += '<rect width="' + d.W + '" height="' + d.H + '" fill="#101826"/>';
+        s += '<g filter="url(#mb' + uid + ')">' +
+             '<ellipse cx="' + (d.W * 0.2) + '" cy="' + (d.H * 0.3) + '" rx="150" ry="180" fill="#4B2E83"/>' +
+             '<ellipse cx="' + (d.W * 0.85) + '" cy="' + (d.H * 0.52) + '" rx="160" ry="170" fill="#0F6E7A"/>' +
+             '<ellipse cx="' + (d.W * 0.45) + '" cy="' + (d.H * 0.82) + '" rx="180" ry="160" fill="#B8446B"/>' +
+             '<ellipse cx="' + (d.W * 0.62) + '" cy="' + (d.H * 0.12) + '" rx="130" ry="120" fill="#1F4FA8"/></g>';
+        s += '<ellipse cx="' + cx + '" cy="' + cy + '" rx="' + (b.w * 0.9 + 90) + '" ry="' + (b.h + 62) +
+             '" fill="url(#wl' + uid + ')"/>';
+        return s;
+      },
+      replacesBg: true
+    },
+    {
+      id: "highlight", name: "Deliberate outline", bg: "night",
+      chips: ["universal", "anti-mask"],
+      desc: "The opposite of the project: a glowing rim underlines the cutout instead of denying it. Free to produce, it doubles the catalogue and speaks to people who like their Dynamic Island.",
+      draw: function (d, b, uid) {
+        var pad = 6, x = b.x - pad, y = b.y - pad, w = b.w + pad * 2, h = b.h + pad * 2;
+        return '<defs><filter id="gl' + uid + '" x="-60%" y="-60%" width="220%" height="220%">' +
+               '<feGaussianBlur stdDeviation="7"/></filter></defs>' +
+               '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="' + (h / 2) +
+               '" fill="none" stroke="#6FE3FF" stroke-width="5" filter="url(#gl' + uid + ')" opacity="0.85"/>' +
+               '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="' + (h / 2) +
+               '" fill="none" stroke="#CFF6FF" stroke-width="1.8"/>';
+      }
+    }
+  ];
+
+  /* Rendering */
+  var state = { dev: "island", reveal: false };
+  var cardsEl = document.getElementById("cards");
+  var specEl = document.getElementById("devspec");
+
+  function svgFor(t, i) {
+    var d = DEVICES[state.dev], b = box(d), uid = t.id + i + state.dev;
+    var out = '<svg viewBox="0 0 ' + d.W + ' ' + d.H + '" role="img" aria-label="Preview: ' + t.name + '">';
+    out += '<defs>' + bgDefs(uid, t.bg) +
+           '<filter id="soft' + uid + '"><feGaussianBlur stdDeviation="46"/></filter>' +
+           '<clipPath id="scr' + uid + '"><rect width="' + d.W + '" height="' + d.H + '" rx="' + d.R + '"/></clipPath></defs>';
+    out += '<g clip-path="url(#scr' + uid + ')">';
+    out += '<rect width="' + d.W + '" height="' + d.H + '" fill="#000"/>';
+    if (!t.replacesBg) out += bgLayer(uid, d);
+    out += t.draw(d, b, uid);
+      /* The cutout is hardware: always drawn on top of everything. */
+    out += cutShape(d, 'fill="#000"');
+    if (state.reveal) {
+      out += cutShape(d, 'fill="none" stroke="#F0533A" stroke-width="2.5" stroke-dasharray="7 5"');
+    }
+    out += '</g></svg>';
+    return out;
+  }
+
+  function render() {
+    var d = DEVICES[state.dev];
+    specEl.textContent = d.spec;
+    var html = "";
+    for (var i = 0; i < TECHNIQUES.length; i++) {
+      var t = TECHNIQUES[i];
+      var chips = t.chips.map(function (c, ci) {
+        var cls = "chip";
+        if (t.gen && ci === 1) cls += " gen";
+        if (t.hard && ci === 1) cls += " hard";
+        return '<span class="' + cls + '">' + c + "</span>";
+      }).join("");
+      var num = (i + 1) < 10 ? "0" + (i + 1) : String(i + 1);
+      html += '<article class="card">' +
+                '<div class="stage">' + svgFor(t, i) + "</div>" +
+                '<div class="card-body">' +
+                  '<h3>' + num + " · " + t.name + "</h3>" +
+                  "<p>" + t.desc + "</p>" +
+                  '<div class="chips">' + chips + "</div>" +
+                "</div>" +
+              "</article>";
+    }
+    cardsEl.innerHTML = html;
+  }
+
+  var btns = document.querySelectorAll(".seg button[data-dev]");
+  Array.prototype.forEach.call(btns, function (btn) {
+    btn.addEventListener("click", function () {
+      state.dev = btn.getAttribute("data-dev");
+      Array.prototype.forEach.call(btns, function (b2) {
+        b2.setAttribute("aria-pressed", String(b2 === btn));
+      });
+      render();
+    });
+  });
+
+  document.getElementById("showCut").addEventListener("change", function (e) {
+    state.reveal = e.target.checked;
+    render();
+  });
+
+  render();
+})();
+</script>

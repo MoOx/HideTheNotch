@@ -1,0 +1,48 @@
+name: Verify
+
+on:
+  push:
+    paths: ["src/**", "App.tsx", "package.json", ".github/workflows/verify.yml"]
+  pull_request:
+    paths: ["src/**", "App.tsx", "package.json", ".github/workflows/verify.yml"]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    name: Types, rendering, bundles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # Runs the real rendering code against CanvasKit and checks the pixels:
+      # absolute black under the cutout, fade actually dithered.
+      - name: Verify the rendering
+        run: npm run verify
+
+      - name: Bundle iOS
+        run: npx expo export --platform ios --output-dir /tmp/export-ios
+
+      - name: Bundle Android
+        run: npx expo export --platform android --output-dir /tmp/export-android
+
+      # Images to look at straight from the Actions tab, with nothing to
+      # install: the shortest visual feedback loop on a branch.
+      - name: Sample renders
+        run: npm run samples
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: renders
+          path: renders/*.png
+          if-no-files-found: error

@@ -1,0 +1,739 @@
+<title>Hide The Notch, feasibility and interface</title>
+<style>
+  :root {
+    --ground:#131110; --surface:#1C1917; --surface-2:#241F1C;
+    --line:#38312D; --line-soft:#2A2421;
+    --text:#EFE9E4; --text-2:#A69B93; --text-3:#776C65;
+    --accent:#F0533A; --accent-dim:#8C3223; --accent-wash:rgba(240,83,58,0.10);
+    --signal:#6FD3B8; --warn:#E8A33D;
+    --track:#332C28;
+    --shadow:0 1px 0 rgba(255,255,255,0.03), 0 8px 30px rgba(0,0,0,0.45);
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --ground:#F3F0EE; --surface:#FFFFFF; --surface-2:#F8F5F3;
+      --line:#DED6D1; --line-soft:#EAE3DF;
+      --text:#1E1917; --text-2:#5F544E; --text-3:#8B7F78;
+      --accent:#C93A22; --accent-dim:#E8907E; --accent-wash:rgba(201,58,34,0.07);
+      --signal:#1E7F66; --warn:#9B6410;
+      --track:#E4DCD7;
+      --shadow:0 1px 0 rgba(255,255,255,0.6), 0 6px 24px rgba(60,40,32,0.10);
+    }
+  }
+  :root[data-theme="light"] {
+    --ground:#F3F0EE; --surface:#FFFFFF; --surface-2:#F8F5F3;
+    --line:#DED6D1; --line-soft:#EAE3DF;
+    --text:#1E1917; --text-2:#5F544E; --text-3:#8B7F78;
+    --accent:#C93A22; --accent-dim:#E8907E; --accent-wash:rgba(201,58,34,0.07);
+    --signal:#1E7F66; --warn:#9B6410;
+    --track:#E4DCD7;
+    --shadow:0 1px 0 rgba(255,255,255,0.6), 0 6px 24px rgba(60,40,32,0.10);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin:0; background: var(--ground); color: var(--text);
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size:17px; line-height:1.62; -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:1080px; margin:0 auto; padding:0 24px 96px; }
+  .prose { max-width:68ch; }
+
+  h1,h2,h3,h4,.eyebrow,.mono,code,th,.k {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  h1 { font-size:clamp(29px,5vw,48px); line-height:1.06; letter-spacing:-0.035em; font-weight:600; margin:0 0 18px; text-wrap:balance; }
+  h2 { font-size:clamp(20px,2.6vw,26px); line-height:1.2; letter-spacing:-0.025em; font-weight:600; margin:0; text-wrap:balance; }
+  h3 { font-size:17px; letter-spacing:-0.015em; font-weight:600; margin:0; }
+  h4 { font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-3); font-weight:600; margin:0 0 10px; }
+  p { margin:0 0 16px; }
+  a { color:var(--accent); text-underline-offset:2px; }
+  a:focus-visible, button:focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:4px; }
+  strong { font-weight:650; color:var(--text); }
+  em { color: var(--text-2); }
+
+  .eyebrow { font-size:11px; letter-spacing:0.16em; text-transform:uppercase; color:var(--text-3); font-weight:600; margin:0 0 10px; }
+
+  .masthead { border-bottom:1px solid var(--line); padding:64px 0 40px; }
+  .lede { font-size:clamp(17px,2vw,20px); line-height:1.55; color:var(--text-2); max-width:62ch; margin:0; }
+  .meta-row { display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:22px;
+    font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace; font-size:12px; color:var(--text-3); }
+
+  section { padding-top:64px; }
+  .sec-head { display:flex; align-items:baseline; gap:14px; margin-bottom:24px;
+    border-top:1px solid var(--line-soft); padding-top:18px; }
+  .sec-head .tag { font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    font-size:11px; letter-spacing:0.14em; color:var(--accent); text-transform:uppercase; flex:none; padding-top:4px; }
+
+  .panel { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:22px 24px; box-shadow:var(--shadow); }
+  .note { border-left:2px solid var(--accent); background:var(--accent-wash); padding:14px 18px;
+    border-radius:0 6px 6px 0; font-size:15.5px; color:var(--text-2); }
+  .note strong { color:var(--text); }
+  .note p:last-child { margin-bottom:0; }
+
+  ul.tight { margin:0; padding-left:20px; }
+  ul.tight li { margin-bottom:8px; }
+  ul.tight li::marker { color:var(--text-3); }
+
+  code { font-size:0.87em; background:var(--surface-2); border:1px solid var(--line-soft);
+    padding:1px 5px; border-radius:4px; color:var(--text); }
+
+  /* Shared foundations */
+  .infra { display:grid; grid-template-columns:repeat(auto-fit,minmax(196px,1fr)); gap:12px; }
+  .infra-item { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:16px 17px; }
+  .infra-item .k { font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--accent); display:block; margin-bottom:7px; }
+  .infra-item h3 { font-size:14.5px; margin-bottom:6px; }
+  .infra-item p { font-size:13.5px; line-height:1.48; color:var(--text-2); margin:0 0 10px; }
+  .infra-item .used { font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    font-size:11px; color:var(--text-3); border-top:1px solid var(--line-soft); padding-top:8px; }
+
+  /* Family cards */
+  .fam { background:var(--surface); border:1px solid var(--line); border-radius:12px;
+    margin-bottom:16px; overflow:hidden; box-shadow:var(--shadow); }
+  .fam-head { display:flex; flex-wrap:wrap; align-items:center; gap:12px 16px;
+    padding:16px 22px; border-bottom:1px solid var(--line-soft); background:var(--surface-2); }
+  .fam-num { font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    font-size:13px; color:var(--accent); font-weight:600; }
+  .fam-head h3 { flex:1; min-width:140px; }
+  .verdict-pill { font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    font-size:11px; letter-spacing:0.04em; padding:4px 10px; border-radius:5px; white-space:nowrap;
+    border:1px solid currentColor; }
+  .v1 { color:var(--signal); } .v2 { color:var(--warn); } .v3 { color:var(--accent); }
+  .effort { font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    font-size:12px; color:var(--text-3); white-space:nowrap; }
+
+  .fam-body { display:grid; grid-template-columns:200px 1fr; gap:0; }
+  .fam-scores { padding:18px 20px; border-right:1px solid var(--line-soft); background:var(--surface); }
+  .fam-cols { padding:18px 22px; display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:22px; }
+  .fam-cols > div p { font-size:14.5px; line-height:1.5; color:var(--text-2); margin:0 0 10px; }
+  .fam-cols > div p:last-child { margin-bottom:0; }
+  .fam-cols ul.tight li { font-size:14px; color:var(--text-2); }
+
+  .score { margin-bottom:12px; }
+  .score:last-child { margin-bottom:0; }
+  .score-label { display:flex; justify-content:space-between; align-items:baseline;
+    font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-3); margin-bottom:5px; }
+  .score-label b { color:var(--text-2); font-weight:600; }
+  .bar { display:flex; gap:3px; }
+  .bar i { flex:1; height:5px; border-radius:1.5px; background:var(--track); }
+  .bar i.on { background:var(--accent); }
+  .bar.lv1 i.on { background:var(--signal); }
+  .bar.lv2 i.on { background:var(--warn); }
+
+  /* Build order */
+  .chain { display:flex; flex-direction:column; gap:0; }
+  .link { display:grid; grid-template-columns:38px 1fr auto; gap:16px; align-items:center;
+    padding:13px 0; border-bottom:1px solid var(--line-soft); }
+  .link:last-child { border-bottom:0; }
+  .link .step-n { font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    font-size:12px; color:var(--accent); }
+  .link .why { font-size:14.5px; color:var(--text-2); }
+  .link .why b { color:var(--text); font-weight:600; }
+  .link .wk { font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    font-size:11.5px; color:var(--text-3); white-space:nowrap; }
+
+  /* Mockups */
+  .mocks { display:grid; grid-template-columns:repeat(auto-fit,minmax(430px,1fr)); gap:34px 30px; margin-top:8px; }
+  .mock { display:flex; gap:20px; align-items:flex-start; }
+  .mock-cap { font-size:14px; line-height:1.5; color:var(--text-2); padding-top:6px; }
+  .mock-cap b { display:block; color:var(--text); font-weight:600; font-size:14.5px; margin-bottom:5px;
+    font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace; letter-spacing:-0.01em; }
+
+  .device {
+    width:236px; aspect-ratio:393/852; border-radius:38px; position:relative;
+    background:#000; overflow:hidden; flex:none;
+    box-shadow:0 0 0 3px #201B19, 0 0 0 4px #423936, 0 16px 34px rgba(0,0,0,0.55);
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color:#fff;
+  }
+  .device * { box-sizing:border-box; }
+  .wall { position:absolute; inset:0; }
+  .di { position:absolute; left:50%; transform:translateX(-50%); top:1.3%;
+    width:31.8%; height:4.34%; border-radius:99px; background:#000; z-index:60; }
+  .sbar { position:absolute; top:1.8%; left:0; right:0; display:flex;
+    justify-content:space-between; padding:0 20px; font-size:8.5px; font-weight:600;
+    letter-spacing:0.02em; z-index:55; opacity:0.92; }
+  .mask-bar { position:absolute; top:0; left:0; right:0; background:#000; z-index:40; }
+  .batt { display:inline-block; width:15px; height:8px; border-radius:2.5px;
+    border:1px solid rgba(255,255,255,0.75); position:relative; }
+  .batt::after { content:""; position:absolute; inset:1.5px; right:5px;
+    background:rgba(255,255,255,0.9); border-radius:1px; }
+
+  /* bottom action bar in glass */
+  .glassbar {
+    position:absolute; left:11px; right:11px; bottom:12px; z-index:70;
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:8px 10px; border-radius:19px;
+    background:rgba(255,255,255,0.13);
+    backdrop-filter:blur(16px) saturate(1.5); -webkit-backdrop-filter:blur(16px) saturate(1.5);
+    border:1px solid rgba(255,255,255,0.22);
+    box-shadow:0 6px 18px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+  }
+  .gb-btn { display:flex; flex-direction:column; align-items:center; gap:2px;
+    font-size:8px; letter-spacing:0.02em; opacity:0.95; padding:2px 6px; }
+  .gb-btn .ico { font-size:13px; line-height:1; }
+  .gb-primary { background:#fff; color:#111; border-radius:13px; padding:6px 12px;
+    font-size:9px; font-weight:650; letter-spacing:0.01em; }
+  .gb-center { flex:1; text-align:center; }
+  .gb-center .name { font-size:9.5px; font-weight:600; letter-spacing:0.01em; }
+  .dots { display:flex; gap:3px; justify-content:center; margin-top:3px; }
+  .dots i { width:3px; height:3px; border-radius:50%; background:rgba(255,255,255,0.4); }
+  .dots i.on { background:#fff; width:9px; border-radius:2px; }
+
+  /* control strip */
+  .ctrls {
+    position:absolute; left:11px; right:11px; bottom:60px; z-index:70;
+    padding:9px 12px 11px; border-radius:16px;
+    background:rgba(20,18,17,0.5);
+    backdrop-filter:blur(16px) saturate(1.4); -webkit-backdrop-filter:blur(16px) saturate(1.4);
+    border:1px solid rgba(255,255,255,0.14);
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .ctrl-row { display:flex; align-items:center; gap:9px; }
+  .ctrl-lab { font-size:7.5px; letter-spacing:0.08em; text-transform:uppercase;
+    opacity:0.62; width:46px; flex:none; }
+  .slider { flex:1; height:3px; border-radius:2px; background:rgba(255,255,255,0.25); position:relative; }
+  .slider .fill { position:absolute; left:0; top:0; bottom:0; background:#fff; border-radius:2px; }
+  .slider .knob { position:absolute; top:50%; width:11px; height:11px; border-radius:50%;
+    background:#fff; transform:translate(-50%,-50%); box-shadow:0 1px 3px rgba(0,0,0,0.5); }
+  .segs { display:flex; gap:4px; flex:1; }
+  .segs span { flex:1; text-align:center; font-size:7.5px; padding:3.5px 0; border-radius:6px;
+    background:rgba(255,255,255,0.14); }
+  .segs span.on { background:#fff; color:#111; font-weight:650; }
+  .swatches { display:flex; gap:4px; flex:1; }
+  .swatches i { flex:1; height:15px; border-radius:5px; }
+  .swatches i.on { box-shadow:0 0 0 1.5px #fff; }
+
+  /* direct manipulation handles */
+  .handle { position:absolute; left:0; right:0; z-index:65; height:0; }
+  .handle::before { content:""; position:absolute; left:0; right:0; top:0;
+    border-top:1px dashed rgba(255,255,255,0.55); }
+  .handle .grip { position:absolute; right:12px; top:-7px; width:30px; height:14px; border-radius:7px;
+    background:rgba(255,255,255,0.9); box-shadow:0 1px 4px rgba(0,0,0,0.5); }
+  .handle .tip { position:absolute; left:12px; top:-9px; font-size:7.5px; letter-spacing:0.04em;
+    background:rgba(0,0,0,0.55); padding:2px 6px; border-radius:4px; }
+
+  /* effect film strip */
+  .filmstrip { position:absolute; left:0; right:0; bottom:60px; z-index:70;
+    display:flex; gap:7px; padding:10px 11px;
+    background:linear-gradient(to top, rgba(10,9,8,0.8), rgba(10,9,8,0));
+    overflow:hidden; }
+  .thumb { flex:none; width:38px; }
+  .thumb .tw { width:38px; height:56px; border-radius:6px; overflow:hidden; position:relative;
+    border:1.5px solid transparent; }
+  .thumb.on .tw { border-color:#fff; }
+  .thumb .tl { font-size:6.5px; text-align:center; margin-top:3px; opacity:0.7; letter-spacing:0.01em; }
+  .thumb.on .tl { opacity:1; font-weight:650; }
+
+  /* export sheet */
+  .sheet { position:absolute; left:0; right:0; bottom:0; z-index:80;
+    background:rgba(28,25,23,0.82);
+    backdrop-filter:blur(22px) saturate(1.4); -webkit-backdrop-filter:blur(22px) saturate(1.4);
+    border-top:1px solid rgba(255,255,255,0.16);
+    border-radius:20px 20px 0 0; padding:9px 13px 14px;
+    display:flex; flex-direction:column; gap:7px; }
+  .grabber { width:30px; height:3.5px; border-radius:2px; background:rgba(255,255,255,0.3); margin:0 auto 5px; }
+  .row { display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:8px 11px; border-radius:11px; background:rgba(255,255,255,0.09); font-size:9.5px; }
+  .row.primary { background:#fff; color:#111; font-weight:650; }
+  .row .sub { font-size:8px; opacity:0.6; }
+  .row .badge { font-size:6.5px; letter-spacing:0.06em; text-transform:uppercase;
+    background:var(--accent); color:#fff; padding:2px 5px; border-radius:4px; font-weight:700; }
+  .sheet-title { font-size:8px; letter-spacing:0.1em; text-transform:uppercase; opacity:0.5; margin:2px 0 1px; }
+
+  .table-scroll { overflow-x:auto; }
+  table { border-collapse:collapse; width:100%; min-width:600px; font-size:14px; font-variant-numeric:tabular-nums; }
+  th,td { text-align:left; padding:10px 14px 10px 0; border-bottom:1px solid var(--line-soft); vertical-align:top; }
+  th { font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-3);
+    font-weight:600; border-bottom-color:var(--line); }
+  td.n { font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace; color:var(--text-2); }
+
+  .gestures { display:grid; grid-template-columns:repeat(auto-fit,minmax(228px,1fr)); gap:0 26px; }
+  .gest { display:grid; grid-template-columns:auto 1fr; gap:12px; padding:12px 0;
+    border-bottom:1px solid var(--line-soft); align-items:baseline; }
+  .gest .g { font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    font-size:11px; color:var(--accent); letter-spacing:0.02em; white-space:nowrap; }
+  .gest .d { font-size:14px; color:var(--text-2); }
+
+  @media (max-width:760px) {
+    .fam-body { grid-template-columns:1fr; }
+    .fam-scores { border-right:0; border-bottom:1px solid var(--line-soft); }
+  }
+  @media (max-width:620px) {
+    body { font-size:16px; }
+    .wrap { padding:0 18px 72px; }
+    .link { grid-template-columns:30px 1fr; }
+    .link .wk { grid-column:2; }
+  }
+  @media (prefers-reduced-motion:reduce) { * { transition:none !important; animation:none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Feasibility study, August 2026</p>
+    <h1>Seven families, one interface</h1>
+    <p class="lede">
+      What families 01, 03, 07, 08, 09, 11 and 12 actually require, scored by complexity, with the
+      parameters proposed for each. Then the interface, reduced to a single screen and five
+      gestures.
+    </p>
+    <div class="meta-row">
+      <span>Follow-up to "Hiding the notch, nine years on"</span>
+      <span>7 families kept out of 13</span>
+    </div>
+  </header>
+
+  <!-- 1. FOUNDATIONS -->
+  <section>
+    <div class="sec-head"><span class="tag">01</span><h2>The cost is in the foundations, not the families</h2></div>
+
+    <div class="prose">
+      <p>
+        The study's first result, and it changes how to plan: taken on their own, five of the seven
+        families are one to three days of work. What is expensive is <strong>five shared
+        pieces</strong> that have to be written once. Once they exist, adding a family becomes an
+        evening's work, and that is what makes a living catalogue possible.
+      </p>
+    </div>
+
+    <div class="infra" style="margin-top:22px">
+      <div class="infra-item">
+        <span class="k">Foundation A</span>
+        <h3>Geometry</h3>
+        <p>Device table plus runtime measurement of the safe area and model. Exposes a cutout box
+          <code>{x, y, w, h, shape}</code> in points and in pixels.</p>
+        <p class="used">Required by all 7, about 3 d</p>
+      </div>
+      <div class="infra-item">
+        <span class="k">Foundation B</span>
+        <h3>Recipe and engine</h3>
+        <p>JSON describes the wallpaper; one engine renders it on screen <em>and</em> offscreen at
+          native pixels. Preview and export parity is the one non negotiable thing.</p>
+        <p class="used">Required by all 7, about 4 d</p>
+      </div>
+      <div class="infra-item">
+        <span class="k">Foundation C</span>
+        <h3>SkSL layer</h3>
+        <p>Three reusable shaders: dithering at plus or minus 1 LSB, fractal noise (fbm), and
+          gradient interpolation in linear light.</p>
+        <p class="used">03, 08, 09, 12, about 3 d</p>
+      </div>
+      <div class="infra-item">
+        <span class="k">Foundation D</span>
+        <h3>Procedural rig</h3>
+        <p>Seeded pseudo random generator plus a <em>coverage guarantee</em>: a black base laid under
+          the decor, whose shape derives from the cutout.</p>
+        <p class="used">07, 08, 11, 12, about 2 d</p>
+      </div>
+      <div class="infra-item">
+        <span class="k">Foundation E</span>
+        <h3>Image analysis</h3>
+        <p>Downsample to 96 x 208, <code>readPixels()</code>, summed area table, framing solver. A few
+          milliseconds.</p>
+        <p class="used">09 only, about 3 d</p>
+      </div>
+    </div>
+
+    <div class="note prose" style="margin-top:22px">
+      <p style="margin-bottom:0">
+        <strong>Foundation E is the only single use piece</strong>, and also the riskiest. That is the
+        clearest argument for keeping family 09 out of the first pass.
+      </p>
+    </div>
+  </section>
+
+  <!-- 2. FAMILY CARDS -->
+  <section>
+    <div class="sec-head"><span class="tag">02</span><h2>The seven families, scored</h2></div>
+    <p class="prose" style="color:var(--text-2);font-size:15.5px">
+      Four axes out of 5: <em>rendering</em> (drawing difficulty), <em>parameters</em> (how many
+      settings to expose and how subtle they are), <em>content</em> (art direction needed up front),
+      and <em>risk</em> (what may not work). Estimates assume foundations A and B are already in
+      place.
+    </p>
+    <div id="families" style="margin-top:26px"></div>
+  </section>
+
+  <!-- 3. BUILD ORDER -->
+  <section>
+    <div class="sec-head"><span class="tag">03</span><h2>Build order</h2></div>
+    <div class="prose">
+      <p>
+        The order below is not a ranking by importance: it is a dependency chain. Each step delivers
+        a piece the next one needs, and each step produces an app that works.
+      </p>
+    </div>
+
+    <div class="panel" style="margin-top:20px">
+      <div class="chain">
+        <div class="link"><span class="step-n">1</span>
+          <span class="why"><b>01, solid bar</b>: proves foundations A and B end to end, on the family where any alignment error shows immediately.</span>
+          <span class="wk">+0.5 d</span></div>
+        <div class="link"><span class="step-n">2</span>
+          <span class="why"><b>11, decaying stripes</b>: almost free once 01 is done, the same drawing repeated. Doubles the catalogue for next to nothing.</span>
+          <span class="wk">+1 d</span></div>
+        <div class="link"><span class="step-n">3</span>
+          <span class="why"><b>03, dithered fade</b>: forces foundation C to be written. Banding is settled here, once and for all.</span>
+          <span class="wk">+2 d and foundation C</span></div>
+        <div class="link"><span class="step-n">4</span>
+          <span class="why"><b>12, pure generative</b>: reuses foundation C, adds foundation D. Delivers a first launch with no photo and no permission.</span>
+          <span class="wk">+3 d and foundation D</span></div>
+        <div class="link"><span class="step-n">5</span>
+          <span class="why"><b>08, organic decor</b>: the procedural rig already exists, only the art direction of the patterns remains.</span>
+          <span class="wk">+3 d</span></div>
+        <div class="link"><span class="step-n">6</span>
+          <span class="why"><b>07, hanging object</b>: same rig as 08, plus a drawing constraint. Can be added object by object, after launch.</span>
+          <span class="wk">+2 d then 0.5 d per object</span></div>
+        <div class="link"><span class="step-n">7</span>
+          <span class="why"><b>09, content camouflage</b>: foundation E, single use. Treat it as a separate project, with a way out.</span>
+          <span class="wk">+5 d and foundation E</span></div>
+      </div>
+    </div>
+
+    <p class="prose" style="margin-top:18px;color:var(--text-2);font-size:15.5px">
+      <strong>Natural cut after step 4</strong>: foundations A to D, four families (bar, stripes,
+      fade, generative), all robust, none depending on graphic work. That is a complete and honest
+      app. Steps 5 to 7 are what make it remarkable, and they can come later.
+    </p>
+  </section>
+
+  <!-- 4. UI -->
+  <section>
+    <div class="sec-head"><span class="tag">04</span><h2>The interface: one screen, five gestures</h2></div>
+
+    <div class="prose">
+      <p>
+        The app has a single object, the wallpaper being edited, and a single output, an image. Any
+        added navigation would be decoration. Hence the proposal: <strong>no tabs, no menu, no
+        account, one screen</strong>. The wallpaper takes 100 percent of the surface, the controls
+        float over it in glass, and most of the adjusting happens by touching the wallpaper
+        directly.
+      </p>
+      <p>
+        The point that changes everything: the preview is not a mockup of a phone inside a phone. It
+        is the wallpaper, full screen, <strong>under the device's real cutout</strong>. You judge the
+        result by looking at it, not by imagining it.
+      </p>
+    </div>
+
+    <h4 style="margin-top:30px">The gesture vocabulary</h4>
+    <div class="gestures">
+      <div class="gest"><span class="g">swipe left, right</span><span class="d">change effect family, like a camera filter</span></div>
+      <div class="gest"><span class="g">pinch</span><span class="d">reframe and reposition the photo</span></div>
+      <div class="gest"><span class="g">drag a handle</span><span class="d">adjust the effect directly on the wallpaper</span></div>
+      <div class="gest"><span class="g">long press</span><span class="d">hide the whole interface to judge</span></div>
+      <div class="gest"><span class="g">shake</span><span class="d">contact support</span></div>
+    </div>
+
+    <div class="mocks" style="margin-top:38px" id="mocks"></div>
+  </section>
+
+  <!-- 5. CONTROL DETAIL -->
+  <section>
+    <div class="sec-head"><span class="tag">05</span><h2>One rule: three controls at most</h2></div>
+
+    <div class="prose">
+      <p>
+        Each family exposes at most three controls, all live, all reversible, never showing a numeric
+        value except where the number means something. Whatever does not fit in three controls does
+        not fit in the app.
+      </p>
+    </div>
+
+    <div class="table-scroll" style="margin-top:20px">
+      <table>
+        <thead><tr><th>Family</th><th>Control 1</th><th>Control 2</th><th>Control 3</th><th>Hard constraint</th></tr></thead>
+        <tbody>
+          <tr><td><b>01</b> Bar</td><td class="n">edge dragged by hand</td><td class="n">radius</td><td class="n">none</td><td>floor under the cutout</td></tr>
+          <tr><td><b>03</b> Fade</td><td class="n">"end of black" handle</td><td class="n">"end of fade" handle</td><td class="n">curve (3 choices)</td><td>handle 1 at or below the cutout</td></tr>
+          <tr><td><b>07</b> Object</td><td class="n">object gallery</td><td class="n">size</td><td class="n">mirror</td><td>body contains cutout plus margin</td></tr>
+          <tr><td><b>08</b> Decor</td><td class="n">pattern (6 choices)</td><td class="n">density</td><td class="n">shuffle</td><td>invisible coverage base</td></tr>
+          <tr><td><b>09</b> Camouflage</td><td class="n">fit automatically</td><td class="n">extent</td><td class="n">softness</td><td>core in absolute black</td></tr>
+          <tr><td><b>11</b> Stripes</td><td class="n">type (3 choices)</td><td class="n">spacing</td><td class="n">falloff</td><td>band 1 contains the cutout</td></tr>
+          <tr><td><b>12</b> Generative</td><td class="n">palette</td><td class="n">shuffle</td><td class="n">grain</td><td>none</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note prose" style="margin-top:24px">
+      <p><strong>Hard constraints are never error messages.</strong> A handle reaching the bottom of
+      the cutout does not stop silently: it butts, vibrates lightly, and shows a line. The user learns
+      the physical rule by touching it, without being told.</p>
+      <p style="margin-bottom:0"><strong>The export format lives in the save sheet</strong>, not in a
+      settings screen. It is the only moment where the question "for which phone?" really arises, and
+      it is where you can generate a wallpaper for someone else's iPhone.</p>
+    </div>
+  </section>
+
+  <!-- 6. WHAT I WOULD CUT -->
+  <section>
+    <div class="sec-head"><span class="tag">06</span><h2>What I would cut</h2></div>
+    <div class="prose">
+      <ul class="tight" style="font-size:15.5px;color:var(--text-2)">
+        <li><strong>The bundled wallpaper library.</strong> v1 had one; it is heavy, it dates, and it
+          raises rights questions. Family 12 replaces it with an endless generator that weighs
+          nothing.</li>
+        <li><strong>Any settings screen.</strong> The export format goes in the save sheet,
+          calibration triggers after the first export, nothing is left to configure.</li>
+        <li><strong>The help screen.</strong> Replaced by haptic stops and a single sentence in the
+          export sheet, at the moment it is useful.</li>
+        <li><strong>Family 09 in v1.</strong> It is the finest promise and the only one that can fail
+          on the user's photo. It deserves to arrive on its own, when it is genuinely good.</li>
+      </ul>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* Family cards */
+  var FAMS = [
+    {
+      n: "01", name: "Solid bar", verdict: "Trivial", vclass: "v1", effort: "about 0.5 d",
+      scores: [["Rendering",1],["Parameters",1],["Content",1],["Risk",1]],
+      tech: [
+        "A Skia <code>Path</code> with two rounded bottom corners, filled with <code>#000</code>. Nothing else.",
+        "The only real trap is the <b>default height</b>: on a notch it equals the cutout height, on a Dynamic Island you have to go down to the safe area, otherwise 22 pt of photo stay stranded under the island.",
+        "Default radius matched to the island (about 18 pt): the bar then reads as an extension of the hardware rather than something added."
+      ],
+      ux: [
+        "<b>No slider for the height.</b> You grab the bottom edge of the bar and pull it. Direct manipulation is faster than a slider and makes the constraint obvious.",
+        "Three magnetic snap points with haptic feedback: <i>flush with the cutout</i>, <i>bottom of the safe area</i>, <i>free</i>.",
+        "A single slider for the radius, from a sharp corner to a pill."
+      ]
+    },
+    {
+      n: "03", name: "Dithered fade", verdict: "Medium", vclass: "v2", effort: "about 2 d + foundation C",
+      scores: [["Rendering",3],["Parameters",3],["Content",1],["Risk",3]],
+      tech: [
+        "An SkSL shader of about fifteen lines: gradient computed analytically, <b>interpolated in linear light</b> then re-encoded, since a fade to black interpolated in sRGB dives too fast and shows.",
+        "Dithering is added before 8 bit quantisation: triangular noise of amplitude 1/255 derived from the fragment coordinates. A safer alternative is a 64 x 64 blue noise tile added on top.",
+        "<b>Real risk:</b> validation can only happen by eye, on an OLED panel, at low brightness, in a dark room. A simulator will tell you nothing."
+      ],
+      ux: [
+        "<b>Two handles dragged on the wallpaper.</b> The first marks the end of absolute black, the second the end of the fade. You see what you are adjusting, where you are adjusting it.",
+        "The first handle <b>stops</b> at the bottom of the cutout, with a haptic notch: the physical rule is learned by touch.",
+        "The curve as three chips, <i>linear</i>, <i>eased</i>, <i>S curve</i>, rather than a bezier editor nobody will open."
+      ]
+    },
+    {
+      n: "07", name: "Hanging object", verdict: "High, art cost", vclass: "v3", effort: "about 2 d + 0.5 d per object",
+      scores: [["Rendering",3],["Parameters",2],["Content",5],["Risk",2]],
+      tech: [
+        "Each object is a <b>parametric template</b>, not a fixed drawing: an anchor from the top edge, a body that stretches to contain the cutout box, decorative appendages.",
+        "The same periscope has to work on a 125 x 37 island and on a 26 x 26 punch hole. An imported SVG does not stretch correctly, so the paths have to be coded as a function of the box.",
+        "<b>The limiting factor is not technical, it is human</b>: every object needs a real idea. Six good objects beat twenty mediocre ones, and they can be added after launch."
+      ],
+      ux: [
+        "A horizontal gallery of objects, each applied live to the current wallpaper.",
+        "A single slider, the <b>size</b>, meaning the margin between body and cutout, plus a mirror toggle for offset cutouts.",
+        "Decorative parts move under the finger; the covering part stays locked. The mask cannot be broken by playing with it."
+      ]
+    },
+    {
+      n: "08", name: "Organic decor", verdict: "Medium", vclass: "v2", effort: "about 3 d",
+      scores: [["Rendering",3],["Parameters",3],["Content",3],["Risk",1]],
+      tech: [
+        "A carrier path (branch, cable, garland) crossing the screen, then elements distributed along it with a <b>seeded</b> random generator: same seed, same result, therefore shareable.",
+        "<b>The trick that removes all risk:</b> lay down a black base in the exact shape of the cutout first, then scatter the foliage over it. Coverage is guaranteed by construction, and the organic part only has to look good.",
+        "More forgiving than family 07: on a deliberately irregular pattern, an approximate shape stays credible."
+      ],
+      ux: [
+        "Six patterns as chips: <i>branch, birds, cable, drip, garland, smoke</i>.",
+        "<b>A shuffle button, and that is where it all happens.</b> One control produces endless results; the user taps until they like it, without understanding the system.",
+        "A density slider. Six presets keep the sliders for refining rather than building."
+      ]
+    },
+    {
+      n: "09", name: "Content camouflage", verdict: "High, product risk", vclass: "v3", effort: "about 5 d + foundation E",
+      scores: [["Rendering",4],["Parameters",3],["Content",2],["Risk",5]],
+      tech: [
+        "<b>Automatic placement:</b> redraw the photo at 96 x 208, read the pixels, build a summed area table, then test a few hundred framings scoring mean luminance <i>and</i> standard deviation under the cutout. A few milliseconds.",
+        "<b>Local darkening:</b> a plain fade to black leaves a blurry smudge. The right method lifts the black point locally, a curve rather than a layer, so the texture of the photo dies naturally.",
+        "<b>Refinement:</b> the fade distance is modulated by local luminance. Where the photo is already dark the transition is short and invisible; where it is bright it stretches.",
+        "<b>The uncomfortable truth:</b> the area under the cutout must end at exact <code>#000000</code>. No analysis changes that. The solver only makes that black core <i>small and surrounded by near black</i>."
+      ],
+      ux: [
+        "<b>One button, and an honest verdict.</b> \"Fit automatically\" runs the solver and reports the result: <i>excellent</i>, <i>acceptable</i>, or <i>this photo does not suit</i>.",
+        "On failure the app itself offers family 03 as a fallback, on the same framing. A failure handled well beats a poor result delivered without comment.",
+        "Two sliders only, extent and softness, both starting from a value the solver has already computed."
+      ]
+    },
+    {
+      n: "11", name: "Decaying stripes", verdict: "Low", vclass: "v1", effort: "about 1 d",
+      scores: [["Rendering",2],["Parameters",2],["Content",1],["Risk",1]],
+      tech: [
+        "A loop of rectangles for the lines; a shader for the dot variant, where the radius decays with distance.",
+        "<b>The geometry does not start at the top of the screen, it starts at the cutout.</b> The first band is forced to contain it and everything else follows, which leaves only two free parameters.",
+        "Works particularly well with wide notches: the thick top band justifies itself inside a pattern."
+      ],
+      ux: [
+        "Three types as chips: <i>lines</i>, <i>grid</i>, <i>dots</i>.",
+        "Two sliders, spacing and falloff rate, whose extremes both stay presentable. No setting produces a bad result.",
+        "Six presets in direct reach; the sliders are there to refine, not to build."
+      ]
+    },
+    {
+      n: "12", name: "Pure generative", verdict: "Medium", vclass: "v2", effort: "about 3 d + foundation D",
+      scores: [["Rendering",4],["Parameters",2],["Content",3],["Risk",1]],
+      tech: [
+        "An SkSL mesh gradient shader: bilinear blend of four to six colours, warped by fractal noise. <b>Preferable to blurred radial gradients</b>, since a blur at 1290 x 2796 is expensive in memory while a shader costs nothing.",
+        "The black well over the cutout is trivial here: we control the background, so we guarantee it is already dark around it. No failure case is possible.",
+        "The real work is choosing the <b>palettes</b>. That is taste, not code, and it is what will set the app apart from any other generator."
+      ],
+      ux: [
+        "<b>This is the first launch screen.</b> The app opens on a wallpaper already generated and already valid: no empty screen, no permission prompt, saveable in two taps.",
+        "A row of palettes, a shuffle button, a grain slider.",
+        "Every result carries a seed; the same wallpaper can be regenerated for another device, later, at any resolution."
+      ]
+    }
+  ];
+
+  function bar(v) {
+    var cls = v <= 2 ? "bar lv1" : (v === 3 ? "bar lv2" : "bar");
+    var s = '<div class="' + cls + '">';
+    for (var i = 1; i <= 5; i++) s += '<i' + (i <= v ? ' class="on"' : '') + '></i>';
+    return s + "</div>";
+  }
+
+  document.getElementById("families").innerHTML = FAMS.map(function (f) {
+    var scores = f.scores.map(function (s) {
+      return '<div class="score"><div class="score-label"><span>' + s[0] + '</span><b>' + s[1] + '/5</b></div>' + bar(s[1]) + "</div>";
+    }).join("");
+    return '<article class="fam">' +
+      '<div class="fam-head">' +
+        '<span class="fam-num">' + f.n + "</span>" +
+        "<h3>" + f.name + "</h3>" +
+        '<span class="verdict-pill ' + f.vclass + '">' + f.verdict + "</span>" +
+        '<span class="effort">' + f.effort + "</span>" +
+      "</div>" +
+      '<div class="fam-body">' +
+        '<div class="fam-scores">' + scores + "</div>" +
+        '<div class="fam-cols">' +
+          "<div><h4>What it requires</h4><ul class=\"tight\">" +
+            f.tech.map(function (t) { return "<li>" + t + "</li>"; }).join("") + "</ul></div>" +
+          "<div><h4>Proposed parameters</h4><ul class=\"tight\">" +
+            f.ux.map(function (t) { return "<li>" + t + "</li>"; }).join("") + "</ul></div>" +
+        "</div>" +
+      "</div></article>";
+  }).join("");
+
+  /* Mockups */
+  var W = {
+    mesh: "radial-gradient(60% 42% at 22% 26%, #6B3FA0 0%, transparent 62%)," +
+          "radial-gradient(58% 40% at 86% 55%, #0F7A87 0%, transparent 64%)," +
+          "radial-gradient(70% 46% at 46% 88%, #C24C74 0%, transparent 66%)," +
+          "linear-gradient(180deg, #16203A 0%, #0D1220 100%)",
+    dusk: "linear-gradient(170deg, #F7B267 0%, #D6456E 46%, #331B4D 100%)",
+    ocean: "linear-gradient(175deg, #8FC7E8 0%, #2C6E9B 50%, #0E2A44 100%)"
+  };
+
+  function statusBar() {
+    return '<div class="sbar"><span>9:41</span><span class="batt"></span></div>';
+  }
+
+  function actionBar(name, idx, primary) {
+    var dots = "";
+    for (var i = 0; i < 7; i++) dots += "<i" + (i === idx ? ' class="on"' : "") + "></i>";
+    return '<div class="glassbar">' +
+      '<div class="gb-btn"><span class="ico">◳</span><span>Source</span></div>' +
+      '<div class="gb-center"><div class="name">' + name + '</div><div class="dots">' + dots + "</div></div>" +
+      '<div class="gb-primary">' + (primary || "Save") + "</div></div>";
+  }
+
+  function slider(pct) {
+    return '<div class="slider"><div class="fill" style="width:' + pct + '%"></div>' +
+           '<div class="knob" style="left:' + pct + '%"></div></div>';
+  }
+
+  var MOCKS = [
+    {
+      title: "At launch",
+      cap: "A generative wallpaper is already there, already aligned. No empty screen, no permission prompt, saveable in two taps. The controls of the current effect float above the action bar.",
+      body:
+        '<div class="wall" style="background:' + W.mesh + '"></div>' +
+        '<div class="mask-bar" style="height:7.2%;background:radial-gradient(70% 130% at 50% 0%, #000 58%, transparent 100%)"></div>' +
+        statusBar() +
+        '<div class="ctrls">' +
+          '<div class="ctrl-row"><span class="ctrl-lab">Palette</span><div class="swatches">' +
+            '<i class="on" style="background:linear-gradient(135deg,#6B3FA0,#C24C74)"></i>' +
+            '<i style="background:linear-gradient(135deg,#0F7A87,#7FD4A8)"></i>' +
+            '<i style="background:linear-gradient(135deg,#E8A33D,#C2402A)"></i>' +
+            '<i style="background:linear-gradient(135deg,#2E4A8A,#0D1220)"></i>' +
+            '<i style="background:linear-gradient(135deg,#D8D2C8,#7A6E62)"></i></div></div>' +
+          '<div class="ctrl-row"><span class="ctrl-lab">Grain</span>' + slider(34) + "</div>" +
+          '<div class="ctrl-row"><span class="ctrl-lab"></span><div class="segs"><span class="on">↻ Shuffle</span></div></div>' +
+        "</div>" +
+        actionBar("Generative", 6)
+    },
+    {
+      title: "Direct adjustment",
+      cap: "On the Fade family, both handles are dragged on the wallpaper itself. The top one stops at the bottom of the cutout, with a haptic notch and a visible line, and the user learns the physical rule by touching it.",
+      body:
+        '<div class="wall" style="background:' + W.dusk + '"></div>' +
+        '<div class="mask-bar" style="height:7.5%"></div>' +
+        '<div class="mask-bar" style="top:7.5%;height:22%;background:linear-gradient(180deg,#000,rgba(0,0,0,0))"></div>' +
+        statusBar() +
+        '<div class="handle" style="top:7.5%"><span class="tip">End of black, stop</span><span class="grip"></span></div>' +
+        '<div class="handle" style="top:29.5%"><span class="tip">End of fade</span><span class="grip"></span></div>' +
+        '<div class="ctrls">' +
+          '<div class="ctrl-row"><span class="ctrl-lab">Curve</span><div class="segs">' +
+            "<span>Linear</span><span class=\"on\">Eased</span><span>S curve</span></div></div>" +
+        "</div>" +
+        actionBar("Fade", 1)
+    },
+    {
+      title: "Changing effect",
+      cap: "A horizontal swipe moves through the seven families, like a camera filter. The strip only appears on first launch and when the centre area is tapped: it is there to discover, not to navigate.",
+      body:
+        '<div class="wall" style="background:' + W.ocean + '"></div>' +
+        '<div class="mask-bar" style="height:6.4%"></div>' +
+        '<div class="mask-bar" style="top:8.6%;height:2.4%"></div>' +
+        '<div class="mask-bar" style="top:12.6%;height:1.7%"></div>' +
+        '<div class="mask-bar" style="top:16%;height:1.2%"></div>' +
+        statusBar() +
+        '<div class="filmstrip">' +
+          thumb("Bar", W.dusk, '<div class="mask-bar" style="height:9%"></div>') +
+          thumb("Fade", W.dusk, '<div class="mask-bar" style="height:8%"></div><div class="mask-bar" style="top:8%;height:26%;background:linear-gradient(180deg,#000,rgba(0,0,0,0))"></div>') +
+          thumb("Stripes", W.ocean, '<div class="mask-bar" style="height:7%"></div><div class="mask-bar" style="top:10%;height:3%"></div><div class="mask-bar" style="top:15.5%;height:2%"></div>', 1) +
+          thumb("Object", W.dusk, '<div style="position:absolute;left:44%;width:12%;top:0;height:9%;background:#000"></div><div style="position:absolute;left:22%;width:56%;top:4%;height:10%;border-radius:4px;background:#000"></div>') +
+          thumb("Decor", W.ocean, '<div style="position:absolute;left:8%;width:84%;top:4%;height:9%;border-radius:50%;background:#000"></div><div style="position:absolute;left:0;width:34%;top:11%;height:6%;border-radius:50%;background:#000"></div>') +
+          thumb("Camo", W.mesh, '<div class="mask-bar" style="height:26%;background:radial-gradient(64% 100% at 50% 0%, #000 44%, transparent 100%)"></div>') +
+          thumb("Gener.", W.mesh, '<div class="mask-bar" style="height:20%;background:radial-gradient(70% 100% at 50% 0%, #000 48%, transparent 100%)"></div>') +
+        "</div>" +
+        actionBar("Stripes", 2)
+    },
+    {
+      title: "Save",
+      cap: "The only place where the question \"for which phone?\" arises, therefore the only place where it is asked. Applying directly through a shortcut avoids the iOS crop editor, which is what breaks alignment.",
+      body:
+        '<div class="wall" style="background:' + W.mesh + '"></div>' +
+        '<div class="mask-bar" style="height:7.2%;background:radial-gradient(70% 130% at 50% 0%, #000 58%, transparent 100%)"></div>' +
+        statusBar() +
+        '<div class="sheet"><div class="grabber"></div>' +
+          '<div class="row primary"><span>Set as wallpaper</span><span class="badge">1 gesture</span></div>' +
+          '<div class="row"><span>Save to Photos</span></div>' +
+          '<div class="row"><span>Share</span></div>' +
+          '<div class="sheet-title">Format</div>' +
+          '<div class="row"><span>This iPhone <span class="sub">17 Pro</span></span><span class="sub">1206 x 2622 ⌄</span></div>' +
+        "</div>"
+    }
+  ];
+
+  function thumb(label, wall, mask, on) {
+    return '<div class="thumb' + (on ? " on" : "") + '"><div class="tw"><div class="wall" style="background:' + wall + '"></div>' +
+           (mask || "") + '</div><div class="tl">' + label + "</div></div>";
+  }
+
+  document.getElementById("mocks").innerHTML = MOCKS.map(function (m) {
+    return '<div class="mock"><div class="device">' + m.body + '<div class="di"></div></div>' +
+           '<p class="mock-cap"><b>' + m.title + "</b>" + m.cap + "</p></div>";
+  }).join("");
+})();
+</script>

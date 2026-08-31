@@ -13,10 +13,9 @@ const HARNESS = path.join(APP, ".harness");
 const OUT = path.join(APP, "renders");
 
 const CanvasKitInit = require(path.join(APP, "node_modules/canvaskit-wasm/bin/canvaskit.js"));
-const { JsiSkApi } = require(path.join(
-  APP,
-  "node_modules/@shopify/react-native-skia/lib/commonjs/skia/web"
-));
+const { JsiSkApi } = require(
+  path.join(APP, "node_modules/@shopify/react-native-skia/lib/commonjs/skia/web"),
+);
 
 (async () => {
   const CanvasKit = await CanvasKitInit({
@@ -27,13 +26,12 @@ const { JsiSkApi } = require(path.join(
 
   // RN Skia enums are numeric and translated on the web side, so they have to
   // come from the package rather than from CanvasKit.
-  const types = require(path.join(
-    APP,
-    "node_modules/@shopify/react-native-skia/lib/commonjs/skia/types"
-  ));
+  const types = require(
+    path.join(APP, "node_modules/@shopify/react-native-skia/lib/commonjs/skia/types"),
+  );
   const shim = { ...types, Skia };
   const realLoad = Module._load;
-  Module._load = function (request, parent, isMain) {
+  Module._load = function (request) {
     if (request === "@shopify/react-native-skia") return shim;
     return realLoad.apply(this, arguments);
   };
@@ -67,7 +65,13 @@ const { JsiSkApi } = require(path.join(
       scale: 3,
       insetTop: 47,
       insetBottom: 34,
-      cutout: { x: (390 - NOTCH_WIDE.w) / 2, y: 0, w: NOTCH_WIDE.w, h: NOTCH_WIDE.h, r: NOTCH_WIDE.r },
+      cutout: {
+        x: (390 - NOTCH_WIDE.w) / 2,
+        y: 0,
+        w: NOTCH_WIDE.w,
+        h: NOTCH_WIDE.h,
+        r: NOTCH_WIDE.r,
+      },
       estimated: false,
     },
   };
@@ -82,20 +86,36 @@ const { JsiSkApi } = require(path.join(
   }
   // A few variants, to judge the settings
   jobs.push({
-    devName: "island", g: devices.island, family: "stripes", tag: "loose",
-    mask: { type: "stripes", density: 0 }, palette: "ember",
+    devName: "island",
+    g: devices.island,
+    family: "stripes",
+    tag: "loose",
+    mask: { type: "stripes", density: 0 },
+    palette: "ember",
   });
   jobs.push({
-    devName: "island", g: devices.island, family: "stripes", tag: "dense",
-    mask: { type: "stripes", density: 1 }, palette: "moss",
+    devName: "island",
+    g: devices.island,
+    family: "stripes",
+    tag: "dense",
+    mask: { type: "stripes", density: 1 },
+    palette: "moss",
   });
   jobs.push({
-    devName: "island", g: devices.island, family: "fade", tag: "long-linear",
-    mask: { type: "fade", fadeEnd: 320, curve: 0 }, palette: "haze",
+    devName: "island",
+    g: devices.island,
+    family: "fade",
+    tag: "long-linear",
+    mask: { type: "fade", fadeEnd: 320, curve: 0 },
+    palette: "haze",
   });
   jobs.push({
-    devName: "island", g: devices.island, family: "bar", tag: "tall",
-    mask: { type: "bar", height: 120, corner: 1 }, palette: "ink",
+    devName: "island",
+    g: devices.island,
+    family: "bar",
+    tag: "tall",
+    mask: { type: "bar", height: 120, corner: 1 },
+    palette: "ink",
   });
 
   for (const job of jobs) {

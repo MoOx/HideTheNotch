@@ -20,6 +20,10 @@ export type Palette = {
  * height give a band with a straight edge, and a straight edge across a
  * wallpaper is the one thing that makes a gradient look generated.
  *
+ * Nothing sits in the top tenth, and nothing below nine tenths: the editor
+ * refuses both bands, and a preset that started outside the rules the editor
+ * enforces would be a preset that jumps the first time it is touched.
+ *
  * Nothing sits in the top tenth. The editor will not let a point go up there,
  * since that band is what the mask paints black and what iOS keeps its own
  * touches in, and a preset whose points jumped the moment the editor opened
@@ -41,6 +45,14 @@ function ramp(
   halo: string,
   haloAt: [number, number],
   midAt: [number, number],
+  /**
+   * The middle anchor's colour, `mid` unless a preset needs otherwise.
+   *
+   * A preset that runs light at the bottom wants its anchor light too: `mid`
+   * there would be a dark bruise in the middle of the horizon, which is the
+   * plume this point exists to prevent, upside down.
+   */
+  anchor = mid,
 ): MeshPoint[] {
   return [
     { x: 0.08, y: 0.1, color: top },
@@ -48,9 +60,9 @@ function ramp(
     { x: haloAt[0], y: haloAt[1], color: halo },
     { x: 0.1, y: midAt[0], color: mid },
     { x: 0.9, y: midAt[1], color: mid },
-    { x: 0.5, y: 0.76, color: mid },
-    { x: 0.16, y: 1.0, color: low },
-    { x: 0.86, y: 0.96, color: low },
+    { x: 0.5, y: 0.76, color: anchor },
+    { x: 0.16, y: 0.92, color: low },
+    { x: 0.86, y: 0.9, color: low },
   ];
 }
 
@@ -79,6 +91,20 @@ export const PALETTES: Palette[] = [
     id: "moss",
     label: "Moss",
     points: ramp("#7FD4A8", "#1F6B58", "#081814", "#CFF0DF", [0.22, 0.18], [0.48, 0.58]),
+  },
+  /**
+   * The one that runs the other way: light at the bottom, not at the top.
+   *
+   * Every other preset is bright above and dark below, which is what a sky
+   * does and what makes the mask's black at the top read as part of the
+   * picture. This one puts a magenta horizon low and violet above it, so the
+   * gradient is a sunset seen from a car in 1984. It works with the mask for
+   * the same reason: the top is the darkest part of it.
+   */
+  {
+    id: "neon",
+    label: "Neon",
+    points: ramp("#2B1055", "#7A2A8C", "#FF6B3D", "#FF3D9A", [0.5, 0.62], [0.38, 0.44], "#E0457F"),
   },
 ];
 

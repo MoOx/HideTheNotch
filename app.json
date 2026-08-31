@@ -6,7 +6,7 @@
     "version": "2.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "backgroundColor": "#000000",
     "newArchEnabled": true,
     "runtimeVersion": {
@@ -18,12 +18,18 @@
       "buildNumber": "1",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "UIViewControllerBasedStatusBarAppearance": true
+        "UIViewControllerBasedStatusBarAppearance": false,
+        "UIStatusBarStyle": "UIStatusBarStyleLightContent"
+      },
+      "icon": {
+        "light": "./assets/icon.png",
+        "dark": "./assets/icon-dark.png",
+        "tinted": "./assets/icon-tinted.png"
       }
     },
     "android": {
       "package": "io.moox.hidethenotch",
-      "versionCode": 1,
+      "blockedPermissions": ["android.permission.ACTIVITY_RECOGNITION"],
       "adaptiveIcon": {
         "backgroundColor": "#000000",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -39,6 +45,8 @@
       [
         "expo-media-library",
         {
+          "//": "granularPermissions is empty on purpose. The plugin declares READ_MEDIA_IMAGES, READ_MEDIA_VIDEO and READ_MEDIA_AUDIO by default, which are broad library reads, and Play asks an app that holds them to justify frequent access to photos. This app never reads the library: it writes one file to it, and it picks one photo through the system picker. READ_MEDIA_VISUAL_USER_SELECTED and the pre-33 storage permissions stay, which is all a write and a single pick need.",
+          "granularPermissions": [],
           "photosPermission": "Hide The Notch saves the wallpapers it generates to your photos.",
           "savePhotosPermission": "Hide The Notch saves the wallpapers it generates to your photos.",
           "isAccessMediaLocationEnabled": false
@@ -59,6 +67,31 @@
           "android": {
             "minSdkVersion": 24
           }
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "//": "iOS gets the real thing: the app's own aurora gradient, full bleed, so the launch screen and the first frame are the same picture. Android 12 and later will not have that, the system draws a colour and a masked icon and nothing else, so there it is the average of that gradient with the marks on top.",
+          "backgroundColor": "#514480",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 220,
+          "ios": {
+            "image": "./assets/splash.png",
+            "resizeMode": "cover",
+            "enableFullScreenImage_legacy": true
+          }
+        }
+      ],
+      "./plugins/withUIScene.cjs",
+      "./plugins/withGradleDaemonJvm.cjs",
+      "./plugins/withJitpackScope.cjs",
+      [
+        "@sentry/react-native/expo",
+        {
+          "//": "Source map upload at build time, and nothing else. It needs SENTRY_AUTH_TOKEN in the environment; without one the build still succeeds and the traces arrive minified, which is most of their value gone. The DSN is not here: it is in index.ts, because it is the only part the running app needs and it is public by design.",
+          "organization": "moox",
+          "project": "hide-the-notch"
         }
       ]
     ],

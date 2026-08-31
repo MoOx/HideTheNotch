@@ -1,0 +1,64 @@
+{
+  "//": "The two store listings, as data, in the six languages the deck already speaks. One entry per locale; `tools/marketing/listing.cjs` writes the two metadata trees fastlane expects from it, checks every store limit, and puts the rendered deck in the folders `deliver` and `supply` read screenshots from. Nothing here is written twice: `name` is the App Store name and the Play title, `description` is the App Store description and the Play full description, and only the fields the two stores genuinely do not share (`subtitle`, `keywords`, `promo` for Apple, `short` for Play) exist on their own.",
+  "urls": {
+    "support": "https://moox.io/apps/hide-the-notch",
+    "marketing": "https://moox.io/apps/hide-the-notch",
+    "privacy": "https://moox.io/apps/hide-the-notch/privacy"
+  },
+  "locales": {
+    "en-US": {
+      "name": "Hide The Notch",
+      "subtitle": "Make your cutout disappear",
+      "short": "Wallpapers that make the notch, the Dynamic Island or the punch hole vanish.",
+      "promo": "Compare before and after with one tap, and preview the result on a sketched home screen before you save it.",
+      "keywords": "notch,dynamic island,punch hole,wallpaper,background,camera,hide,cutout,oled,black,gradient",
+      "description": "Your phone has a hole in its screen. This app makes wallpapers that hide it.\n\nOn an OLED screen a black pixel is an off pixel, so black under the cutout is optically the same as the panel around it. Hide The Notch draws that black for you, at absolute black, and joins it to a wallpaper you actually want to look at.\n\nTHREE WAYS TO DO IT\n\n- Fade: the black dissolves into the image, with no edge at all.\n- Rounded band: a panel across the top, with corners that follow the screen.\n- Retro stripes: the black breaks up into a halftone, like an old poster.\n\nHOW IT WORKS\n\nBring your own photo, or generate a gradient you can reshape by hand. Adjust the effect with a single slider. Hold the wallpaper to preview it on a sketched home screen, with icons on top, which is the only way to judge whether the black really reads as hardware. Then export a PNG at your screen's exact resolution.\n\nNotch, Dynamic Island and punch hole are all handled. On Android the app asks the system where the hole actually is, so the black stops exactly where it should and nowhere lower.\n\nFree. No ads, no account, no tracking, no subscription. Nothing you import ever leaves your phone.\n\nOne detail that matters: exports are PNG and never JPEG. JPEG produces block artefacts where the black meets the image, and those artefacts are exactly what makes the cutout reappear.",
+      "release": "A complete rewrite. Three effects instead of one, a live preview on a sketched home screen, absolute black under the cutout, and export at your screen's exact resolution."
+    },
+    "fr-FR": {
+      "name": "Hide The Notch",
+      "subtitle": "Faites disparaître le trou",
+      "short": "Des fonds d'écran qui effacent l'encoche, la Dynamic Island ou le poinçon.",
+      "promo": "Comparez l'avant et l'après d'un geste, et prévisualisez le résultat sur un écran d'accueil esquissé avant d'enregistrer.",
+      "keywords": "encoche,dynamic island,poinçon,fond d'écran,caméra,cacher,masquer,oled,noir,dégradé",
+      "description": "Votre téléphone a un trou dans l'écran. Cette application fabrique des fonds d'écran qui le cachent.\n\nSur une dalle OLED, un pixel noir est un pixel éteint: le noir sous le trou est donc optiquement identique à la dalle autour de la caméra. Hide The Notch dessine ce noir pour vous, en noir absolu, et le raccorde à un fond d'écran que vous avez envie de regarder.\n\nTROIS FAÇONS DE FAIRE\n\n- Dégradé: le noir se dissout dans l'image, sans aucune bordure.\n- Bandeau arrondi: un panneau en haut, aux angles qui suivent l'écran.\n- Rayures rétro: le noir se décompose en trame, comme une vieille affiche.\n\nCOMMENT ÇA MARCHE\n\nImportez votre photo, ou générez un dégradé que vous pouvez déformer à la main. Ajustez l'effet avec un seul curseur. Appuyez longuement sur le fond pour le prévisualiser sur un écran d'accueil esquissé, avec des icônes par-dessus, seule façon de juger si le noir passe vraiment pour du matériel. Puis exportez un PNG à la résolution exacte de votre écran.\n\nEncoche, Dynamic Island et poinçon sont tous gérés. Sur Android, l'application demande au système où se trouve réellement le trou, pour que le noir s'arrête exactement où il faut et pas plus bas.\n\nGratuit. Sans publicité, sans compte, sans pistage, sans abonnement. Rien de ce que vous importez ne quitte votre téléphone.\n\nUn détail qui compte: les exports sont en PNG, jamais en JPEG. Le JPEG produit des artefacts de blocs là où le noir rencontre l'image, et ce sont précisément ces artefacts qui font réapparaître le trou.",
+      "release": "Une réécriture complète. Trois effets au lieu d'un, un aperçu sur un écran d'accueil esquissé, du noir absolu sous le trou, et un export à la résolution exacte de votre écran."
+    },
+    "de-DE": {
+      "name": "Hide The Notch",
+      "subtitle": "Die Aussparung verschwindet",
+      "short": "Hintergründe, die Notch, Dynamic Island oder Punch Hole verschwinden lassen.",
+      "promo": "Vergleichen Sie Vorher und Nachher mit einer Geste und sehen Sie das Ergebnis auf einem skizzierten Startbildschirm, bevor Sie speichern.",
+      "keywords": "notch,dynamic island,punch hole,hintergrundbild,kamera,verstecken,aussparung,oled,schwarz,verlauf",
+      "description": "Ihr Telefon hat ein Loch im Bildschirm. Diese App macht Hintergrundbilder, die es verstecken.\n\nAuf einem OLED-Display ist ein schwarzes Pixel ein ausgeschaltetes Pixel: Schwarz unter der Aussparung ist optisch identisch mit dem Panel rundherum. Hide The Notch zeichnet dieses Schwarz für Sie, in absolutem Schwarz, und verbindet es mit einem Hintergrund, den Sie wirklich ansehen wollen.\n\nDREI WEGE\n\n- Verlauf: das Schwarz löst sich im Bild auf, ganz ohne Kante.\n- Abgerundetes Band: eine Fläche oben, mit Ecken, die dem Display folgen.\n- Retro-Streifen: das Schwarz zerfällt in ein Raster, wie ein altes Plakat.\n\nSO GEHT ES\n\nNehmen Sie Ihr eigenes Foto oder erzeugen Sie einen Verlauf, den Sie von Hand formen können. Stellen Sie den Effekt mit einem einzigen Regler ein. Halten Sie das Bild gedrückt, um es auf einem skizzierten Startbildschirm mit Symbolen darüber zu sehen, denn nur so lässt sich beurteilen, ob das Schwarz wirklich als Hardware durchgeht. Exportieren Sie dann ein PNG in der exakten Auflösung Ihres Bildschirms.\n\nNotch, Dynamic Island und Punch Hole werden alle unterstützt. Unter Android fragt die App das System, wo das Loch tatsächlich sitzt, damit das Schwarz genau dort endet, wo es soll.\n\nKostenlos. Keine Werbung, kein Konto, kein Tracking, kein Abo. Nichts, was Sie importieren, verlässt Ihr Telefon.\n\nEin Detail, das zählt: Exporte sind PNG und niemals JPEG. JPEG erzeugt Blockartefakte dort, wo das Schwarz auf das Bild trifft, und genau diese Artefakte lassen die Aussparung wieder erscheinen.",
+      "release": "Eine komplette Neuentwicklung. Drei Effekte statt einem, eine Vorschau auf einem skizzierten Startbildschirm, absolutes Schwarz unter der Aussparung und Export in der exakten Auflösung Ihres Bildschirms."
+    },
+    "es-ES": {
+      "name": "Hide The Notch",
+      "subtitle": "Haz desaparecer el recorte",
+      "short": "Fondos que hacen desaparecer el notch, la Dynamic Island o la perforación.",
+      "promo": "Compara el antes y el después con un gesto, y ve el resultado sobre una pantalla de inicio esbozada antes de guardar.",
+      "keywords": "notch,dynamic island,perforación,fondo de pantalla,cámara,ocultar,recorte,oled,negro,degradado",
+      "description": "Tu teléfono tiene un agujero en la pantalla. Esta app crea fondos que lo esconden.\n\nEn una pantalla OLED un píxel negro es un píxel apagado: el negro bajo el recorte es ópticamente idéntico al panel que lo rodea. Hide The Notch dibuja ese negro por ti, en negro absoluto, y lo une a un fondo que de verdad te apetezca mirar.\n\nTRES MANERAS\n\n- Degradado: el negro se disuelve en la imagen, sin ningún borde.\n- Banda redondeada: un panel arriba, con esquinas que siguen la pantalla.\n- Rayas retro: el negro se descompone en trama, como un cartel antiguo.\n\nCÓMO FUNCIONA\n\nUsa tu propia foto o genera un degradado que puedes deformar a mano. Ajusta el efecto con un solo control. Mantén pulsado el fondo para verlo sobre una pantalla de inicio esbozada, con iconos encima, que es la única forma de juzgar si el negro pasa realmente por hardware. Luego exporta un PNG a la resolución exacta de tu pantalla.\n\nNotch, Dynamic Island y perforación están todos contemplados. En Android la app pregunta al sistema dónde está el agujero de verdad, para que el negro acabe justo donde debe.\n\nGratis. Sin anuncios, sin cuenta, sin rastreo, sin suscripción. Nada de lo que importas sale de tu teléfono.\n\nUn detalle que importa: los archivos se exportan en PNG, nunca en JPEG. El JPEG produce artefactos de bloque donde el negro se encuentra con la imagen, y son precisamente esos artefactos los que hacen reaparecer el recorte.",
+      "release": "Una reescritura completa. Tres efectos en lugar de uno, una vista previa sobre una pantalla de inicio esbozada, negro absoluto bajo el recorte y exportación a la resolución exacta de tu pantalla."
+    },
+    "ja": {
+      "name": "Hide The Notch",
+      "subtitle": "切り欠きを消す壁紙",
+      "short": "ノッチ、Dynamic Island、パンチホールを消す壁紙をつくります。",
+      "promo": "ワンタップで前後を比較し、保存する前にホーム画面の下書きで結果を確認できます。",
+      "keywords": "ノッチ,ダイナミックアイランド,パンチホール,壁紙,背景,カメラ,隠す,切り欠き,有機EL,黒",
+      "description": "スマートフォンの画面には穴があります。このアプリは、それを隠す壁紙をつくります。\n\nOLED では黒い画素は消えた画素です。切り欠きの下の黒は、カメラ周りのパネルと光学的に同じになります。Hide The Notch はその黒を絶対的な黒で描き、あなたが見たいと思える壁紙につなぎます。\n\n三つの方法\n\n- グラデーション: 黒が画像に溶け込み、境目がまったくありません。\n- 角丸バー: 画面の角に沿ったパネルを上部に。\n- レトロストライプ: 黒が網点に分かれ、古いポスターのように。\n\n使いかた\n\n手持ちの写真を読み込むか、手で形を変えられるグラデーションを生成します。効果はスライダー一本で調整。壁紙を長押しすると、アイコンを重ねたホーム画面の下書きで確認できます。黒が本当にハードウェアに見えるかを判断できるのは、この方法だけです。あとは画面の解像度そのままの PNG で書き出します。\n\nノッチ、Dynamic Island、パンチホールのすべてに対応。Android では穴の実際の位置をシステムに問い合わせるので、黒は必要なところでちょうど止まります。\n\n無料。広告なし、アカウントなし、追跡なし、サブスクリプションなし。読み込んだ画像が端末の外に出ることはありません。\n\n大切な点がひとつ。書き出しは PNG で、JPEG は使いません。JPEG は黒と画像の境目にブロックノイズを生み、そのノイズこそが切り欠きを再び見せてしまうからです。",
+      "release": "全面的な作り直しです。効果は一つから三つに、ホーム画面の下書きでの確認、切り欠きの下の絶対的な黒、そして画面の解像度そのままの書き出し。"
+    },
+    "zh-Hans": {
+      "name": "Hide The Notch",
+      "subtitle": "让开孔消失的壁纸",
+      "short": "制作能让刘海、灵动岛或挖孔消失的壁纸。",
+      "promo": "一次点按即可对比前后，保存之前先在主屏草图上看看效果。",
+      "keywords": "刘海,灵动岛,挖孔,壁纸,背景,摄像头,隐藏,开孔,OLED,黑色,渐变",
+      "description": "你的手机屏幕上有一个洞。这个应用制作能把它藏起来的壁纸。\n\n在 OLED 屏幕上，黑色像素就是熄灭的像素，所以开孔下方的黑色在视觉上与周围的面板完全一致。Hide The Notch 用绝对黑色为你画出这片黑，并把它与一张你真正愿意看的壁纸接在一起。\n\n三种做法\n\n- 渐隐：黑色融进画面，完全没有边界。\n- 圆角色块：顶部一块面板，圆角跟随屏幕。\n- 复古条纹：黑色化为网点，像一张旧海报。\n\n怎么用\n\n导入你自己的照片，或者生成一个可以用手改形状的渐变。用一个滑块调整效果。长按壁纸，可以在带图标的主屏草图上预览，这是判断黑色是否真的像硬件的唯一方法。然后导出与屏幕分辨率完全一致的 PNG。\n\n刘海、灵动岛和挖孔都已支持。在 Android 上，应用会向系统询问开孔的真实位置，让黑色恰好停在该停的地方。\n\n免费。无广告、无账号、无追踪、无订阅。你导入的任何内容都不会离开手机。\n\n一个重要的细节：导出一律是 PNG，绝不用 JPEG。JPEG 会在黑色与画面交界处产生块状噪点，而正是这些噪点让开孔重新显形。",
+      "release": "完全重写。效果从一种增加到三种，可在主屏草图上预览，开孔下方为绝对黑色，并按屏幕分辨率精确导出。"
+    }
+  }
+}

@@ -1,13 +1,30 @@
 /**
  * Foundation A, geometry.
  *
- * Everything measurable is measured (window size, density, safe areas). The
- * table below only covers what iOS does not publish: the exact box of the
- * cutout. On Android `DisplayCutout.getBoundingRects()` gives the real
- * rectangles, but reading it needs a native module.
+ * Everything measurable is measured (window size, density, safe areas), and
+ * the cutout now comes from the system on both platforms: Android publishes
+ * the rectangle through `DisplayCutout` (`modules/htn-cutout`), iOS publishes
+ * nothing at all, so there it is the hardware identifier against a table of
+ * iPhones (`models.ts`).
+ *
+ * Below both of those sits the safe area, which is what `inferCutout` reads,
+ * and which is enough on its own to keep a mask safe. See `maskFloor`.
  */
 
 export type CutoutKind = "island" | "notch" | "punch" | "none";
+
+/**
+ * Who answered "where is the hole", which decides how far the answer is
+ * trusted.
+ *
+ * `system` is the device itself, through `DisplayCutout`. It is the only one
+ * that is a measurement, and the only one the black is allowed to stop at.
+ * `models` is the table of iPhones, exact in principle and contradicted in
+ * practice: a Dynamic Island whose box says it ends at 48.3 pt still showed a
+ * pixel or two under a bar of exactly that height. `safeArea` is no answer at
+ * all, and it is what a phone this app has never heard of gets.
+ */
+export type CutoutSource = "system" | "models" | "safeArea";
 
 /** Cutout box, in points, origin at the top left of the screen. */
 export type Cutout = {
@@ -30,8 +47,7 @@ export type Geometry = {
   insetTop: number;
   insetBottom: number;
   cutout: Cutout;
-  /** True when the box is inferred from safe areas rather than known. */
-  estimated: boolean;
+  cutoutFrom: CutoutSource;
 };
 
 /**
@@ -54,36 +70,65 @@ function centered(width: number, c: { w: number; h: number; y: number; r: number
 /**
  * Infers the cutout from what the system is willing to say.
  *
- * On iOS the top inset is a reliable signal: 59 pt means Dynamic Island,
- * 44 to 48 pt means a notch, less means nothing. On Android it is the status
- * bar height, which has nothing to do with the cutout, so we do not guess and
- * hand control back to the user through the device picker.
+ * This is the fallback under both of the exact answers: an iPhone missing from
+ * the model table (a phone newer than that table), and an Android device whose
+ * native module said nothing (Expo Go, or Android 8 and older).
+ *
+ * On iOS the top inset is a good signal: 59 pt means Dynamic Island, 44 to
+ * 48 pt means a notch, less means nothing. On Android it is the larger of the
+ * status bar and the hole with no way to tell which, so there is nothing to
+ * infer and it says so. Either way the mask stays safe, because the mask is
+ * measured from the safe area rather than from this.
  */
 export function inferCutout(
   os: string,
   width: number,
-  insetTop: number
-): { kind: CutoutKind; cutout: Cutout; estimated: boolean } {
+  insetTop: number,
+): { kind: CutoutKind; cutout: Cutout } {
   if (os === "ios") {
     if (insetTop >= 55) {
-      return { kind: "island", cutout: centered(width, ISLAND), estimated: false };
+      return { kind: "island", cutout: centered(width, ISLAND) };
     }
     if (insetTop >= 40) {
       // Assume the wide notch: on full width masks only the height matters,
       // and too wide beats too short.
-      return { kind: "notch", cutout: centered(width, NOTCH_WIDE), estimated: true };
+      return { kind: "notch", cutout: centered(width, NOTCH_WIDE) };
     }
-    return { kind: "none", cutout: { x: width / 2, y: 0, w: 0, h: 0, r: 0 }, estimated: false };
+    return { kind: "none", cutout: { x: width / 2, y: 0, w: 0, h: 0, r: 0 } };
   }
 
+  return { kind: "none", cutout: { x: width / 2, y: 0, w: 0, h: 0, r: 0 } };
+}
+
+/**
+ * Android's own answer, turned into a cutout.
+ *
+ * `DisplayCutout.getBoundingRectTop()` hands back the real rectangle in display
+ * pixels, which is the one thing no inset can say: where across the width the
+ * hole sits. A punch hole two thirds of the way to the left and a centred one
+ * have the same top inset and are different pictures.
+ *
+ * What Android does not hand back is the corner radius or the *name* of the
+ * shape, so both are read off the box. A hole about as tall as it is wide is a
+ * punch hole and its radius is half its height; anything much wider than it is
+ * tall is a notch, and rounding it by its height is what a notch looks like at
+ * the bottom. Getting the name wrong costs a slightly different drawing, never
+ * a mask that misses: the mask only uses the bottom edge.
+ */
+export function cutoutFromRect(
+  rect: { x: number; y: number; w: number; h: number },
+  density: number,
+): { kind: CutoutKind; cutout: Cutout } {
+  const x = rect.x / density;
+  const y = rect.y / density;
+  const w = rect.w / density;
+  const h = rect.h / density;
   return {
-    kind: "none",
-    cutout: { x: width / 2, y: 0, w: 0, h: 0, r: 0 },
-    estimated: true,
+    kind: w >= h * 2.2 ? "notch" : "punch",
+    cutout: { x, y, w, h, r: Math.min(w, h) / 2 },
   };
 }
 
-/** Bottom of the cutout: nothing above this line can be masked. */
 /**
  * Radius of the display's own bottom corners, in points.
  *
@@ -103,81 +148,74 @@ export function screenCorner(g: Geometry): number {
   }
 }
 
+/** Bottom of the cutout: nothing above this line can be masked. */
 export function cutoutBottom(g: Geometry): number {
   return g.kind === "none" ? 0 : g.cutout.y + g.cutout.h;
 }
 
-export type DevicePreset = {
-  id: string;
-  label: string;
-  sub: string;
-  width: number;
-  height: number;
-  scale: number;
-  insetTop: number;
-  insetBottom: number;
-  kind: CutoutKind;
-  cutout: Cutout;
-};
+/**
+ * How much a number that was read rather than measured is worth, in points.
+ *
+ * A table entry is exact in principle and was half a point short the one time
+ * it met a real phone: a Dynamic Island whose box ends at 48.3 pt still showed
+ * a pixel or two under a bar of exactly that height. So the entry sits in the
+ * middle of a band this wide. The default keeps clear of it by that much, and
+ * the user is allowed the same distance under it, which is the room it takes to
+ * watch the edge appear and find out what the number should have been.
+ *
+ * It applies to a table and to nothing else. A hole the device measured is not
+ * in doubt.
+ */
+const DOUBT = 2;
 
-function preset(
-  id: string,
-  label: string,
-  sub: string,
-  width: number,
-  height: number,
-  scale: number,
-  insetTop: number,
-  kind: CutoutKind,
-  c: { w: number; h: number; y: number; r: number },
-  cx?: number
-): DevicePreset {
-  const cutout =
-    cx === undefined
-      ? centered(width, c)
-      : { x: cx - c.w / 2, y: c.y, w: c.w, h: c.h, r: c.r };
-  return {
-    id,
-    label,
-    sub,
-    width,
-    height,
-    scale,
-    insetTop,
-    insetBottom: kind === "none" ? 24 : 34,
-    kind,
-    cutout,
-  };
+/**
+ * The line the black starts from.
+ *
+ * The bottom of the hole, since every mask here is a full width band and where
+ * the hole sits across the width has never changed a single pixel of one. Where
+ * that bottom comes from is the whole question, and `cutoutFrom` answers it:
+ *
+ * - `system`, the device measured its own hole. Taken exactly.
+ * - `models`, a table of iPhones said so. Taken with `DOUBT` points of clearance.
+ * - `safeArea`, nobody knows. The safe area is the fallback, and it is the only
+ *   line that cannot be wrong: a cutout is inside it by construction. Apple
+ *   defines it to clear the sensor housing, which is why an island ends 10.7 pt
+ *   above it and a notch 14 to 17, and Android's top inset is asked for as
+ *   `statusBars | displayCutout | navigationBars`, so it is the larger of the
+ *   status bar and the hole, never the smaller.
+ *
+ * It is a fallback and not the rule, which it briefly was. Being generous by
+ * 10.7 pt on every island iPhone, and by the whole height of a status bar on
+ * Android, is a band nobody asked for on the two platforms that can say better.
+ */
+export function maskFloor(g: Geometry): number {
+  if (g.kind === "none" || g.cutoutFrom === "safeArea") {
+    return Math.max(g.insetTop, 1);
+  }
+  return Math.max(cutoutBottom(g) + (g.cutoutFrom === "models" ? DOUBT : 0), 1);
 }
 
 /**
- * Export targets. Two uses: forcing a render when detection is unreliable
- * (Android), and making a wallpaper for someone else's phone.
+ * The lowest the user may take a mask, which is not always the floor.
+ *
+ * Nothing here is a dare. It is the only way to find out where a hole really
+ * ends, since no screenshot will ever contain one: you lower the black until
+ * the edge appears, and the height at which it appears is the answer. On a
+ * phone this app has never heard of it is also the only way to get a mask that
+ * is not needlessly tall, hence the user's own rule of thumb, four fifths of
+ * the safe area.
+ *
+ * A device that measured its own hole gets none of this. There is nothing to
+ * second guess and no reason to offer a setting whose only effect would be to
+ * uncover the camera.
  */
-export const DEVICE_PRESETS: DevicePreset[] = [
-  preset("island-393", "Dynamic Island", "393 x 852, 14 Pro, 15, 16", 393, 852, 3, 59, "island", ISLAND),
-  preset("island-402", "Dynamic Island", "402 x 874, 16 Pro, 17", 402, 874, 3, 59, "island", ISLAND),
-  preset("island-430", "Dynamic Island", "430 x 932, 14/15 Pro Max", 430, 932, 3, 59, "island", ISLAND),
-  preset("island-440", "Dynamic Island", "440 x 956, 16/17 Pro Max", 440, 956, 3, 59, "island", ISLAND),
-  preset("notch-390", "Notch", "390 x 844, 12, 13, 14", 390, 844, 3, 47, "notch", NOTCH_WIDE),
-  preset("notch-375", "Notch", "375 x 812, X, XS, 13 mini", 375, 812, 3, 44, "notch", NOTCH_WIDE),
-  preset("notch-428", "Notch", "428 x 926, 12/13 Pro Max", 428, 926, 3, 47, "notch", NOTCH_WIDE),
-  preset("punch-c", "Centred punch hole", "412 x 915, Android", 412, 915, 2.625, 32, "punch",
-    { w: 26, h: 26, y: 14, r: 13 }),
-  preset("punch-l", "Left punch hole", "412 x 915, Android", 412, 915, 2.625, 32, "punch",
-    { w: 26, h: 26, y: 14, r: 13 }, 412 * 0.28),
-];
-
-export function geometryFromPreset(p: DevicePreset): Geometry {
-  return {
-    label: `${p.label}, ${p.sub}`,
-    kind: p.kind,
-    width: p.width,
-    height: p.height,
-    scale: p.scale,
-    insetTop: p.insetTop,
-    insetBottom: p.insetBottom,
-    cutout: p.cutout,
-    estimated: false,
-  };
+export function maskLimit(g: Geometry): number {
+  switch (g.cutoutFrom) {
+    case "system":
+      return maskFloor(g);
+    case "models":
+      return Math.max(cutoutBottom(g) - DOUBT, 1);
+    case "safeArea":
+      return Math.max(g.insetTop * 0.8, 1);
+  }
 }

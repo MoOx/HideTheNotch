@@ -16,14 +16,18 @@ const APP = path.join(__dirname, "..");
 const HARNESS = path.join(APP, ".harness");
 
 const CanvasKitInit = require(path.join(APP, "node_modules/canvaskit-wasm/bin/canvaskit.js"));
-const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-skia/lib/commonjs/skia/web"));
+const { JsiSkApi } = require(
+  path.join(APP, "node_modules/@shopify/react-native-skia/lib/commonjs/skia/web"),
+);
 
 (async () => {
   const CanvasKit = await CanvasKitInit({
     locateFile: (f) => path.join(APP, "node_modules/canvaskit-wasm/bin", f),
   });
   const Skia = JsiSkApi(CanvasKit);
-  const types = require(path.join(APP, "node_modules/@shopify/react-native-skia/lib/commonjs/skia/types"));
+  const types = require(
+    path.join(APP, "node_modules/@shopify/react-native-skia/lib/commonjs/skia/types"),
+  );
   const realLoad = Module._load;
   Module._load = function (request) {
     if (request === "@shopify/react-native-skia") return { ...types, Skia };
@@ -31,23 +35,83 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
   };
   global.__DEV__ = false;
 
-  const {
-    drawRecipe, barRadius, stripeBands, stripeHead, fadeSolidEnd,
-  } = require(path.join(HARNESS, "render/draw.js"));
+  const { drawRecipe, barRadius, barMinHeight, stripeBands, stripeHead, fadeSolidEnd } = require(
+    path.join(HARNESS, "render/draw.js"),
+  );
   const { defaultMask } = require(path.join(HARNESS, "recipe/defaults.js"));
-  const { ISLAND, NOTCH_WIDE } = require(path.join(HARNESS, "geometry/devices.js"));
+  const { ISLAND, NOTCH_WIDE, NOTCH_NARROW, cutoutFromRect, cutoutBottom, maskFloor } = require(
+    path.join(HARNESS, "geometry/devices.js"),
+  );
+  const { cutoutForModel } = require(path.join(HARNESS, "geometry/models.js"));
   const { presetSource } = require(path.join(HARNESS, "render/palettes.js"));
 
   const devices = {
     "Dynamic Island": {
-      kind: "island", width: 393, height: 852, scale: 3, insetTop: 59, insetBottom: 34,
-      label: "", estimated: false,
+      kind: "island",
+      width: 393,
+      height: 852,
+      scale: 3,
+      insetTop: 59,
+      insetBottom: 34,
+      label: "",
+      cutoutFrom: "models",
       cutout: { x: (393 - ISLAND.w) / 2, y: ISLAND.y, w: ISLAND.w, h: ISLAND.h, r: ISLAND.r },
     },
     Notch: {
-      kind: "notch", width: 390, height: 844, scale: 3, insetTop: 47, insetBottom: 34,
-      label: "", estimated: false,
-      cutout: { x: (390 - NOTCH_WIDE.w) / 2, y: 0, w: NOTCH_WIDE.w, h: NOTCH_WIDE.h, r: NOTCH_WIDE.r },
+      kind: "notch",
+      width: 390,
+      height: 844,
+      scale: 3,
+      insetTop: 47,
+      insetBottom: 34,
+      label: "",
+      cutoutFrom: "models",
+      cutout: {
+        x: (390 - NOTCH_WIDE.w) / 2,
+        y: 0,
+        w: NOTCH_WIDE.w,
+        h: NOTCH_WIDE.h,
+        r: NOTCH_WIDE.r,
+      },
+    },
+    /**
+     * A Pixel sized punch hole, off centre, exactly as Android hands it over:
+     * a rectangle in display pixels, run through the same conversion the app
+     * uses. It is the one shape in this list that is not in the middle of the
+     * screen, which is the whole reason the native module exists.
+     */
+    "Android, punch hole": {
+      width: 412,
+      height: 915,
+      scale: 2.625,
+      // The status bar is taller than the hole, which is the whole point of
+      // asking the device rather than the safe area: 47 pt of inset around a
+      // hole that ends at 46.5, and on a phone whose bar is 24 pt taller than
+      // its hole the difference is a black band nobody asked for.
+      insetTop: 47,
+      insetBottom: 24,
+      label: "",
+      cutoutFrom: "system",
+      ...cutoutFromRect({ x: 105, y: 34, w: 88, h: 88 }, 2.625),
+    },
+    /**
+     * A phone the app has been told nothing about.
+     *
+     * Android reports no cutout before Android 9, and none at all in Expo Go,
+     * so this is what an unrecognised device looks like from in here: an inset
+     * and no hole. It is in this list because it is the case that used to fail
+     * silently, drawing a one point band on a phone with a hole in it.
+     */
+    "Android, unknown": {
+      kind: "none",
+      width: 412,
+      height: 915,
+      scale: 2.625,
+      insetTop: 32,
+      insetBottom: 24,
+      label: "",
+      cutoutFrom: "safeArea",
+      cutout: { x: 206, y: 0, w: 0, h: 0, r: 0 },
     },
   };
 
@@ -85,7 +149,9 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
     if (y1 * g.scale <= hPx - 1) {
       return true;
     }
-    console.log(`  FAIL ${what} needs ${y1.toFixed(0)} pt but only ${hPx / g.scale} pt was rendered`);
+    console.log(
+      `  FAIL ${what} needs ${y1.toFixed(0)} pt but only ${hPx / g.scale} pt was rendered`,
+    );
     failures += 1;
     return false;
   }
@@ -130,12 +196,14 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
     canvas.scale(g.scale, g.scale);
     drawRecipe(canvas, {
       recipe: { source: presetSource(palette), mask },
-      geometry: g, image: null,
+      geometry: g,
+      image: null,
     });
     surface.flush();
     const img = surface.makeImageSnapshot();
     const px = img.readPixels(0, 0, {
-      width: wPx, height: hPx,
+      width: wPx,
+      height: hPx,
       colorType: types.ColorType.RGBA_8888,
       alphaType: types.AlphaType.Unpremul,
     });
@@ -167,21 +235,164 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
 
       reach(hPx, g, c.y + c.h + HALO, `${devName} ${family} halo`);
       const core = scan(px, wPx, hPx, g, inRRect(c, -2), {
-        x0: c.x + 2, y0: c.y + 2, x1: c.x + c.w - 2, y1: c.y + c.h - 2,
+        x0: c.x + 2,
+        y0: c.y + 2,
+        x1: c.x + c.w - 2,
+        y1: c.y + c.h - 2,
       });
       const halo = scan(px, wPx, hPx, g, inRRect(c, HALO), {
         // Stopping a point short of the cutout's bottom keeps the bar at its
         // minimum out of it: that edge lands exactly there, and its own
         // antialiased row is not a hole showing through.
-        x0: c.x - HALO, y0: 0, x1: c.x + c.w + HALO, y1: c.y + c.h - 1,
+        x0: c.x - HALO,
+        y0: 0,
+        x1: c.x + c.w + HALO,
+        y1: c.y + c.h - 1,
       });
 
       const ok = core.worst === 0 && halo.worst === 0;
       if (!ok) failures += 1;
       console.log(
-        `  ${ok ? "ok  " : "FAIL"} ${devName.padEnd(15)} ${family.padEnd(8)} ` +
+        `  ${ok ? "ok  " : "FAIL"} ${devName.padEnd(19)} ${family.padEnd(8)} ` +
           `cutout max ${core.worst}, +${HALO} pt halo max ${halo.worst}` +
-          `${halo.bad ? `  (${halo.bad} non black pixels in the halo)` : ""}`
+          `${halo.bad ? `  (${halo.bad} non black pixels in the halo)` : ""}`,
+      );
+    }
+  }
+
+  // -- 1b. Every family reaches the floor ------------------------------------
+  //
+  // The masks are full width bands, so the only thing about a cutout that has
+  // ever mattered is how far down it reaches. `maskFloor` is that line, and
+  // where it comes from depends on who answered: the hole itself where the
+  // device measured it, the hole plus a margin of doubt where a table said so,
+  // the safe area where nobody knows.
+  //
+  // Each family at its own thinnest *default*, since a family reaching the
+  // floor is what makes the floor mean anything. The bar's slider goes lower
+  // than this on purpose, and that is checked separately below.
+  console.log("\n-- The floor, at every family's default (absolute black expected) --");
+  for (const [devName, g] of Object.entries(devices)) {
+    const floor = maskFloor(g);
+    const minimums = {
+      bar: { type: "bar", height: floor, corner: 0.35 },
+      stripes: { type: "stripes", density: 1 },
+      fade: { type: "fade", fadeEnd: fadeSolidEnd(g) + 40, curve: 2 },
+    };
+    for (const [family, mask] of Object.entries(minimums)) {
+      const { px, wPx, hPx } = render(g, mask, "ember", TOP);
+      reach(hPx, g, floor, `${devName} ${family} floor`);
+      // A pixel short on both edges. The bottom row is the mask's own
+      // antialiased edge, and the right hand column is the screen's: 412 points
+      // at 2.625 is 1081.5 pixels, so the last column of an Android surface is
+      // half a pixel of paint whatever is drawn. Asking a boundary to be
+      // absolute is asking the wrong thing.
+      const band = scan(px, wPx, hPx, g, () => true, {
+        x0: 0,
+        y0: 0,
+        x1: g.width - 1 / g.scale,
+        y1: floor - 1 / g.scale,
+      });
+      const ok = band.worst === 0;
+      if (!ok) failures += 1;
+      console.log(
+        `  ${ok ? "ok  " : "FAIL"} ${devName.padEnd(19)} ${family.padEnd(8)} ` +
+          `${floor.toFixed(1)} pt band, max ${band.worst}` +
+          `${band.bad ? `  (${band.bad} non black pixels)` : ""}`,
+      );
+    }
+  }
+
+  // -- 1b bis. How far under the floor the slider is allowed ------------------
+  //
+  // The bar goes below the floor, which reads like a hole in the product until
+  // you ask how a hole gets measured: no screenshot ever contains one, so the
+  // only instrument is the black itself, lowered until the edge appears. The
+  // height it appears at is the answer, and without that travel there is no way
+  // to correct a table or to stop being needlessly tall on a phone nobody here
+  // has heard of.
+  //
+  // What is checked is that the travel is bounded and that it is not offered
+  // where it would be pure loss: a device that measured its own hole has
+  // nothing to second guess, so its limit is its floor, exactly.
+  console.log("\n-- How far under the floor the bar may go --");
+  for (const [devName, g] of Object.entries(devices)) {
+    const floor = maskFloor(g);
+    const limit = barMinHeight(g);
+    const under = floor - limit;
+    const ok =
+      g.cutoutFrom === "system"
+        ? under === 0
+        : under > 0 && under <= Math.max(4, g.insetTop * 0.2 + 0.001);
+    if (!ok) failures += 1;
+    console.log(
+      `  ${ok ? "ok  " : "FAIL"} ${devName.padEnd(19)} floor ${floor.toFixed(1)} pt, ` +
+        `slider stops at ${limit.toFixed(1)}, ${under.toFixed(1)} pt under  (${g.cutoutFrom})`,
+    );
+  }
+
+  // -- 1c. The two exact answers, where they exist ---------------------------
+  //
+  // The safe area keeps a mask safe, and that is all it does. What shape the
+  // hole is, and where across the width it sits, is what the preview draws, and
+  // both platforms answer that differently: Android hands over a rectangle in
+  // pixels, iOS hands over nothing and gets read off a table of iPhones.
+  //
+  // Neither can make a mask leak, since the mask is measured from the safe
+  // area. Both can draw the wrong phone, which is the thing to check.
+  console.log("\n-- Where the system says the hole is --");
+  {
+    /** Real boxes, in display pixels, as `DisplayCutout` reports them. */
+    const rects = [
+      ["centred punch hole", { x: 497, y: 34, w: 88, h: 88 }, 2.625, "punch"],
+      ["off centre punch hole", { x: 105, y: 34, w: 88, h: 88 }, 2.625, "punch"],
+      ["wide notch", { x: 300, y: 0, w: 480, h: 80 }, 2.75, "notch"],
+    ];
+    for (const [what, rect, density, expected] of rects) {
+      const { kind, cutout } = cutoutFromRect(rect, density);
+      // Points, not pixels: everything downstream lays out in points, and a
+      // hole measured in the wrong unit is a hole two and a half times too big.
+      const ok = kind === expected && Math.abs(cutout.w - rect.w / density) < 0.01;
+      if (!ok) failures += 1;
+      console.log(
+        `  ${ok ? "ok  " : "FAIL"} ${what.padEnd(21)} ${kind.padEnd(6)} ` +
+          `${cutout.w.toFixed(1)} x ${cutout.h.toFixed(1)} pt at x = ${cutout.x.toFixed(1)}`,
+      );
+    }
+
+    /** One iPhone per shape, plus the one that must not be found. */
+    const models = [
+      ["iPhone13,2", "notch", NOTCH_WIDE.w, "12"],
+      ["iPhone14,5", "notch", NOTCH_NARROW.w, "13"],
+      ["iPhone17,5", "notch", NOTCH_NARROW.w, "16e"],
+      ["iPhone15,2", "island", ISLAND.w, "14 Pro"],
+      ["iPhone99,1", null, 0, "a phone from the future"],
+    ];
+    for (const [id, kind, width, what] of models) {
+      const got = cutoutForModel(id, 393);
+      const ok = kind === null ? got === null : got?.kind === kind && got.cutout.w === width;
+      if (!ok) failures += 1;
+      console.log(
+        `  ${ok ? "ok  " : "FAIL"} ${id.padEnd(21)} ` +
+          (got ? `${got.kind}, ${got.cutout.w} pt wide` : "not in the table, safe area it is") +
+          `  (${what})`,
+      );
+    }
+
+    // Two rules at once. The floor always covers the hole. And it only stops
+    // short of the safe area when there is a hole to stop at: a device that
+    // knows nothing gets the safe area and no shortcuts, since the safe area
+    // is then the only line that cannot be wrong.
+    for (const [devName, g] of Object.entries(devices)) {
+      const floor = maskFloor(g);
+      const covers = floor >= cutoutBottom(g);
+      const grounded = floor >= g.insetTop || g.cutoutFrom !== "safeArea";
+      const ok = covers && grounded;
+      if (!ok) failures += 1;
+      console.log(
+        `  ${ok ? "ok  " : "FAIL"} ${devName.padEnd(21)} black reaches ${floor.toFixed(1)} pt, ` +
+          `hole ends at ${cutoutBottom(g).toFixed(1)}, safe area at ${g.insetTop}` +
+          `  (${g.cutoutFrom})`,
       );
     }
   }
@@ -202,7 +413,22 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
       return px[i] === 0 && px[i + 1] === 0 && px[i + 2] === 0;
     };
     const r = barRadius(mask.corner, g);
-    reach(hPx, g, mask.height + r * 0.3, `${devName} bar corner`);
+    reach(hPx, g, mask.height + Math.max(r * 0.3, 2), `${devName} bar corner`);
+
+    // A device whose cutout is unknown gets no fillet at all: there is no
+    // shape to join, so the bar is a plain band and a curve there would be a
+    // decoration pretending to be a phone. That is a different assertion, not
+    // a weaker one: the band still has to stop where it says it stops.
+    if (r === 0) {
+      const ok = isBlack(1, mask.height - 2) && !isBlack(1, mask.height + 2);
+      if (!ok) failures += 1;
+      console.log(
+        `  ${ok ? "ok  " : "FAIL"} ${devName.padEnd(19)} square bar (no known cutout)  ` +
+          `black above the bar line, wallpaper below`,
+      );
+      continue;
+    }
+
     // Far enough below the bar line to be well inside the fillet at x = 1, and
     // far enough above its foot to still be outside it in the middle.
     const below = mask.height + r * 0.3;
@@ -212,12 +438,12 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
     const middleBelow = isBlack(g.width / 2, below);
     const edgeAbove = isBlack(1, above) && isBlack(g.width - 1, above);
 
-    const ok = r > 0 && edgeBelow && !middleBelow && edgeAbove;
+    const ok = edgeBelow && !middleBelow && edgeAbove;
     if (!ok) failures += 1;
     console.log(
-      `  ${ok ? "ok  " : "FAIL"} ${devName.padEnd(15)} radius = ${r.toFixed(2)} pt  ` +
+      `  ${ok ? "ok  " : "FAIL"} ${devName.padEnd(19)} radius = ${r.toFixed(2)} pt  ` +
         `edge below the bar line ${edgeBelow ? "black" : "NOT black"}, ` +
-        `middle ${middleBelow ? "BLACK" : "not black"}`
+        `middle ${middleBelow ? "BLACK" : "not black"}`,
     );
   }
 
@@ -244,14 +470,13 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
       const run = bands[bands.length - 1].y + bands[bands.length - 1].h - head;
       const cover = bands.reduce((a, b) => a + b.h, 0) / run;
 
-      const ok =
-        bands.length >= 6 && firstGap >= 4 && thinnest >= 1 && monotonic && cover < 0.7;
+      const ok = bands.length >= 6 && firstGap >= 4 && thinnest >= 1 && monotonic && cover < 0.7;
       if (!ok) failures += 1;
       console.log(
-        `  ${ok ? "ok  " : "FAIL"} ${devName.padEnd(15)} density ${density.toFixed(1)}  ` +
+        `  ${ok ? "ok  " : "FAIL"} ${devName.padEnd(19)} density ${density.toFixed(1)}  ` +
           `${String(bands.length).padStart(2)} bands, first slit ${firstGap.toFixed(1)} pt, ` +
           `thinnest ${thinnest.toFixed(1)} pt, ${monotonic ? "dissolving" : "NOT dissolving"}, ` +
-          `${(cover * 100).toFixed(0)} % black`
+          `${(cover * 100).toFixed(0)} % black`,
       );
     }
   }
@@ -286,7 +511,9 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
     }
   }
   const activity = (100 * differing) / pairs;
-  console.log(`  noise active on ${activity.toFixed(1)} % of horizontal pairs (0 % = no dithering)`);
+  console.log(
+    `  noise active on ${activity.toFixed(1)} % of horizontal pairs (0 % = no dithering)`,
+  );
   if (activity < 15) {
     console.log("  FAIL dithering missing or too weak");
     failures += 1;
@@ -316,6 +543,22 @@ const { JsiSkApi } = require(path.join(APP, "node_modules/@shopify/react-native-
     failures += 1;
   } else {
     console.log("  ok   no significant step");
+  }
+
+  // -- The demo script -------------------------------------------------------
+  //
+  // Not a pixel, but the same kind of property: `deliver` skips an App Preview
+  // outside Apple's 15 to 30 second window with a warning and still reports
+  // success, so a script edited past the edge would be found out at the store
+  // rather than here.
+  console.log("\n-- Demo script --");
+  const { DEMO, DEMO_MS } = require(path.join(HARNESS, "demo/script.js"));
+  console.log(`  ${DEMO.length} steps, ${(DEMO_MS / 1000).toFixed(1)} s`);
+  if (DEMO_MS < 15000 || DEMO_MS > 30000) {
+    console.log("  FAIL outside Apple's 15 to 30 s App Preview window");
+    failures += 1;
+  } else {
+    console.log("  ok   inside the App Preview window");
   }
 
   console.log(failures === 0 ? "\nAll green.\n" : `\n${failures} failure(s).\n`);

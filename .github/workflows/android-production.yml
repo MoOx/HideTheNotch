@@ -1,0 +1,104 @@
+name: Android to production
+
+# Promotes the highest version code on the internal track to production.
+# Nothing is rebuilt: Play moves the artefact that was already tested, so this
+# workflow exists to let a release happen from a phone.
+#
+# A copy of templates/github-workflows/android-production.yml in
+# MoOx/certificates, with this app's identifiers filled in. Fix it there rather
+# than here.
+#
+# Repository secrets required: CERTIFICATES_DEPLOY_KEY, SECRETS_PASSPHRASE.
+
+on:
+  workflow_dispatch:
+    inputs:
+      rollout:
+        description: "Fraction of users, e.g. 0.1. Empty releases to everyone."
+        type: string
+        required: false
+
+concurrency:
+  group: android-production
+  cancel-in-progress: false
+
+jobs:
+  production:
+    # No gradle, no Java: this lane only talks to the Play Developer API.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Going to production is a good candidate for a protected environment.
+    # Create one in Settings > Environments with a required reviewer, then:
+    # environment: production
+    env:
+      APP_IDENTIFIER: io.moox.HideTheNotch
+      ANDROID_PACKAGE_NAME: io.moox.hidethenotch
+      CERTS_REPO_URL: git@github.com:MoOx/certificates.git
+      SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
+      FASTLANE_SKIP_UPDATE_CHECK: "1"
+      APP_VERSION_COMMAND: node -p "require('./app.json').expo.version"
+      # Source map upload only. Optional.
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      # From the form above.
+      PLAY_ROLLOUT: ${{ inputs.rollout }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # Only when the run was started from a tag, which is the normal case.
+      - name: The tag is the version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          tagged="${GITHUB_REF_NAME#v}"
+          declared=$(eval "$APP_VERSION_COMMAND")
+          if [ "$tagged" != "$declared" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match the declared version $declared."
+            echo "Move the tag, or bump the version, but do not ship them apart."
+            exit 1
+          fi
+          echo "$GITHUB_REF_NAME matches the declared version."
+
+      # The one thing the Fastfile cannot check for itself: this key is consumed
+      # by the ssh-agent below, never passed to the lane. Everything else is
+      # declared in .env.example and checked when the lane starts.
+      - name: Check the deploy key is present
+        run: |
+          if [ -z "${{ secrets.CERTIFICATES_DEPLOY_KEY }}" ]; then
+            echo "CERTIFICATES_DEPLOY_KEY is not set."
+            echo "See docs/03-sharing-access.md in MoOx/certificates."
+            exit 1
+          fi
+          echo "Deploy key present."
+
+      - name: Access the certificates repository
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.CERTIFICATES_DEPLOY_KEY }}
+
+      # Kept even though nothing is bundled: an app that generates its store
+      # listing from a script needs its dependencies here.
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci
+
+      # No ruby-version here: the action reads .ruby-version on its own, which
+      # is also what rbenv and friends read locally.
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Promote to production
+        run: bundle exec fastlane android release
+
+      - name: Keep the logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fastlane-logs-production
+          path: fastlane/report.xml
+          if-no-files-found: ignore
+          retention-days: 7

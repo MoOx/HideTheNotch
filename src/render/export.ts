@@ -3,6 +3,7 @@ import { File, Paths } from "expo-file-system";
 import * as MediaLibrary from "expo-media-library";
 
 import { drawRecipe, type DrawContext } from "./draw";
+import { report } from "../report";
 
 export type ExportResult = {
   uri: string;
@@ -53,6 +54,26 @@ export function renderToFile(ctx: DrawContext): ExportResult {
   return { uri: file.uri, widthPx: wPx, heightPx: hPx, bytes: bytes.byteLength };
 }
 
+/**
+ * What was being drawn when it went wrong, in five anonymous fields.
+ *
+ * There are no interaction breadcrumbs in this build (they come with tracing,
+ * which is off), so a report arrives with no trail behind it. These are what
+ * a trail would have been for: the recipe and the surface size are the whole
+ * input to the failure, and none of it says anything about anybody.
+ */
+export function describeContext(ctx: DrawContext) {
+  return {
+    family: ctx.recipe.mask.type,
+    source: ctx.recipe.source.type,
+    surface: `${Math.round(ctx.geometry.width * ctx.geometry.scale)} x ${Math.round(
+      ctx.geometry.height * ctx.geometry.scale,
+    )}`,
+    cutout: ctx.geometry.kind,
+    photoDecoded: ctx.image !== null,
+  };
+}
+
 export type SaveOutcome =
   | { ok: true; result: ExportResult }
   | { ok: false; reason: "permission" | "error"; message?: string };
@@ -69,6 +90,9 @@ export async function saveToPhotos(ctx: DrawContext): Promise<SaveOutcome> {
     await MediaLibrary.Asset.create(result.uri);
     return { ok: true, result };
   } catch (e) {
+    // Worth reporting, and the permission refusal above is not: one is the app
+    // failing to do its job, the other is somebody saying no.
+    report("export.save", e, describeContext(ctx));
     return { ok: false, reason: "error", message: e instanceof Error ? e.message : String(e) };
   }
 }

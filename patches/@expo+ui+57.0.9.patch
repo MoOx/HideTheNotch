@@ -1,0 +1,126 @@
+diff --git a/node_modules/@expo/ui/build/universal/BottomSheet/types.d.ts b/node_modules/@expo/ui/build/universal/BottomSheet/types.d.ts
+index 8b0dcdf..8c78c15 100644
+--- a/node_modules/@expo/ui/build/universal/BottomSheet/types.d.ts
++++ b/node_modules/@expo/ui/build/universal/BottomSheet/types.d.ts
+@@ -56,5 +56,12 @@ export interface BottomSheetProps {
+      * from `@expo/ui/swift-ui/modifiers` or `@expo/ui/jetpack-compose/modifiers`.
+      */
+     modifiers?: ModifierConfig[];
++    /**
++     * Modifiers for the container the children are laid out in, on both
++     * platforms. A modifier here replaces the one the component derives of the
++     * same type, so the default content padding can be changed rather than
++     * only added to.
++     */
++    contentModifiers?: ModifierConfig[];
+ }
+ //# sourceMappingURL=types.d.ts.map
+\ No newline at end of file
+diff --git a/node_modules/@expo/ui/src/universal/BottomSheet/index.android.tsx b/node_modules/@expo/ui/src/universal/BottomSheet/index.android.tsx
+index bcf5e6e..a3bcf11 100644
+--- a/node_modules/@expo/ui/src/universal/BottomSheet/index.android.tsx
++++ b/node_modules/@expo/ui/src/universal/BottomSheet/index.android.tsx
+@@ -8,6 +8,7 @@ import {
+ import { useEffect, useRef, useState } from 'react';
+ 
+ import type { BottomSheetProps, SnapPoint } from './types';
++import { omitUserOverridden } from '../modifierUtils';
+ 
+ // M3 `ModalBottomSheet` only has partial/expanded states.
+ // Only allow the partial state when the consumer requested a partial-friendly snap point.
+@@ -38,6 +39,7 @@ export function BottomSheet({
+   snapPoints,
+   testID,
+   modifiers,
++  contentModifiers,
+ }: BottomSheetProps) {
+   const sheetRef = useRef<ModalBottomSheetRef>(null);
+   const [mount, setMount] = useState(isPresented);
+@@ -60,9 +62,13 @@ export function BottomSheet({
+     return null;
+   }
+ 
+-  const contentModifiers: ModifierConfig[] = [padding(16, showDragIndicator ? 0 : 16, 16, 0)];
+-  if (shouldFillMaxHeight(snapPoints)) contentModifiers.push(fillMaxHeight());
+-  if (testID) contentModifiers.push(testIDModifier(testID));
++  const content: ModifierConfig[] = omitUserOverridden(
++    [padding(16, showDragIndicator ? 0 : 16, 16, 0)],
++    contentModifiers
++  );
++  if (shouldFillMaxHeight(snapPoints)) content.push(fillMaxHeight());
++  if (testID) content.push(testIDModifier(testID));
++  if (contentModifiers?.length) content.push(...contentModifiers);
+ 
+   return (
+     <Host style={{ position: 'absolute' }} pointerEvents="none">
+@@ -73,7 +79,7 @@ export function BottomSheet({
+         skipPartiallyExpanded={shouldSkipPartiallyExpanded(snapPoints)}
+         modifiers={modifiers}>
+         {/* When the drag handle is hidden, add top padding so content doesn't crop against the top edge of the sheet. */}
+-        <Column modifiers={contentModifiers}>{children}</Column>
++        <Column modifiers={content}>{children}</Column>
+       </ModalBottomSheet>
+     </Host>
+   );
+diff --git a/node_modules/@expo/ui/src/universal/BottomSheet/index.ios.tsx b/node_modules/@expo/ui/src/universal/BottomSheet/index.ios.tsx
+index e237c14..de39516 100644
+--- a/node_modules/@expo/ui/src/universal/BottomSheet/index.ios.tsx
++++ b/node_modules/@expo/ui/src/universal/BottomSheet/index.ios.tsx
+@@ -9,6 +9,7 @@ import {
+ } from '@expo/ui/swift-ui/modifiers';
+ 
+ import type { BottomSheetProps, SnapPoint } from './types';
++import { omitUserOverridden } from '../modifierUtils';
+ 
+ function snapPointToDetent(snapPoint: SnapPoint): PresentationDetent {
+   if (snapPoint === 'half') return 'medium';
+@@ -24,12 +25,19 @@ export function BottomSheet({
+   snapPoints,
+   testID,
+   modifiers,
++  contentModifiers,
+ }: BottomSheetProps) {
+-  const presentationModifiers: ModifierConfig[] = [
+-    frame({ maxWidth: Infinity, alignment: 'topLeading' }),
+-    padding({ top: 16, leading: 16, trailing: 16 }),
+-    presentationDragIndicator(showDragIndicator ? 'visible' : 'hidden'),
+-  ];
++  const presentationModifiers: ModifierConfig[] = omitUserOverridden(
++    [
++      frame({ maxWidth: Infinity, alignment: 'topLeading' }),
++      padding({ top: 16, leading: 16, trailing: 16 }),
++    ],
++    contentModifiers
++  );
++  presentationModifiers.push(presentationDragIndicator(showDragIndicator ? 'visible' : 'hidden'));
++  if (contentModifiers?.length) {
++    presentationModifiers.push(...contentModifiers);
++  }
+   if (snapPoints && snapPoints.length > 0) {
+     presentationModifiers.push(presentationDetents(snapPoints.map(snapPointToDetent)));
+   }
+diff --git a/node_modules/@expo/ui/src/universal/BottomSheet/types.ts b/node_modules/@expo/ui/src/universal/BottomSheet/types.ts
+index 3386773..fd8d49c 100644
+--- a/node_modules/@expo/ui/src/universal/BottomSheet/types.ts
++++ b/node_modules/@expo/ui/src/universal/BottomSheet/types.ts
+@@ -58,6 +58,20 @@ export interface BottomSheetProps {
+   /**
+    * Platform-specific modifier escape hatch. Pass an array of modifier configs
+    * from `@expo/ui/swift-ui/modifiers` or `@expo/ui/jetpack-compose/modifiers`.
++   *
++   * On iOS these are applied to the sheet's content, after the presentation
++   * modifiers; on Android they are applied to the `ModalBottomSheet` itself.
++   * Use `contentModifiers` to reach the content container on both platforms.
+    */
+   modifiers?: ModifierConfig[];
++
++  /**
++   * Modifiers for the container the children are laid out in, on both
++   * platforms. A modifier here replaces the one the component derives of the
++   * same type, so the default content padding can be changed rather than only
++   * added to.
++   *
++   * @example `[padding(8, 0, 8, 0)]` — halve the Android content inset
++   */
++  contentModifiers?: ModifierConfig[];
+ }

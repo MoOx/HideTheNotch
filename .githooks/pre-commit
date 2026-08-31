@@ -1,0 +1,61 @@
+#!/usr/bin/env sh
+#
+# Format what is about to be committed, and refuse what will not lint.
+#
+# Shared through the repository rather than through a tool: `npm run prepare`
+# points git at this directory, which is one line in package.json and no
+# dependency. Nothing here is optional, so nothing here asks.
+set -e
+
+# Everything goes through `npm run`, so that a commit checks what CI checks by
+# construction rather than by both being kept in step: `format` and `lint` are
+# defined once, in package.json, and changing an option or an entire tool there
+# reaches this file for free.
+#
+# It is not the fastest way. Measured here, on this project:
+#
+#   npx --no-install oxlint      500 ms
+#   npm run --silent lint        160 ms
+#   ./node_modules/.bin/oxlint    50 ms
+#
+# End to end, on a commit that stages one file, this hook takes 430 ms where the
+# binaries called directly would take about 120. That is worth one definition
+# instead of two. `npx` is the one option with nothing to recommend it, being
+# both the slowest and no more robust than the others.
+#
+# `--silent` matters: without it npm prints a banner before the output and a
+# lifecycle error after it, and the one line the linter wrote is what somebody
+# needs to read.
+#
+# None of the three saves us from `node` being missing, and it is missing more
+# often than it sounds: fnm and nvm put it under a directory only an interactive
+# shell knows about, so a commit from an editor can land in a PATH that has git
+# and not node. Failing there says `env: node: No such file or directory`, which
+# explains nothing, so it is worth two lines to say it properly.
+if ! command -v npm >/dev/null 2>&1; then
+  echo "pre-commit: no npm on PATH ($PATH)." >&2
+  echo "  Committing from an editor? It does not read your shell profile," >&2
+  echo "  so a version manager's node is invisible to it." >&2
+  exit 1
+fi
+
+files=$(git diff --cached --name-only --diff-filter=ACMR \
+  | grep -E '\.(ts|tsx|js|jsx|cjs|mjs|json)$' || true)
+[ -z "$files" ] && exit 0
+
+# oxfmt keeps ignore rules of its own: lockfiles, .gitignore, and the
+# `ignorePatterns` of .oxfmtrc.json. A commit that only touches such a file
+# leaves it with nothing to format, which oxfmt reports as an error unless
+# told otherwise. That is not a reason to refuse the commit.
+#
+# The staged files, and not the whole project: formatting something the author
+# did not stage would put a change in their working tree that they did not ask
+# for and will not see.
+printf '%s\n' "$files" | tr '\n' '\0' \
+  | xargs -0 npm run --silent format -- --no-error-on-unmatched-pattern
+printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 git add --
+
+# Linting is not formatting: it can only refuse, never rewrite. It runs on the
+# whole project rather than on the staged files, because a correctness rule is
+# about how two files fit together as often as about one of them.
+npm run --silent lint

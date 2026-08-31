@@ -1,0 +1,60 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+
+  // Correctness only, and nothing that argues about taste: oxfmt already
+  // settles the shape of the code, and a linter that reports fifty things
+  // nobody intends to change is a linter nobody reads. Everything switched off
+  // below is switched off for a stated reason, so no rule is quietly lost.
+
+  "plugins": ["react", "typescript", "unicorn", "oxc"],
+  "env": { "es2024": true, "node": true },
+  "ignorePatterns": ["android/**", "ios/**", "patches/**", "marketing/**", "node_modules/**"],
+
+  "categories": {
+    "correctness": "error",
+    "suspicious": "off",
+    "pedantic": "off",
+    "perf": "off",
+    "style": "off",
+    "restriction": "off",
+    "nursery": "off"
+  },
+
+  "rules": {
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "error",
+    "typescript/no-explicit-any": "error",
+    "typescript/no-non-null-assertion": "error",
+    "eslint/no-unused-vars": "error",
+
+    // The automatic JSX transform means React is never in scope, and the
+    // gesture builders (`Gesture.Pan()`) are capitalised calls that are not
+    // components.
+    "react/react-in-jsx-scope": "off",
+    "react/capitalized-calls": "off",
+    "react/no-array-index-key": "off",
+
+    // A Reanimated shared value is written by assigning to `.value`, from
+    // render and from worklets alike. That is the API, not a mutation of a
+    // hook's return value.
+    "react/immutability": "off",
+
+    // The latest-ref pattern, `ref.current = value` during render, is used
+    // deliberately in VSlider, MeshEditor, useDemo, useShake and App: a gesture
+    // handler built once has to see the current value, and an effect writes too
+    // late for the touch that is already down.
+    "react/refs": "off",
+
+    // Both effects this flags are synchronising with something outside React:
+    // an image being decoded, and a view kept mounted past the animation that
+    // removes it.
+    "react/set-state-in-effect": "off",
+
+    // Node built-ins are required by bare name throughout tools/, and sorting
+    // in place is fine on arrays those scripts have just built themselves.
+    "unicorn/prefer-node-protocol": "off",
+    "unicorn/no-array-sort": "off",
+    "eslint/no-underscore-dangle": "off",
+    "eslint/no-shadow": "off"
+  }
+}

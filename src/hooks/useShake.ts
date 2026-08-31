@@ -5,6 +5,13 @@ import { Accelerometer } from "expo-sensors";
  * Shaking opens the support menu. Three shakes within a second, then a second
  * and a half of quiet: enough for the gesture to be deliberate, little enough
  * that it works on the first try.
+ *
+ * The accelerometer needs no permission on either platform. `expo-sensors`
+ * declares `ACTIVITY_RECOGNITION` for its pedometer regardless, and the merge
+ * pulls it into the app, where Play reads it as a health feature and asks the
+ * app to meet the health policy. `android.blockedPermissions` in `app.json`
+ * takes it back out. Nothing here loses anything: this reads a sensor, it does
+ * not count steps.
  */
 export function useShake(onShake: () => void, enabled = true) {
   const handler = useRef(onShake);

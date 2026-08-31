@@ -6,6 +6,17 @@ of `@shopify/react-native-skia`. Nothing is reimplemented: the modules are
 transpiled as they are, and only the `@shopify/react-native-skia` import is
 swapped for its web implementation.
 
+`tsconfig.harness.json` says which modules those are, and it says it as a
+property of the tree rather than as a list of files: `src/render`,
+`src/geometry`, `src/recipe` and `src/demo` are pixels and data, everything
+named `useSomething` is a React hook and belongs to the app, and `export.ts` is
+the one file in there that talks to the photo library instead of a canvas.
+
+TypeScript will not enforce any of that, so `tools/harness-check.cjs` reads the
+emitted JavaScript back and fails on anything it requires that Node could not
+resolve. The day a drawing module reaches for `react-native`, the build says so
+by name rather than a verification run dying halfway through.
+
 ```sh
 npm run verify    # pixel checks
 npm run samples   # writes native resolution PNGs into renders/

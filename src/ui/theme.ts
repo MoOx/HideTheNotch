@@ -1,6 +1,18 @@
 /**
- * The interface floats above the wallpaper being edited. It is therefore always
- * dark and translucent: it must never compete with what it lets you see.
+ * The palette of everything that floats **above the wallpaper**: the corner
+ * buttons, the sliders, the captions, the gradient editor. Always white and
+ * translucent, in both appearances, and that is not an oversight.
+ *
+ * What is behind it is the user's own photo or gradient, whose top is black by
+ * construction. There is no light surface to be legible against, so there is
+ * no light variant to have: dark ink on somebody's wallpaper is dark ink on
+ * nothing in particular.
+ *
+ * The **sheets** are the other half of the interface and take none of this.
+ * They are system surfaces, they follow the phone, and anything drawn inside
+ * one takes its colours from there (`useMaterialColors` on Android, the system
+ * roles on iOS). Reaching for `T` inside a sheet is how a row ends up white on
+ * white.
  */
 export const T = {
   text: "#FFFFFF",

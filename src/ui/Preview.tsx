@@ -4,8 +4,7 @@ import { Canvas, Picture, Skia, createPicture } from "@shopify/react-native-skia
 
 import type { Geometry } from "../geometry/devices";
 import type { Mask, Source } from "../recipe/types";
-import { drawRecipe } from "../render/draw";
-import { drawHomeScreen } from "../render/homescreen";
+import { drawCompare, drawRecipe } from "../render/draw";
 import type { SkImage } from "@shopify/react-native-skia";
 
 /**
@@ -18,11 +17,14 @@ export function Preview({
   mask,
   geometry,
   image,
+  compare = false,
 }: {
   source: Source;
   mask: Mask;
   geometry: Geometry;
   image: SkImage | null;
+  /** Show the wallpaper on one side and the effect on the other. */
+  compare?: boolean;
 }) {
   const { width, height } = geometry;
 
@@ -33,43 +35,21 @@ export function Preview({
   const picture = useMemo(
     () =>
       createPicture(
-        (canvas) => drawRecipe(canvas, { recipe: { source, mask }, geometry, image }),
+        (canvas) => {
+          const ctx = { recipe: { source, mask }, geometry, image };
+          if (compare) {
+            drawCompare(canvas, ctx);
+          } else {
+            drawRecipe(canvas, ctx);
+          }
+        },
         Skia.XYWHRect(0, 0, width, height),
       ),
-    [source, mask, geometry, image, width, height],
+    [source, mask, geometry, image, width, height, compare],
   );
 
   return (
     <Canvas style={StyleSheet.absoluteFill}>
-      <Picture picture={picture} />
-    </Canvas>
-  );
-}
-
-/**
- * The sketched home screen, on its own layer.
- *
- * Separate from the wallpaper for two reasons. It must never reach the export,
- * which is the recipe and nothing else. And it comes and goes under the finger,
- * so it needs to fade on its own: redrawing the wallpaper for each frame of
- * that fade would be absurd when the wallpaper is not changing.
- *
- * It depends only on the geometry, so it is drawn once per device.
- */
-export function HomeScreenLayer({ geometry }: { geometry: Geometry }) {
-  const { width, height } = geometry;
-
-  const picture = useMemo(
-    () =>
-      createPicture(
-        (canvas) => drawHomeScreen(canvas, geometry),
-        Skia.XYWHRect(0, 0, width, height),
-      ),
-    [geometry, width, height],
-  );
-
-  return (
-    <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
       <Picture picture={picture} />
     </Canvas>
   );

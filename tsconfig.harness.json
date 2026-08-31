@@ -1,0 +1,28 @@
+{
+  // The app's rendering code, compiled so plain Node can require it.
+  //
+  // `npm run verify` runs the real drawing code outside the app, against
+  // CanvasKit, and checks pixels: absolute black under the cutout, a fade that
+  // is really dithered. That is only worth anything if it runs *the same code*
+  // the app runs, which means these modules have to be loadable by Node, which
+  // the app's own config cannot do: it targets React Native, JSX and ESM.
+  //
+  // Four directories rather than a list of files, because the property is a
+  // property of the tree: pixels and data here, the device everywhere else.
+  // Anything named `useSomething` is a React hook and belongs to the app, and
+  // `export.ts` is the one file in here that talks to the photo library rather
+  // than to a canvas. `tools/harness-check.cjs` enforces that after the build,
+  // since TypeScript will happily compile an import Node cannot resolve.
+  "compilerOptions": {
+    "outDir": ".harness",
+    "rootDir": "src",
+    "module": "commonjs",
+    "target": "es2020",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "types": []
+  },
+  "include": ["src/render", "src/geometry", "src/recipe", "src/demo"],
+  "exclude": ["**/use*.ts", "src/render/export.ts"]
+}

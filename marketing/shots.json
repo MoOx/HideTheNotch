@@ -1,0 +1,279 @@
+{
+  "//": "The store deck, as data. The layout is declared once, under `shots`, and each locale carries only what it says: `copy` keyed by shot id, its badges, its seal, and `lang`, which is the language the captures were taken in. Adding a language is a `copy` block, not another copy of the deck.",
+  "slot": "APP_IPHONE_67",
+  "ink": "#ffffff",
+  "background": "radial-gradient(120% 70% at 50% 0%, #1b2340 0%, #0a0b10 55%, #050507 100%)",
+  "shots": [
+    {
+      "id": "split",
+      "layout": "flat",
+      "scale": 0.78,
+      "drop": 60,
+      "size": 122,
+      "seal": true,
+      "screen": "marketing/captures/ios/{lang}/05-compare.png"
+    },
+    {
+      "id": "effect",
+      "layout": "tilt-right",
+      "scale": 0.78,
+      "drop": 60,
+      "badges": [],
+      "background": "radial-gradient(120% 70% at 50% 0%, #10303c 0%, #071319 55%, #04080a 100%)",
+      "screen": "marketing/captures/ios/{lang}/01-editor.png"
+    },
+    {
+      "id": "photo",
+      "layout": "tilt",
+      "scale": 0.78,
+      "drop": 60,
+      "badges": [],
+      "background": "radial-gradient(120% 70% at 50% 0%, #2a1c3f 0%, #100a16 55%, #060409 100%)",
+      "screen": "marketing/captures/ios/{lang}/02-import.png"
+    },
+    {
+      "id": "shape",
+      "layout": "flat",
+      "scale": 0.78,
+      "drop": 60,
+      "badges": [],
+      "background": "radial-gradient(120% 70% at 50% 0%, #1b3040 0%, #0a1016 55%, #050708 100%)",
+      "screen": "marketing/captures/ios/{lang}/03-home.png"
+    },
+    {
+      "id": "export",
+      "layout": "tilt-right",
+      "scale": 0.78,
+      "drop": 60,
+      "size": 92,
+      "badges": [],
+      "background": "radial-gradient(120% 70% at 50% 0%, #3a1140 0%, #170a18 55%, #070409 100%)",
+      "screen": "marketing/captures/ios/{lang}/04-export.png"
+    },
+    {
+      "id": "card",
+      "layout": "half",
+      "scale": 0.86,
+      "badges": [],
+      "screen": "marketing/captures/ios/{lang}/01-editor.png"
+    }
+  ],
+  "locales": {
+    "en-US": {
+      "lang": "en",
+      "badges": ["Free", "No ads", "No account"],
+      "seal": {
+        "word": "Free",
+        "under": "tips welcome",
+        "size": 100
+      },
+      "copy": {
+        "split": {
+          "headline": "The notch\ndisappears.",
+          "sub": "Forget it, in a couple of taps."
+        },
+        "effect": {
+          "headline": "The effect\nyou want.",
+          "sub": "Fade, rounded band, retro stripes…"
+        },
+        "photo": {
+          "headline": "Any photo\nyou like.",
+          "sub": "Pick one from your collection, or generate a wallpaper of your own."
+        },
+        "shape": {
+          "headline": "Preview it,\nat a glance.",
+          "sub": "Adjust the effect in a moment."
+        },
+        "export": {
+          "headline": "Export it,\nfree.",
+          "sub": "Keep the image, or share it."
+        },
+        "card": {
+          "headline": "Nothing to unlock,\nnothing to pay.",
+          "line": "No ads. No account. No tracking.",
+          "note": "The only purchase is a tip, if you ever feel like leaving one."
+        }
+      }
+    },
+    "fr-FR": {
+      "lang": "fr",
+      "badges": ["Gratuit", "Sans pub", "Sans compte"],
+      "seal": {
+        "word": "Gratuit",
+        "under": "pourboire bienvenu",
+        "size": 100
+      },
+      "copy": {
+        "split": {
+          "headline": "Le notch\ndisparaît.",
+          "sub": "Oubliez-le en deux temps trois mouvements."
+        },
+        "effect": {
+          "headline": "L'effet de\nvotre choix.",
+          "sub": "Dégradé, bandeau arrondi, rayures rétro…"
+        },
+        "photo": {
+          "headline": "La photo\nque vous voulez.",
+          "sub": "Piochez dans votre collection, ou générez un fond unique."
+        },
+        "shape": {
+          "headline": "Prévisualisez\nsimplement.",
+          "sub": "Ajustez l'effet en quelques instants."
+        },
+        "export": {
+          "headline": "Exportez\ngratuitement.",
+          "sub": "Gardez cette image, ou partagez-la."
+        },
+        "card": {
+          "headline": "Rien à débloquer,\nrien à payer.",
+          "line": "Sans pub. Sans compte. Sans suivi.",
+          "note": "Le seul achat possible est un pourboire, si l'envie vous prend."
+        }
+      }
+    },
+    "de-DE": {
+      "lang": "de",
+      "badges": ["Kostenlos", "Keine Werbung", "Kein Konto"],
+      "seal": {
+        "word": "Kostenlos",
+        "under": "Trinkgeld willkommen",
+        "size": 100
+      },
+      "copy": {
+        "split": {
+          "headline": "Die Notch\nverschwindet.",
+          "sub": "Vergiss sie, im Handumdrehen."
+        },
+        "effect": {
+          "headline": "Der Effekt,\nden du willst.",
+          "sub": "Verlauf, runder Balken, Retro-Streifen…"
+        },
+        "photo": {
+          "headline": "Jedes Foto,\ndas du willst.",
+          "sub": "Nimm eines aus deiner Sammlung, oder erzeuge einen eigenen Hintergrund."
+        },
+        "shape": {
+          "headline": "Vorschau,\nauf einen Blick.",
+          "sub": "Den Effekt in Sekunden anpassen."
+        },
+        "export": {
+          "headline": "Exportieren,\nkostenlos.",
+          "sub": "Behalte das Bild, oder teile es."
+        },
+        "card": {
+          "headline": "Nichts freischalten,\nnichts bezahlen.",
+          "line": "Keine Werbung. Kein Konto. Kein Tracking.",
+          "note": "Der einzige Kauf ist ein Trinkgeld, falls dir danach ist."
+        }
+      }
+    },
+    "es-ES": {
+      "lang": "es",
+      "badges": ["Gratis", "Sin anuncios", "Sin cuenta"],
+      "seal": {
+        "word": "Gratis",
+        "under": "propinas bienvenidas",
+        "size": 100
+      },
+      "copy": {
+        "split": {
+          "headline": "El notch\ndesaparece.",
+          "sub": "Olvídate de él en un momento."
+        },
+        "effect": {
+          "headline": "El efecto\nque quieras.",
+          "sub": "Degradado, banda redondeada, rayas retro…"
+        },
+        "photo": {
+          "headline": "La foto\nque quieras.",
+          "sub": "Elige una de tu colección, o genera un fondo único."
+        },
+        "shape": {
+          "headline": "Previsualiza,\nsin más.",
+          "sub": "Ajusta el efecto en un momento."
+        },
+        "export": {
+          "headline": "Exporta\ngratis.",
+          "sub": "Guarda la imagen, o compártela."
+        },
+        "card": {
+          "headline": "Nada que desbloquear,\nnada que pagar.",
+          "line": "Sin anuncios. Sin cuenta. Sin rastreo.",
+          "note": "La única compra es una propina, si alguna vez te apetece."
+        }
+      }
+    },
+    "ja": {
+      "lang": "ja",
+      "badges": ["無料", "広告なし", "アカウント不要"],
+      "seal": {
+        "word": "無料",
+        "under": "チップ歓迎",
+        "size": 100
+      },
+      "copy": {
+        "split": {
+          "headline": "ノッチが\n消える。",
+          "sub": "数タップで、もう気にならない。"
+        },
+        "effect": {
+          "headline": "好みの\nエフェクトで。",
+          "sub": "グラデーション、丸いバー、レトロなストライプ…"
+        },
+        "photo": {
+          "headline": "好きな\n写真で。",
+          "sub": "ライブラリから選ぶか、自分だけの背景を作る。"
+        },
+        "shape": {
+          "headline": "ひと目で\nプレビュー。",
+          "sub": "エフェクトはすぐに調整。"
+        },
+        "export": {
+          "headline": "無料で\n書き出し。",
+          "sub": "保存しても、共有してもいい。"
+        },
+        "card": {
+          "headline": "解除するものも、\n払うものもなし。",
+          "line": "広告なし。アカウント不要。追跡なし。",
+          "note": "購入できるのはチップだけ。気が向いたときにどうぞ。"
+        }
+      }
+    },
+    "zh-Hans": {
+      "lang": "zh-Hans",
+      "badges": ["免费", "无广告", "无需账号"],
+      "seal": {
+        "word": "免费",
+        "under": "欢迎打赏",
+        "size": 100
+      },
+      "copy": {
+        "split": {
+          "headline": "刘海\n消失了。",
+          "sub": "两三下就搞定，从此看不见。"
+        },
+        "effect": {
+          "headline": "想要的\n效果。",
+          "sub": "渐变、圆角色带、复古条纹…"
+        },
+        "photo": {
+          "headline": "任何你\n喜欢的照片。",
+          "sub": "从相册里挑一张，或生成专属背景。"
+        },
+        "shape": {
+          "headline": "一眼\n预览。",
+          "sub": "几秒钟调好效果。"
+        },
+        "export": {
+          "headline": "免费\n导出。",
+          "sub": "保存图片，或分享出去。"
+        },
+        "card": {
+          "headline": "没有要解锁的东西，\n也无需付费。",
+          "line": "无广告。无需账号。不做追踪。",
+          "note": "唯一可以买的是打赏，看你心情。"
+        }
+      }
+    }
+  }
+}

@@ -6,6 +6,7 @@ import * as Haptics from "expo-haptics";
 
 import { cutoutBottom, type Geometry } from "../geometry/devices";
 import { MESH_MAX, type MeshPoint } from "../recipe/types";
+import { t } from "../i18n";
 import { Caption } from "./Caption";
 import { ColorControl } from "./ColorControl";
 import { Glass } from "./Glass";
@@ -30,19 +31,28 @@ const HIT = 48;
 const OVERSHOOT = 0.12;
 
 /**
- * The top of the screen is out of bounds, and both reasons are good.
+ * The top and the bottom of the screen are out of bounds, for the same reason
+ * twice over.
  *
- * A handle up there cannot be picked up at all: the status bar and the cutout's
- * band belong to iOS, and a touch that starts in them is the system's, so
- * unlike the bottom there is not even a first tap to be had. And there would be
- * nothing to gain if there were, because that band is exactly what every mask
- * paints black. A colour placed under the mask is a colour nobody will see.
+ * A handle at the top cannot be picked up at all: the status bar and the
+ * cutout's band belong to iOS, and a touch that starts in them is the system's.
+ * There would be nothing to gain if it could, because that band is exactly what
+ * every mask paints black, and a colour placed under the mask is a colour
+ * nobody will see.
  *
- * The floor clears the safe area, or the cutout when it reaches lower, by half
- * a handle, so the whole dot sits in the part of the screen that answers.
+ * The bottom is the same story with a different owner: the home indicator takes
+ * the swipe, so a dot down there is one you have to fight for, and the strip it
+ * sits in is drawn over on every screen the wallpaper will ever appear on.
+ *
+ * Both bounds clear their safe area by half a handle, so the whole dot sits in
+ * the part of the screen that answers.
  */
 function floorY(g: Geometry) {
   return (Math.max(g.insetTop, cutoutBottom(g)) + HANDLE / 2) / g.height;
+}
+
+function ceilingY(g: Geometry) {
+  return 1 - (Math.max(g.insetBottom, 0) + HANDLE / 2) / g.height;
 }
 const MENU_W = 240;
 
@@ -115,13 +125,14 @@ export function MeshEditor({
   held.current = selected;
 
   const minY = floorY(geometry);
+  const maxY = ceilingY(geometry);
   const place = useCallback(
     (p: MeshPoint, x: number, y: number): MeshPoint => ({
       ...p,
       x: Math.min(1 + OVERSHOOT, Math.max(-OVERSHOOT, x)),
-      y: Math.min(1 + OVERSHOOT, Math.max(minY, y)),
+      y: Math.min(maxY, Math.max(minY, y)),
     }),
-    [minY],
+    [minY, maxY],
   );
 
   const move = useCallback(
@@ -296,19 +307,15 @@ export function MeshEditor({
         pointerEvents="box-none"
         onLayout={(e) => (barBox.current = e.nativeEvent.layout)}
       >
-        <Caption>
-          {selected === null
-            ? "Tap a point to pick it up"
-            : "Drag anywhere to move it, long press it for options"}
-        </Caption>
+        <Caption>{selected === null ? t("meshHintIdle") : t("meshHintPicked")}</Caption>
         <View style={styles.buttons}>
           <Round
             icon="add"
-            label="Add a point"
+            label={t("addPoint")}
             disabled={points.length >= MESH_MAX}
             onPress={add}
           />
-          <Round icon="done" label="Done" onPress={onDone} />
+          <Round icon="done" label={t("done")} onPress={onDone} />
         </View>
       </View>
     </View>
@@ -435,12 +442,12 @@ function Menu({
       <View style={styles.rule} />
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Delete this point"
+        accessibilityLabel={t("deletePoint")}
         accessibilityState={{ disabled: !canRemove }}
         onPress={canRemove ? onRemove : undefined}
         style={styles.row}
       >
-        <Text style={[styles.rowText, !canRemove && styles.rowTextOff]}>Delete</Text>
+        <Text style={[styles.rowText, !canRemove && styles.rowTextOff]}>{t("delete")}</Text>
         <Glyph icon="remove" dim={!canRemove} />
       </Pressable>
     </Glass>
@@ -475,6 +482,7 @@ function Round({
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityState={{ disabled }}
+        android_ripple={{ color: "rgba(255,255,255,0.16)" }}
         onPress={disabled ? undefined : onPress}
         style={styles.hit}
       >

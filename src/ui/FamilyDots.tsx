@@ -13,7 +13,15 @@ import { T } from "./theme";
  */
 export function FamilyDots({ family }: { family: MaskFamily }) {
   return (
-    <View style={styles.row} pointerEvents="none">
+    <View
+      style={styles.row}
+      pointerEvents="none"
+      // Which effect is showing is already announced by the wallpaper itself,
+      // which is the thing you change it on. Three unlabelled dots repeating it
+      // would be three stops on the way to somewhere.
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
       {FAMILY_ORDER.map((f) => (
         <View key={f} style={[styles.dot, f === family && styles.on]} />
       ))}

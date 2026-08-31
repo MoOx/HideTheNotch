@@ -1,0 +1,134 @@
+name: Android to Google Play (internal)
+
+# The Android half of ios-testflight.yml, and deliberately its mirror image:
+# same shape, same secrets repository, same marker in a commit message.
+#
+# A copy of templates/github-workflows/android-internal.yml in MoOx/certificates,
+# kept under the name it had here so its runs stay in one history. Fix it there
+# rather than here. The Android material has to be in the certificates
+# repository first (see docs/07-android-play.md there).
+#
+# The first release of a brand new app cannot go through the API: upload one
+# bundle by hand in the Play Console first (`fastlane android bundle` builds
+# it), then this workflow takes over.
+#
+# Repository secrets required (Settings > Secrets and variables > Actions):
+#
+#   CERTIFICATES_DEPLOY_KEY   read-only ed25519 deploy key for MoOx/certificates
+#   SECRETS_PASSPHRASE        passphrase for the certificates repo secrets/
+#
+# MATCH_PASSWORD is iOS only and this job never reads it.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+    branches: ["**"]
+
+# One upload at a time: two runs racing for the same version code is how a
+# track ends up with a gap in it.
+concurrency:
+  group: android-internal
+  cancel-in-progress: false
+
+jobs:
+  internal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # A tag ships a release. A `[play]` marker in the commit message ships a
+    # work build, which is what lets releases be the only thing that ever gets
+    # tagged. Every other push starts a run that stops right here, which costs
+    # no runner time.
+    if: >-
+      github.event_name != 'push' ||
+      startsWith(github.ref, 'refs/tags/v') ||
+      contains(github.event.head_commit.message, '[play]')
+    env:
+      APP_IDENTIFIER: io.moox.HideTheNotch
+      ANDROID_PACKAGE_NAME: io.moox.hidethenotch
+      CERTS_REPO_URL: git@github.com:MoOx/certificates.git
+      SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
+      FASTLANE_SKIP_UPDATE_CHECK: "1"
+      # How this project declares its version, read by the tag guard below.
+      # Expo keeps it in app.json; change this line for a project that keeps it
+      # somewhere else (package.json, an .xcconfig, a build.gradle).
+      APP_VERSION_COMMAND: node -p "require('./app.json').expo.version"
+      # Source map upload only, never read at runtime. Optional: a build
+      # without it succeeds and ships minified stack traces.
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # A tag is the one thing here that claims to be a version, so it has to be
+      # the version. `v2.0.1` pushed onto a tree that still declares 2.0.0
+      # uploads a build named after neither.
+      #
+      # Before the toolchain setup on purpose: the runner image already ships a
+      # node, and a mismatch should cost seconds rather than a full install.
+      - name: The tag is the version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          tagged="${GITHUB_REF_NAME#v}"
+          declared=$(eval "$APP_VERSION_COMMAND")
+          if [ "$tagged" != "$declared" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match the declared version $declared."
+            echo "Move the tag, or bump the version, but do not ship them apart."
+            exit 1
+          fi
+          echo "$GITHUB_REF_NAME matches the declared version."
+
+      # The one thing the Fastfile cannot check for itself: this key is consumed
+      # by the ssh-agent below, never passed to the lane. Everything else is
+      # declared in .env.example and checked when the lane starts.
+      - name: Check the deploy key is present
+        run: |
+          if [ -z "${{ secrets.CERTIFICATES_DEPLOY_KEY }}" ]; then
+            echo "CERTIFICATES_DEPLOY_KEY is not set."
+            echo "See docs/03-sharing-access.md in MoOx/certificates."
+            exit 1
+          fi
+          echo "Deploy key present."
+
+      # Grants the runner read access to the private certificates repository.
+      - name: Access the certificates repository
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.CERTIFICATES_DEPLOY_KEY }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - run: npm ci
+
+      # No ruby-version here: the action reads .ruby-version on its own, which
+      # is also what rbenv and friends read locally.
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      # The lane runs `expo prebuild` itself, so there is nothing to prepare
+      # beforehand.
+      - name: Build and upload to the internal track
+        run: bundle exec fastlane android beta
+
+      - name: Keep the logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fastlane-logs-android
+          path: |
+            fastlane/report.xml
+            android/app/build/outputs
+          if-no-files-found: ignore
+          retention-days: 7

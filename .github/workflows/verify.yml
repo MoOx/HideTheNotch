@@ -2,9 +2,9 @@ name: Verify
 
 on:
   push:
-    paths: ["src/**", "App.tsx", "package.json", ".github/workflows/verify.yml"]
+    paths: ["src/**", "App.tsx", "tools/**", "package.json", ".github/workflows/verify.yml"]
   pull_request:
-    paths: ["src/**", "App.tsx", "package.json", ".github/workflows/verify.yml"]
+    paths: ["src/**", "App.tsx", "tools/**", "package.json", ".github/workflows/verify.yml"]
   workflow_dispatch:
 
 jobs:
@@ -16,11 +16,19 @@ jobs:
 
       - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version-file: .node-version
           cache: npm
           cache-dependency-path: package-lock.json
 
       - run: npm ci
+
+      # The pre commit hook formats what is committed, so this only ever fails
+      # for someone who bypassed it. Which is the point of having it here.
+      - name: Formatting
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
 
       - name: Typecheck
         run: npm run typecheck

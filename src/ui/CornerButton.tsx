@@ -55,10 +55,13 @@ type Props = {
  */
 export function CornerButton({ icon, label, onPress }: Props) {
   return (
-    <Glass style={styles.button} radius={BUTTON / 2} interactive>
+    <Glass style={styles.button} radius={BUTTON / 2} interactive effect="clear">
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={label}
+        // Material's own answer to "did that register", and the app had none.
+        // Inert on iOS, where the glass itself reacts.
+        android_ripple={{ color: "rgba(255,255,255,0.16)" }}
         style={styles.hit}
         onPress={onPress}
       >

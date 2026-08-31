@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 #
-# Fastfile: build and ship to TestFlight (and, later, to Google Play).
+# Fastfile: build and ship to TestFlight and to the Google Play internal track.
 #
 # Targets an Expo project using `expo prebuild`: the ios/ and android/
 # directories are regenerated on every build and are not tracked.
@@ -8,6 +8,7 @@
 # Every secret comes from the private MoOx/certificates repository:
 #   - iOS certificates and provisioning profiles: fastlane match
 #   - App Store Connect API key: secrets/ios/*.enc, decrypted on the fly
+#   - Android upload keystore and Play service account: secrets/android/*.enc
 #
 # Expected environment variables: see .env.example
 
@@ -20,6 +21,72 @@ CERTS_DIR   = File.join(ROOT, ".certificates")
 # fastlane defaults its match storage branch to "master". Ours is "main".
 MATCH_BRANCH = ENV.fetch("MATCH_GIT_BRANCH", "main")
 SECRETS_DIR = File.join(ROOT, ".secrets")
+
+# --- the environment contract ----------------------------------------------
+#
+# .env.example is the single declaration of what the lanes read: a description
+# per value, and an `@needed` line naming the lanes that cannot run without it.
+# It is not restated here, so the list cannot drift from its documentation.
+#
+# Where a value comes from is deliberately not checked. A .env, a shell export,
+# a keychain, GitHub secrets or variables all reach the process the same way,
+# and the process is the only thing that matters.
+
+MANIFEST = File.join(ROOT, ".env.example")
+
+def env_manifest
+  return [] unless File.exist?(MANIFEST)
+
+  entries = []
+  description = []
+  needed = nil
+
+  File.readlines(MANIFEST).each do |raw|
+    line = raw.rstrip
+    case line
+    when /\A# @needed (.+)\z/
+      needed = Regexp.last_match(1).split(",").map(&:strip)
+    when /\A#\s?(.*)\z/
+      text = Regexp.last_match(1)
+      # Section rules and blank comment lines carry nothing worth reporting.
+      description << text unless text.empty? || text.start_with?("---")
+    when /\A([A-Z_][A-Z0-9_]*)=/
+      entries << {
+        key: Regexp.last_match(1),
+        needed: needed || [],
+        description: description.join(" ")
+      }
+      description = []
+      needed = nil
+    else
+      # A blank line ends the block a comment was describing.
+      description = []
+      needed = nil
+    end
+  end
+
+  entries
+end
+
+def missing_env(lane)
+  env_manifest.select do |entry|
+    wanted = entry[:needed].include?("all") || entry[:needed].include?(lane)
+    wanted && ENV[entry[:key]].to_s.strip.empty?
+  end
+end
+
+# Everything missing at once, rather than one failed run per value.
+def require_env!(lane)
+  missing = missing_env(lane)
+  return if missing.empty?
+
+  UI.error("`fastlane #{lane}` needs #{missing.size} value(s) that are not set:")
+  missing.each do |entry|
+    UI.error("  #{entry[:key]}")
+    UI.error("      #{entry[:description]}") unless entry[:description].empty?
+  end
+  UI.user_error!("Set them anywhere the process can see them, then run again.")
+end
 
 # --- configuration ---------------------------------------------------------
 # Read lazily so that `fastlane lanes` does not require a complete .env.
@@ -41,6 +108,30 @@ end
 def android_package
   value = ENV["ANDROID_PACKAGE_NAME"].to_s
   value.empty? ? bundle_id : value
+end
+
+# Answers a yes/no environment variable, for the flags the release lanes read.
+def env_flag?(key, default: false)
+  value = ENV[key].to_s.strip.downcase
+  return default if value.empty?
+
+  %w[1 true yes].include?(value)
+end
+
+# The marketing version the release lanes act on. Expo declares it in app.json,
+# which is also where `expo prebuild` reads it from, so that is the default. A
+# project that declares it elsewhere passes APP_VERSION instead, which is the
+# same escape hatch APP_VERSION_COMMAND gives the workflows.
+def app_version
+  override = ENV["APP_VERSION"].to_s.strip
+  return override unless override.empty?
+
+  path = File.join(ROOT, "app.json")
+  UI.user_error!("no app.json here, set APP_VERSION instead") unless File.exist?(path)
+
+  version = JSON.parse(File.read(path)).dig("expo", "version").to_s
+  UI.user_error!("app.json declares no expo.version, set APP_VERSION instead") if version.empty?
+  version
 end
 
 # --- access to the shared secrets ------------------------------------------
@@ -85,7 +176,41 @@ def asc_api_key
   )
 end
 
+# Regenerates the store listing, for a project that generates it rather than
+# committing it.
+#
+# The convention is a `store:listing` script in package.json. An app that has
+# one declares it there and nothing here needs to know how it works; an app
+# without one is left alone. Called only by the lanes that actually upload a
+# listing, so a work build never rewrites what the stores show.
+def write_listings!
+  manifest = File.join(ROOT, "package.json")
+  return unless File.exist?(manifest)
+  return unless (JSON.parse(File.read(manifest))["scripts"] || {}).key?("store:listing")
+
+  UI.message("Regenerating the store listing: npm run store:listing")
+  Dir.chdir(ROOT) { sh("npm", "run", "store:listing") }
+end
+
 # --- native project --------------------------------------------------------
+
+# Which commit a build was made from, which no store number can say.
+#
+# Ours, and not in the template: the two stores keep two counters, and Apple's
+# restarts at one on every new marketing version, so a build number identifies a
+# build inside one store and nothing beyond that. This is the same value on both
+# platforms for the same code, and the app's support sheet reports it, so a
+# crash report or an email names a commit.
+#
+# `EXPO_PUBLIC_*` is inlined by Metro at bundling, so it has to be set before
+# the bundle is made, which both `build_app` and the gradle task do as children
+# of this process.
+def stamp_commit!
+  sha = sh("git", "-C", ROOT, "rev-parse", "--short", "HEAD").strip
+  ENV["EXPO_PUBLIC_COMMIT"] = sha
+  UI.message("Building from #{sha}")
+  sha
+end
 
 # `expo prebuild --clean` fully regenerates the native project.
 # The chdir is explicit: `sh` runs from the fastlane/ directory.
@@ -129,6 +254,7 @@ platform :ios do
     # certificates on a CI runner.
     setup_ci if is_ci
 
+    stamp_commit!
     decrypt_secrets!
     api_key = asc_api_key
 
@@ -195,6 +321,99 @@ platform :ios do
     )
   end
 
+  desc "Push the store listing, without building anything"
+  lane :metadata do
+    decrypt_secrets!
+    write_listings!
+
+    metadata = Dir.exist?(File.join(ROOT, "fastlane", "metadata"))
+    screenshots = Dir.exist?(File.join(ROOT, "fastlane", "screenshots"))
+    unless metadata || screenshots
+      UI.user_error!("nothing to upload: no fastlane/metadata, no fastlane/screenshots")
+    end
+
+    # No binary, and no version either: this lands on whichever version is
+    # editable in App Store Connect, which is what correcting a typo or
+    # replacing a screenshot needs. `force` skips the HTML preview, which has
+    # nobody to look at it in CI.
+    upload_to_app_store(
+      api_key: asc_api_key,
+      app_identifier: bundle_id,
+      skip_binary_upload: true,
+      skip_metadata: !metadata,
+      skip_screenshots: !screenshots,
+      overwrite_screenshots: screenshots,
+      force: true,
+      precheck_include_in_app_purchases: false,
+      submit_for_review: false
+    )
+  end
+
+  desc "Take the last TestFlight build to the App Store record, ready to submit"
+  lane :release do
+    decrypt_secrets!
+    write_listings!
+    api_key = asc_api_key
+    version = app_version
+
+    # The build to promote, which is the last one TestFlight took. Apple
+    # restarts its numbering at one on every marketing version, so this number
+    # identifies a build inside this version and means nothing outside it.
+    build = latest_testflight_build_number(
+      app_identifier: bundle_id,
+      api_key: api_key,
+      initial_build_number: 0
+    )
+    UI.user_error!("no build on TestFlight to promote") if build.to_i.zero?
+
+    UI.message("Promoting build #{build} as #{version}")
+
+    # Not every project keeps its store listing in the repository, so upload
+    # what is there and stay quiet about what is not.
+    metadata = Dir.exist?(File.join(ROOT, "fastlane", "metadata"))
+    screenshots = Dir.exist?(File.join(ROOT, "fastlane", "screenshots"))
+
+    # Submitting starts a review that cannot be taken back quietly, so it is a
+    # deliberate flag rather than the default: SUBMIT_FOR_REVIEW=1.
+    submit = env_flag?("SUBMIT_FOR_REVIEW")
+
+    # Copy, screenshots and the chosen build, onto the version being prepared.
+    # App Store metadata belongs to a version rather than to the app, so this
+    # single call is what makes the listing and the binary one thing.
+    upload_to_app_store(
+      api_key: api_key,
+      app_identifier: bundle_id,
+      app_version: version,
+      build_number: build.to_s,
+      # The binary is already on TestFlight: this lane attaches it, it does not
+      # send another one.
+      skip_binary_upload: true,
+      skip_metadata: !metadata,
+      skip_screenshots: !screenshots,
+      overwrite_screenshots: screenshots,
+      # `force` skips the HTML preview, which has nobody to look at it in CI.
+      force: true,
+      precheck_include_in_app_purchases: false,
+      submit_for_review: submit,
+      # Answered here once instead of by hand in the console on every release.
+      # Both depend on the app, hence .env rather than a constant.
+      submission_information: {
+        export_compliance_uses_encryption: env_flag?("APP_USES_ENCRYPTION"),
+        add_id_info_uses_idfa: env_flag?("APP_USES_IDFA")
+      },
+      # Nothing goes on sale by itself: the version waits for a tap once the
+      # review has passed.
+      automatic_release: false
+    )
+
+    if submit
+      UI.success("Submitted #{version} (build #{build}) for review")
+    else
+      UI.success("#{version} (build #{build}) is ready in App Store Connect")
+      UI.message("Submit it there, or run this again with SUBMIT_FOR_REVIEW=1")
+    end
+  end
+
   desc "Create or renew the certificates and profiles (local only)"
   lane :certificates do
     UI.user_error!("run this from your machine, not from CI") if is_ci
@@ -215,38 +434,68 @@ platform :ios do
 end
 
 # --- Android ---------------------------------------------------------------
-# Not enabled yet: the Android secrets are missing from the shared repository.
-# See docs/90-android-later.md. This lane stays inert unless it is called.
+# Needs the Android material in the shared repository: the upload keystore, its
+# passwords, and the Play service account. See docs/07-android-play.md.
+# This lane stays inert unless it is called.
+
+# Builds the signed release bundle, and nothing else.
+#
+# Split out of the lane below because the first upload to Play cannot go
+# through the API: Google will not accept one for a package that has never had
+# a release, so somebody has to drag an AAB into the console once. That build
+# must not ask Play anything at all, hence the version code as an argument
+# rather than a lookup.
+def build_aab!(version_code)
+  props = load_properties(secret("android/keystore.properties"))
+
+  # Injected through -P so it survives `expo prebuild --clean`, which rewrites
+  # build.gradle on every run.
+  gradle(
+    task: "bundle",
+    build_type: "Release",
+    project_dir: File.join(ROOT, "android"),
+    properties: {
+      "android.injected.version.code" => version_code,
+      "android.injected.signing.store.file" => secret("android/release.keystore"),
+      "android.injected.signing.store.password" => props.fetch("storePassword"),
+      "android.injected.signing.key.alias" => props.fetch("keyAlias"),
+      "android.injected.signing.key.password" => props.fetch("keyPassword")
+    }
+  )
+  lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH]
+end
 
 platform :android do
-  desc "Build the AAB and ship it to the Google Play internal track"
-  lane :beta do
+  desc "Build a signed AAB and stop, for the one upload Google wants by hand"
+  lane :bundle do
+    stamp_commit!
     decrypt_secrets!
     expo_prebuild("android")
 
-    props = load_properties(secret("android/keystore.properties"))
+    # No call to Play, on purpose: this lane exists for the moment before the
+    # app has a release, when there is nothing there to ask.
+    code = ENV.fetch("ANDROID_VERSION_CODE", "1").to_i
+    path = build_aab!(code)
+
+    UI.success("Version code #{code}")
+    UI.success("Upload this by hand, once: #{path}")
+  end
+
+  desc "Build the AAB and ship it to the Google Play internal track"
+  lane :beta do
+    stamp_commit!
+    decrypt_secrets!
+    expo_prebuild("android")
+
     json_key = secret("android/play-service-account.json")
 
-    # Injected through -P so it survives `expo prebuild --clean`, which
-    # rewrites build.gradle.
     version_code = google_play_track_version_codes(
       package_name: android_package,
       track: "internal",
       json_key: json_key
     ).max.to_i + 1
 
-    gradle(
-      task: "bundle",
-      build_type: "Release",
-      project_dir: File.join(ROOT, "android"),
-      properties: {
-        "android.injected.version.code" => version_code,
-        "android.injected.signing.store.file" => secret("android/release.keystore"),
-        "android.injected.signing.store.password" => props.fetch("storePassword"),
-        "android.injected.signing.key.alias" => props.fetch("keyAlias"),
-        "android.injected.signing.key.password" => props.fetch("keyPassword")
-      }
-    )
+    build_aab!(version_code)
 
     upload_to_play_store(
       package_name: android_package,
@@ -259,10 +508,87 @@ platform :android do
       skip_upload_changelogs: true
     )
   end
+
+  desc "Promote the last internal build to production"
+  lane :release do
+    decrypt_secrets!
+    write_listings!
+    json_key = secret("android/play-service-account.json")
+
+    # The build to promote, which is the highest one on the internal track.
+    # Nothing is rebuilt: promoting is Play moving an existing artefact between
+    # tracks, so what reaches production is the very binary that was tested.
+    code = google_play_track_version_codes(
+      package_name: android_package,
+      track: "internal",
+      json_key: json_key
+    ).max
+    UI.user_error!("nothing on the internal track to promote") if code.nil?
+
+    # A fraction of users at first, if asked for: PLAY_ROLLOUT=0.1. Play holds
+    # the rest until the rollout is finished by hand, which is worth doing on a
+    # release whose crash reporting has never been exercised in the wild.
+    rollout = ENV["PLAY_ROLLOUT"].to_s.strip
+    rollout = nil if rollout.empty?
+    UI.message("Promoting version code #{code}#{rollout ? " to #{rollout.to_f * 100}%" : ""}")
+
+    # The listing goes up in the same call, because on Play it does not belong
+    # to a release: title, descriptions and screenshots belong to the app and
+    # change live, and only the changelog belongs to this version code.
+    metadata = Dir.exist?(File.join(ROOT, "fastlane", "metadata", "android"))
+
+    upload_to_play_store(
+      package_name: android_package,
+      json_key: json_key,
+      version_code: code,
+      track: "internal",
+      track_promote_to: "production",
+      rollout: rollout,
+      skip_upload_apk: true,
+      skip_upload_aab: true,
+      skip_upload_metadata: !metadata,
+      skip_upload_images: !metadata,
+      skip_upload_screenshots: !metadata,
+      skip_upload_changelogs: !metadata
+    )
+
+    UI.success("Version code #{code} is on the production track")
+  end
+end
+
+desc "Report what the environment holds and which lane wants what"
+lane :doctor do
+  entries = env_manifest
+  UI.user_error!("no .env.example at the project root, nothing to check") if entries.empty?
+
+  UI.message("")
+  entries.each do |entry|
+    set = !ENV[entry[:key]].to_s.strip.empty?
+    scope = entry[:needed].empty? ? "optional" : entry[:needed].join(", ")
+    UI.message(format("  %-24s %-9s %s", entry[:key], set ? "set" : "not set", scope))
+  end
+  UI.message("")
+
+  short = entries.reject { |e| e[:needed].empty? }
+                 .select { |e| ENV[e[:key]].to_s.strip.empty? }
+  if short.empty?
+    UI.success("Every declared value is set.")
+  else
+    UI.important("#{short.size} value(s) are missing for at least one lane.")
+    UI.message("That is fine as long as you do not run those lanes.")
+  end
 end
 
 # --- hygiene ---------------------------------------------------------------
 # Decrypted secrets never outlive the lane, on success or on failure.
+
+# The contract, checked before the lane does anything, so a missing value costs
+# a second rather than surfacing as a decryption error ten minutes in.
+before_all do |_lane, _options|
+  name = lane_context[SharedValues::LANE_NAME].to_s
+  # `doctor` reports on an incomplete environment, so it cannot demand one.
+  require_env!(name) unless name == "doctor"
+end
 
 after_all do |_lane|
   wipe_secrets!

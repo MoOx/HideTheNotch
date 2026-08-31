@@ -7,7 +7,7 @@
  * be shared and regenerated later, for another device, at any resolution.
  */
 
-export type GradientPresetId = "aurora" | "haze" | "ink" | "ember" | "moss";
+export type GradientPresetId = "aurora" | "haze" | "ink" | "ember" | "moss" | "neon";
 
 /**
  * One coloured point of the gradient.
@@ -110,17 +110,3 @@ export type Recipe = {
  * wallpaper, so it is what the app should open on.
  */
 export const FAMILY_ORDER: MaskFamily[] = ["fade", "bar", "stripes"];
-
-/**
- * What each family is called on screen.
- *
- * "Blinds" rather than "stripes" or "dashes": the pattern is horizontal slats
- * thinning as they go down, and a venetian blind is the everyday object that
- * looks exactly like it. Naming it after a thing people own beats naming it
- * after the drawing primitive.
- */
-export const FAMILY_LABEL: Record<MaskFamily, string> = {
-  fade: "Fade",
-  bar: "Band",
-  stripes: "Blinds",
-};

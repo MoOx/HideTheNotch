@@ -1,9 +1,5 @@
 name: iOS to TestFlight
 
-# Adapted from MoOx/certificates templates/github-workflows/ios-testflight.yml.
-# The only deviation: APPLE_TEAM_ID comes from a repository variable rather than
-# being hardcoded.
-#
 # Repository secrets required (Settings > Secrets and variables > Actions):
 #
 #   CERTIFICATES_DEPLOY_KEY   read-only ed25519 deploy key for MoOx/certificates
@@ -14,9 +10,9 @@ name: iOS to TestFlight
 #
 #   APPLE_TEAM_ID             developer.apple.com > Membership
 #
-# The [testflight] commit marker exists only because workflow_dispatch cannot be
-# triggered from a branch that is not the default one. Drop it once this is on
-# main.
+# A copy of templates/github-workflows/ios-testflight.yml in MoOx/certificates,
+# with the app's own identifier filled in and nothing else changed. Fix it there
+# rather than here. See docs/04-consumer-projects.md in that repository.
 
 on:
   workflow_dispatch:
@@ -32,44 +28,73 @@ concurrency:
 
 jobs:
   testflight:
-    # Deliberately the image default Xcode, on the same runner as the simulator
-    # build that compiles fine. Selecting latest-stable picked Xcode 26.3, whose
-    # Swift compiler rejects expo-modules-jsi (see the setup-xcode note below).
+    # The image default Xcode, deliberately. See the note further down before
+    # adding setup-xcode back.
     runs-on: macos-latest
     timeout-minutes: 90
+    # A tag ships a release. A `[testflight]` marker in the commit message
+    # ships a work build, which is what lets releases be the only thing that
+    # ever gets tagged. Every other push starts a run that stops right here,
+    # which costs no runner time.
     if: >-
       github.event_name != 'push' ||
       startsWith(github.ref, 'refs/tags/v') ||
       contains(github.event.head_commit.message, '[testflight]')
     env:
       APP_IDENTIFIER: io.moox.HideTheNotch
+      # A repository variable rather than a value in the file: this workflow
+      # lives in the app's repository, which may well be public, and the team
+      # ID is the same for every app anyway.
       APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
-      ANDROID_PACKAGE_NAME: io.moox.hidethenotch
       CERTS_REPO_URL: git@github.com:MoOx/certificates.git
       MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
       SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
       FASTLANE_XCODEBUILD_SETTINGS_TIMEOUT: "120"
       FASTLANE_SKIP_UPDATE_CHECK: "1"
+      # How this project declares its version, read by the tag guard below.
+      # Expo keeps it in app.json; change this line for a project that keeps it
+      # somewhere else (package.json, an .xcconfig, a build.gradle).
+      APP_VERSION_COMMAND: node -p "require('./app.json').expo.version"
+      # Source map upload only, never read at runtime. Optional: a build
+      # without it succeeds and ships minified stack traces.
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
     steps:
       - uses: actions/checkout@v5
 
-      # Fail here with a readable message rather than deep inside fastlane.
-      - name: Check the configuration is complete
+      # A tag is the one thing here that claims to be a version, so it has to be
+      # the version. `v2.0.1` pushed onto a tree that still declares 2.0.0
+      # uploads a build named after neither.
+      #
+      # Before the toolchain setup on purpose: the runner image already ships a
+      # node, and a mismatch should cost seconds rather than a full install.
+      - name: The tag is the version
+        if: startsWith(github.ref, 'refs/tags/v')
         run: |
-          missing=""
-          [ -n "$APPLE_TEAM_ID" ] || missing="$missing APPLE_TEAM_ID(variable)"
-          [ -n "$MATCH_PASSWORD" ] || missing="$missing MATCH_PASSWORD"
-          [ -n "$SECRETS_PASSPHRASE" ] || missing="$missing SECRETS_PASSPHRASE"
-          [ -n "${{ secrets.CERTIFICATES_DEPLOY_KEY }}" ] || missing="$missing CERTIFICATES_DEPLOY_KEY"
-          if [ -n "$missing" ]; then
-            echo "Missing:$missing"
-            echo "See README.md, section 'iOS signed with your Apple account'."
+          tagged="${GITHUB_REF_NAME#v}"
+          declared=$(eval "$APP_VERSION_COMMAND")
+          if [ "$tagged" != "$declared" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match the declared version $declared."
+            echo "Move the tag, or bump the version, but do not ship them apart."
             exit 1
           fi
-          echo "All four values are present."
+          echo "$GITHUB_REF_NAME matches the declared version."
+
+      # The one thing the Fastfile cannot check for itself: this key is consumed
+      # by the ssh-agent below, never passed to the lane. Everything else is
+      # declared in .env.example and checked when the lane starts.
+      - name: Check the deploy key is present
+        run: |
+          if [ -z "${{ secrets.CERTIFICATES_DEPLOY_KEY }}" ]; then
+            echo "CERTIFICATES_DEPLOY_KEY is not set."
+            echo "See docs/03-sharing-access.md in MoOx/certificates."
+            exit 1
+          fi
+          echo "Deploy key present."
 
       # Grants the runner read access to the private certificates repository.
+      # The deploy key belongs to this project alone, so it can be revoked on
+      # its own.
       - name: Access the certificates repository
         uses: webfactory/ssh-agent@v0.9.1
         with:
@@ -77,18 +102,19 @@ jobs:
 
       - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version-file: .node-version
           cache: npm
           cache-dependency-path: package-lock.json
 
       - run: npm ci
 
+      # No ruby-version here: the action reads .ruby-version on its own, which
+      # is also what rbenv and friends read locally.
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: "3.3"
           bundler-cache: true
 
-      # Recorded so the version below can be pinned explicitly.
+      # Recorded so a build that breaks on a toolchain change says which one.
       - name: Xcode version in use
         run: xcodebuild -version
 
@@ -98,9 +124,9 @@ jobs:
       #   expo-modules-jsi/.../JavaScriptCodable+Date.swift:53:50:
       #   error: type of expression is ambiguous without a type annotation
       #
-      # The image default compiles it, which is what the iOS simulator workflow
-      # already proves. Pin an explicit version here once one is known good, so
-      # this does not drift when GitHub updates the image.
+      # The image default compiles it. The cost of that choice is that both the
+      # image and its Xcode move under you, so pin `runs-on` and an explicit
+      # xcode-version once a version is known good for your Expo SDK.
 
       # The lane runs `expo prebuild --clean` and pod install itself, so there
       # is nothing to prepare beforehand.

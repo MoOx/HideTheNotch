@@ -1,0 +1,157 @@
+name: Store captures
+
+# Photographs the app's interface on both platforms and composes the two decks.
+#
+# Nothing here drives the interface: every state in src/demo/shots.ts is a URL,
+# the app walks into it, and the runner takes a picture. So this workflow needs
+# no UI automation, no test target, and no signing.
+#
+# The captures are not committed, so this is where they come from for anyone
+# without both toolchains, and it is the only place both platforms are shot
+# from the same commit. Everything it produces is an artefact: the two sets of
+# captures, and the composed decks.
+#
+# It costs nothing but time. The repository is public, so the hosted runners are
+# free, macOS included. It costs about forty minutes of waiting, most of it two
+# release builds, and the two halves run at once.
+#
+# Manual only. `workflow_dispatch` cannot be triggered from a branch that is not
+# the default one, hence the commit marker, like the other build workflows.
+on:
+  workflow_dispatch:
+  push:
+    branches: ["**"]
+
+jobs:
+  ios:
+    name: iOS simulator
+    runs-on: macos-latest
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[captures]')
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+
+      # Prebuild, pods and xcodebuild: the same script a person runs, so the
+      # two cannot drift apart.
+      - name: Build
+        run: tools/marketing/build-ios-sim.sh
+
+      - name: Capture
+        env:
+          HTN_DEVICE: iPhone 17 Pro Max
+        run: |
+          set -eo pipefail
+          HTN_APP=$(ls -d build/Build/Products/Release-iphonesimulator/*.app | head -1) \
+            tools/marketing/capture-ios.sh
+
+      # The whole tree, because a capture lives under its language:
+      # `marketing/captures/ios/<lang>/<id>.png`.
+      #
+      # Kept a week rather than the default ninety days. These are an
+      # intermediate product, seventy megabytes of it per run, and the only
+      # thing that needs them is the deck job below, in this same run. A week
+      # is there for the case where the deck is wrong and the captures were
+      # fine, which is worth not paying for twice.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: captures-ios
+          path: marketing/captures/ios
+          if-no-files-found: error
+          retention-days: 7
+
+  android:
+    name: Android emulator
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[captures]')
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # Prebuild and Gradle: the same script a person runs.
+      - name: Build the APK
+        run: tools/marketing/build-android.sh
+
+      # The emulator needs KVM, which is available on the hosted Linux runners
+      # once the device node is world writable.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Capture
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          # A Pixel 6 is 1080 x 2400 at 420 dpi, which is what both decks are
+          # composed against. It is also, like every AVD, a screen with no hole
+          # in it: the capture script turns on the AOSP cutout overlay itself,
+          # so the emulator grows a punch hole before the app is ever launched.
+          profile: pixel_6
+          disable-animations: true
+          # One line, no continuation: the action hands each line of this to
+          # `sh -c` on its own, so a trailing backslash arrives as a command
+          # called "\" and the job dies after twenty minutes of building.
+          script: HTN_APK=$(ls android/app/build/outputs/apk/release/*.apk | head -1) tools/marketing/capture-android.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: captures-android
+          path: marketing/captures/android
+          if-no-files-found: error
+          retention-days: 7
+
+  deck:
+    name: Compose both decks
+    runs-on: ubuntu-latest
+    needs: [ios, android]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: captures-ios
+          path: marketing/captures/ios
+      - uses: actions/download-artifact@v4
+        with:
+          name: captures-android
+          path: marketing/captures/android
+
+      # Chromium is what draws the deck, and the runner already has one.
+      - name: Compose
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: npm run deck
+
+      # This one is the point of the whole workflow, and it is what a person
+      # downloads: `npm run deck:fetch`. Ninety days, the default, because a
+      # listing is uploaded from it days or weeks after it was composed.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: store-deck
+          path: marketing/renders/**/*.png
+          if-no-files-found: error

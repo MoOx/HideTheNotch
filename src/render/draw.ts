@@ -1,15 +1,16 @@
 import {
-  BlendMode,
+  ClipOp,
   FilterMode,
   MipmapMode,
   Skia,
   TileMode,
   type SkCanvas,
   type SkImage,
+  type SkPaint,
   type SkShader,
 } from "@shopify/react-native-skia";
 
-import { cutoutBottom, ISLAND, screenCorner, type Geometry } from "../geometry/devices";
+import { ISLAND, maskFloor, maskLimit, screenCorner, type Geometry } from "../geometry/devices";
 import { MESH_MAX, type Mask, type Recipe, type Source } from "../recipe/types";
 import { paletteById } from "./palettes";
 import { fadeEffect, meshEffect } from "./shaders";
@@ -37,6 +38,45 @@ export function drawRecipe(canvas: SkCanvas, ctx: DrawContext) {
   canvas.drawRect(Skia.XYWHRect(0, 0, ctx.geometry.width, ctx.geometry.height), paint);
 
   drawMask(canvas, ctx.recipe.mask, ctx.geometry, source);
+}
+
+/**
+ * The same wallpaper twice, with the effect on one side only.
+ *
+ * **Preview only, and deliberately in this file.** It is the recipe drawn
+ * against itself: the source on the left as the phone would have shown it, the
+ * whole recipe on the right, and a seam where the two meet. Nothing new is
+ * drawn and nothing is simulated, which is the only reason it is allowed to
+ * exist beside `drawRecipe`: the same shader, the same mask, one clip.
+ *
+ * The export never calls it. What is saved is the recipe, and half a recipe is
+ * not a wallpaper.
+ *
+ * This used to be done by the store compositor, from two offscreen renders
+ * pasted together. Doing it here means the comparison can be photographed
+ * through the real app, with the real interface over it, which is both a better
+ * screenshot and one fewer thing that can drift from what the app does.
+ */
+export function drawCompare(canvas: SkCanvas, ctx: DrawContext, at = 0.5) {
+  const { width, height } = ctx.geometry;
+  const source = sourceShader(ctx.recipe.source, ctx.geometry, ctx.image);
+
+  const paint = Skia.Paint();
+  paint.setAntiAlias(true);
+  paint.setShader(source);
+  canvas.drawRect(Skia.XYWHRect(0, 0, width, height), paint);
+
+  const seam = width * at;
+  canvas.save();
+  canvas.clipRect(Skia.XYWHRect(seam, 0, width - seam, height), ClipOp.Intersect, false);
+  drawMask(canvas, ctx.recipe.mask, ctx.geometry, source);
+  canvas.restore();
+
+  // Thin, and not quite white: a hard white rule reads as a divider between two
+  // pictures rather than as one picture with a line drawn on it.
+  const rule = Skia.Paint();
+  rule.setColor(Skia.Color("rgba(255,255,255,0.85)"));
+  canvas.drawRect(Skia.XYWHRect(seam - 1, 0, 2, height), rule);
 }
 
 // -- Source ------------------------------------------------------------------
@@ -109,9 +149,47 @@ function linearRgb(hex: string): [number, number, number] {
 }
 
 /**
+ * As far in as a photo may be pushed.
+ *
+ * Past four times, a phone photo is being enlarged rather than framed: the
+ * result is a wallpaper made of pixels rather than of a picture, and there is
+ * nothing to be gained by letting the pinch go there.
+ */
+export const ZOOM_MAX = 4;
+
+/**
+ * The framing, made legal.
+ *
+ * The zoom is held between covering the screen and `ZOOM_MAX`, and the offset
+ * is clamped to the slack that zoom leaves, so no edge of the image can enter
+ * the frame: an edge means a hole under the cutout, and the whole thing rests
+ * on there being no hole.
+ *
+ * The gesture stores what this returns rather than what the finger asked for.
+ * Keeping the raw value would let an offset run away past the edge and come
+ * back dead for as long as it took to wind in.
+ */
+export function clampFraming(
+  iw: number,
+  ih: number,
+  W: number,
+  H: number,
+  s: { dx: number; dy: number; zoom: number },
+) {
+  const zoom = Math.min(ZOOM_MAX, Math.max(1, s.zoom));
+  const scale = Math.max(W / iw, H / ih) * zoom;
+  const slackX = Math.max(0, (iw * scale - W) / 2);
+  const slackY = Math.max(0, (ih * scale - H) / 2);
+  return {
+    zoom,
+    dx: Math.min(slackX, Math.max(-slackX, s.dx)),
+    dy: Math.min(slackY, Math.max(-slackY, s.dy)),
+  };
+}
+
+/**
  * Cover framing: the image always fills the screen, whatever the zoom and
- * offset. The offset is clamped so no edge enters the frame, which would leave
- * a hole under the cutout.
+ * offset, because the framing is clamped before it is used.
  */
 export function coverRect(
   iw: number,
@@ -120,14 +198,10 @@ export function coverRect(
   H: number,
   s: { dx: number; dy: number; zoom: number },
 ) {
-  const base = Math.max(W / iw, H / ih);
-  const scale = base * Math.max(s.zoom, 1);
+  const { dx, dy, zoom } = clampFraming(iw, ih, W, H, s);
+  const scale = Math.max(W / iw, H / ih) * zoom;
   const w = iw * scale;
   const h = ih * scale;
-  const slackX = Math.max(0, (w - W) / 2);
-  const slackY = Math.max(0, (h - H) / 2);
-  const dx = Math.min(slackX, Math.max(-slackX, s.dx));
-  const dy = Math.min(slackY, Math.max(-slackY, s.dy));
   return { x: (W - w) / 2 + dx, y: (H - h) / 2 + dy, w, h };
 }
 
@@ -137,6 +211,12 @@ function black() {
   const p = Skia.Paint();
   p.setAntiAlias(true);
   p.setColor(Skia.Color("#000000"));
+  return p;
+}
+
+/** For a rectangle that shares an edge with another one. See `drawFade`. */
+function aliased(p: SkPaint) {
+  p.setAntiAlias(false);
   return p;
 }
 
@@ -160,8 +240,17 @@ function drawMask(canvas: SkCanvas, mask: Mask, g: Geometry, source: SkShader) {
  */
 export const BAR_MAX_FRACTION = 1 / 16;
 
+/**
+ * The shortest bar the slider offers, which is not always a safe one.
+ *
+ * It is `maskLimit`, not the floor: on a phone whose hole was measured they are
+ * the same number, and on one whose hole was read off a table the slider goes a
+ * little under, on purpose. That is the only way anyone can find out where the
+ * hole really ends, and the only way a mask on an unrecognised phone stops
+ * being needlessly tall.
+ */
 export function barMinHeight(g: Geometry): number {
-  return Math.max(cutoutBottom(g), 1);
+  return maskLimit(g);
 }
 
 /**
@@ -234,17 +323,30 @@ function drawBar(canvas: SkCanvas, height: number, corner: number, g: Geometry) 
 
 /**
  * Where the stripes start: below a head band forced to contain the cutout.
+ *
+ * The floor and nothing added to it, which is where the bar's own default
+ * stops. It used to be six points lower, from when the floor was the safe area
+ * and needed no margin of its own; now that the floor is the hole plus what a
+ * table entry is worth, the six were a second margin on top of a first, and the
+ * pattern visibly started later than the bar did on the same phone.
  */
 export function stripeHead(g: Geometry): number {
-  return Math.max(g.cutout.y + g.cutout.h + 6, 8);
+  return Math.max(maskFloor(g), 8);
 }
 
 /** How far down the screen the pattern runs. */
 const STRIPE_SPAN = 0.42;
 /** The grid opens downward, which is what gives the pattern its direction. */
 const STRIPE_GROWTH = 1.09;
-/** Coverage of the first band, as a fraction of its period. */
-const STRIPE_START_COVER = 0.85;
+/**
+ * Coverage of the first band, as a fraction of its period.
+ *
+ * It was 0.85, which left a five point slit at the head: too thin to register
+ * as the pattern beginning, so the black read as carrying on and the family
+ * looked like it started ten points below the bar on the same phone. At 0.68
+ * the first gap is twice that and the rhythm announces itself where it starts.
+ */
+const STRIPE_START_COVER = 0.68;
 /**
  * 2.2 because the eye integrates the bands spatially: mean luminance is
  * `1 - coverage`, and lightness goes as luminance to the power 1/2.2. Ramping
@@ -328,13 +430,19 @@ function drawStripes(canvas: SkCanvas, mask: { density: number }, g: Geometry) {
 /**
  * Where the absolute black ends, which is not a setting.
  *
- * It has one correct place, just under the cutout, and a handle for it can only
- * be dragged to somewhere worse. On an island the safe area matters more than
- * the cutout itself, otherwise a strip of photo stays stranded beside the
- * status bar.
+ * It has one correct place, just under the cutout, and a handle for it could
+ * only be dragged to somewhere worse. That place is the floor, the same line
+ * the bar's default stops at and the same line the stripes start from: three
+ * families, one edge, so choosing between them is choosing a texture and never
+ * a height.
+ *
+ * It used to be four points lower, from when the floor was the safe area and
+ * the four were the margin the safe area did not need. The floor carries its
+ * own margin now, and a margin on a margin is how the fade came to start a
+ * visible step below the bar on the same phone.
  */
 export function fadeSolidEnd(g: Geometry): number {
-  return Math.max(cutoutBottom(g) + 4, g.kind === "island" ? g.insetTop : 0, 1);
+  return maskFloor(g);
 }
 
 /** 03, dithered fade. See `shaders.ts` for why it needs a shader. */
@@ -348,7 +456,17 @@ function drawFade(
 
   // Absolute black above `solidEnd` is painted separately: the shader only
   // handles the transition, and this band must never be dithered.
-  canvas.drawRect(Skia.XYWHRect(0, 0, g.width, solidEnd), black());
+  //
+  // Neither half is anti aliased, and that is the point. They are axis aligned
+  // rectangles sharing an edge, and that edge lands on half a device row more
+  // often than not: 44 points on a 2.625 screen is 115.5 pixels. Anti aliased,
+  // each covers half of that row, and half of black over half of black leaves a
+  // quarter of the wallpaper showing through. It reads as a bright hairline
+  // ruled across the top of the screen, and it was in every thumbnail too,
+  // where the scale is smaller and the same quarter is a larger part of what
+  // you see. Without it both rectangles snap to the same row and the seam
+  // cannot exist.
+  canvas.drawRect(Skia.XYWHRect(0, 0, g.width, solidEnd), aliased(black()));
 
   const span = Math.max(0, mask.fadeEnd - solidEnd);
   if (span <= 0) {
@@ -368,7 +486,7 @@ function drawFade(
         TileMode.Clamp,
       ),
     );
-    canvas.drawRect(Skia.XYWHRect(0, solidEnd, g.width, span), p);
+    canvas.drawRect(Skia.XYWHRect(0, solidEnd, g.width, span), aliased(p));
     return;
   }
 
@@ -376,5 +494,5 @@ function drawFade(
   paint.setShader(
     fadeEffect.makeShaderWithChildren([solidEnd, mask.fadeEnd, mask.curve, g.scale], [source]),
   );
-  canvas.drawRect(Skia.XYWHRect(0, solidEnd, g.width, span), paint);
+  canvas.drawRect(Skia.XYWHRect(0, solidEnd, g.width, span), aliased(paint));
 }

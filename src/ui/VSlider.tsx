@@ -1,10 +1,11 @@
 import { useMemo, useRef } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 import * as Haptics from "expo-haptics";
 
+import { ADJUST, adjustStep } from "./a11y";
 import { Caption } from "./Caption";
 import { BUTTON } from "./CornerButton";
 import { Glass } from "./Glass";
@@ -22,6 +23,18 @@ type Props = {
   label: string;
   /** Sits at the foot of the track, the way the volume control's speaker does. */
   symbol: SFSymbol;
+  /**
+   * A number worth reading, at the head of the track, faint, and only while a
+   * finger is on it.
+   *
+   * Only one setting in this app is a physical length rather than a taste, and
+   * it is the one anybody would want to write down: how far the black reaches.
+   * It was in the caption above the control, where it made the label jump about
+   * as it changed. It is inside the control now, at the opposite end from the
+   * symbol, and it arrives with the swell: a number is worth reading while it
+   * is being set and is furniture the rest of the time.
+   */
+  readout?: string;
   height?: number;
 };
 
@@ -36,10 +49,11 @@ type Props = {
  * from inside the control, which is why the volume slider needs no label at
  * all.
  *
- * The whole body is the target, it fills from the bottom, and it shows no
- * number.
+ * The whole body is the target and it fills from the bottom. It shows no
+ * number either, unless the value is a length someone might want to read, in
+ * which case `readout` puts it at the head of the track.
  */
-export function VSlider({ value, onChange, label, symbol, height = SLIDER_H }: Props) {
+export function VSlider({ value, onChange, label, symbol, readout, height = SLIDER_H }: Props) {
   // The gesture is built once. Reading `value` inside it would put it in the
   // dependency list, and the detector would then be handed a new gesture on
   // every frame of the drag, which cancels the drag it is in the middle of.
@@ -58,9 +72,12 @@ export function VSlider({ value, onChange, label, symbol, height = SLIDER_H }: P
   // symbol grow together, which is what the system control actually does.
   const grow = useSharedValue(0);
   const growStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 + grow.value * 0.07 }],
+    transform: [{ scale: 1 + grow.value * 0.03 }],
     transformOrigin: "center bottom",
   }));
+  // The readout comes and goes with the swell, on the same value, so it is one
+  // gesture and not two things that happen to start together.
+  const readoutStyle = useAnimatedStyle(() => ({ opacity: grow.value }));
 
   const pan = useMemo(
     () =>
@@ -94,9 +111,31 @@ export function VSlider({ value, onChange, label, symbol, height = SLIDER_H }: P
     <View style={styles.wrap} pointerEvents="box-none">
       <Caption>{label}</Caption>
       <GestureDetector gesture={pan}>
-        <Animated.View style={growStyle}>
-          <Glass style={[styles.body, { height }]} radius={SLIDER_W / 2}>
+        {/* A drag is the only way to move this with a finger, and a screen
+            reader has no drag: VoiceOver and TalkBack both take an adjustable
+            control and offer it as swipe up and swipe down, which arrive here
+            as increment and decrement. A tenth per step, the same tick the
+            haptics give, so the two ways of setting it agree. */}
+        <Animated.View
+          style={growStyle}
+          accessible
+          accessibilityRole="adjustable"
+          accessibilityLabel={label}
+          accessibilityValue={{ min: 0, max: 100, now: Math.round(value * 100) }}
+          accessibilityActions={ADJUST}
+          onAccessibilityAction={(e) => {
+            onChange(Math.min(1, Math.max(0, value + adjustStep(e.nativeEvent.actionName, 0.1))));
+          }}
+        >
+          <Glass style={[styles.body, { height }]} radius={SLIDER_W / 2} effect="clear">
             <View style={[styles.fill, { height: filled }]} />
+            {readout === undefined ? null : (
+              <Animated.View style={[styles.head, readoutStyle]} pointerEvents="none">
+                <Text style={styles.readout} numberOfLines={1}>
+                  {readout}
+                </Text>
+              </Animated.View>
+            )}
             <View style={styles.foot} pointerEvents="none">
               <SymbolView
                 name={symbol}
@@ -126,5 +165,28 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 10,
     alignItems: "center",
+  },
+  // The symbol's mirror image, at the other end and in the other ink. The foot
+  // spends its life on the white fill, so it is dark; the head spends its life
+  // on the glass, so it is light. At the very top of the travel the fill
+  // reaches it and it fades out, which is the one moment the number says
+  // nothing anybody did not already know.
+  //
+  // Fading a child of the glass, not the glass itself: an alpha below 1 on a
+  // visual effect view or on any of its *ancestors* is what empties it, and
+  // this is neither.
+  head: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 9,
+    alignItems: "center",
+  },
+  readout: {
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 10,
+    fontWeight: "600",
+    fontVariant: ["tabular-nums"],
+    letterSpacing: -0.2,
   },
 });

@@ -1,0 +1,119 @@
+name: iOS to the App Store
+
+# Promotes a build that is already on TestFlight. Nothing is compiled here, so
+# this workflow exists to let a release happen from a phone.
+#
+# Run it from the ref you published, normally the `v*` tag: the guard below
+# checks the tag against the declared version when you pick one.
+#
+# A copy of templates/github-workflows/ios-appstore.yml in MoOx/certificates,
+# with this app's identifier and its two review answers filled in. Fix it there
+# rather than here.
+#
+# Repository secrets required: CERTIFICATES_DEPLOY_KEY, SECRETS_PASSPHRASE.
+# MATCH_PASSWORD is not needed: this lane never calls match.
+
+on:
+  workflow_dispatch:
+    inputs:
+      submit:
+        description: "Submit for review. Off prepares the version and stops."
+        type: boolean
+        default: false
+      version:
+        description: "Marketing version, if not the one the app declares"
+        type: string
+        required: false
+
+concurrency:
+  group: ios-appstore
+  cancel-in-progress: false
+
+jobs:
+  appstore:
+    # No Xcode, no archive: this lane only talks to App Store Connect. If the
+    # Gemfile's cocoapods gem misbehaves on Linux, move to macos-latest; there
+    # is nothing else here that wants a Mac.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Submitting for review is a good candidate for a protected environment.
+    # Create one in Settings > Environments with a required reviewer, then:
+    # environment: appstore
+    env:
+      APP_IDENTIFIER: io.moox.HideTheNotch
+      APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+      CERTS_REPO_URL: git@github.com:MoOx/certificates.git
+      SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
+      FASTLANE_SKIP_UPDATE_CHECK: "1"
+      APP_VERSION_COMMAND: node -p "require('./app.json').expo.version"
+      # Source map upload only. Optional.
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      # The two App Store review answers. They live in .env for local runs, and
+      # there is no .env here, so they have to be repeated. Set to 1 only where
+      # the statement is true for this app.
+      APP_USES_ENCRYPTION: "0"
+      APP_USES_IDFA: "0"
+      # From the form above. An empty version means the one the app declares.
+      SUBMIT_FOR_REVIEW: ${{ inputs.submit && '1' || '0' }}
+      APP_VERSION: ${{ inputs.version }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # Only when the run was started from a tag, which is the normal case.
+      - name: The tag is the version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          tagged="${GITHUB_REF_NAME#v}"
+          declared=$(eval "$APP_VERSION_COMMAND")
+          if [ "$tagged" != "$declared" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match the declared version $declared."
+            echo "Move the tag, or bump the version, but do not ship them apart."
+            exit 1
+          fi
+          echo "$GITHUB_REF_NAME matches the declared version."
+
+      # The one thing the Fastfile cannot check for itself: this key is consumed
+      # by the ssh-agent below, never passed to the lane. Everything else is
+      # declared in .env.example and checked when the lane starts.
+      - name: Check the deploy key is present
+        run: |
+          if [ -z "${{ secrets.CERTIFICATES_DEPLOY_KEY }}" ]; then
+            echo "CERTIFICATES_DEPLOY_KEY is not set."
+            echo "See docs/03-sharing-access.md in MoOx/certificates."
+            exit 1
+          fi
+          echo "Deploy key present."
+
+      - name: Access the certificates repository
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.CERTIFICATES_DEPLOY_KEY }}
+
+      # Kept even though nothing is bundled: an app that generates its store
+      # listing from a script needs its dependencies here.
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci
+
+      # No ruby-version here: the action reads .ruby-version on its own, which
+      # is also what rbenv and friends read locally.
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Prepare the App Store version
+        run: bundle exec fastlane ios release
+
+      - name: Keep the logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fastlane-logs-appstore
+          path: fastlane/report.xml
+          if-no-files-found: ignore
+          retention-days: 7

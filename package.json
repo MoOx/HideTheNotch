@@ -1,9 +1,39 @@
 {
   "name": "hide-the-notch",
   "version": "2.0.0",
+  "private": true,
   "main": "index.ts",
+  "scripts": {
+    "android": "expo run:android",
+    "avd": "tools/marketing/create-avd.sh",
+    "brand": "node tools/brand.cjs",
+    "build:harness": "tsc -p tsconfig.harness.json && node tools/harness-check.cjs",
+    "captures:android": "tools/marketing/build-android.sh && HTN_APK=$(ls android/app/build/outputs/apk/release/*.apk | head -1) tools/marketing/capture-android.sh",
+    "captures:ios": "tools/marketing/build-ios-sim.sh && HTN_APP=$(ls -d build/Build/Products/Release-iphonesimulator/*.app | head -1) tools/marketing/capture-ios.sh",
+    "deck:fetch": "tools/marketing/fetch-deck.sh",
+    "deck": "node tools/marketing/compose.cjs --out marketing/renders/app-store && node tools/marketing/compose.cjs --spec marketing/shots-play.json --out marketing/renders/play",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "ios": "expo run:ios",
+    "lint": "oxlint",
+    "beta:ios": "tools/fastlane.sh ios beta",
+    "beta:android": "tools/fastlane.sh android beta",
+    "promote:ios": "tools/fastlane.sh ios release",
+    "promote:android": "tools/fastlane.sh android release",
+    "metadata:ios": "tools/fastlane.sh ios metadata",
+    "release": "node tools/release.cjs",
+    "listing": "node tools/marketing/listing.cjs",
+    "marketing:serve": "node tools/marketing/serve.cjs",
+    "postinstall": "patch-package",
+    "prepare": "git config core.hooksPath .githooks || true",
+    "samples": "npm run build:harness && node tools/render-samples.cjs",
+    "start": "expo start --dev-client",
+    "typecheck": "tsc --noEmit",
+    "verify": "npm run build:harness && node tools/verify-render.cjs"
+  },
   "dependencies": {
     "@expo/ui": "~57.0.9",
+    "@sentry/react-native": "~7.11.0",
     "@shopify/react-native-skia": "^2.6.2",
     "expo": "~57.0.11",
     "expo-application": "~57.0.1",
@@ -13,9 +43,11 @@
     "expo-glass-effect": "~57.0.1",
     "expo-haptics": "~57.0.1",
     "expo-image-picker": "~57.0.2",
+    "expo-localization": "~57.0.1",
     "expo-media-library": "~57.0.3",
     "expo-sensors": "~57.0.2",
     "expo-sharing": "~57.0.1",
+    "expo-splash-screen": "~57.0.5",
     "expo-status-bar": "~57.0.1",
     "expo-symbols": "~57.0.2",
     "expo-system-ui": "~57.0.2",
@@ -27,24 +59,17 @@
     "react-native-safe-area-context": "~5.7.0",
     "react-native-worklets": "^0.10.1"
   },
-  "//overrides": "@expo/ui pulls react-dom for its web build, which we never use, and that react-dom wants a newer react than the one Expo pins. Forcing the tree onto our react keeps npm ci reproducible.",
-  "overrides": {
-    "react": "19.2.3"
-  },
   "devDependencies": {
     "@types/react": "~19.2.2",
     "babel-preset-expo": "^57.0.6",
     "expo-build-properties": "~57.0.2",
+    "oxfmt": "^0.65.0",
+    "oxlint": "^1.80.0",
+    "patch-package": "^8.0.1",
     "typescript": "~6.0.3"
   },
-  "scripts": {
-    "start": "expo start --dev-client",
-    "android": "expo run:android",
-    "ios": "expo run:ios",
-    "typecheck": "tsc --noEmit",
-    "build:harness": "tsc --ignoreConfig src/render/draw.ts src/render/shaders.ts src/render/palettes.ts src/render/homescreen.ts src/geometry/devices.ts src/recipe/defaults.ts --outDir .harness --module commonjs --target es2020 --skipLibCheck --esModuleInterop",
-    "verify": "npm run build:harness && node tools/verify-render.cjs",
-    "samples": "npm run build:harness && node tools/render-samples.cjs"
+  "overrides": {
+    "react": "19.2.3"
   },
-  "private": true
+  "//overrides": "@expo/ui pulls react-dom for its web build, which we never use, and that react-dom wants a newer react than the one Expo pins. Forcing the tree onto our react keeps npm ci reproducible."
 }

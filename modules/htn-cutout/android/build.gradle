@@ -1,0 +1,18 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'io.moox.hidethenotch'
+version = '1.0.0'
+
+android {
+  namespace "io.moox.hidethenotch.cutout"
+  defaultConfig {
+    versionCode 1
+    versionName '1.0.0'
+  }
+  lint {
+    abortOnError false
+  }
+}

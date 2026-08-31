@@ -1,6 +1,7 @@
 import { StyleSheet } from "react-native";
 import { ColorPicker, Host } from "@expo/ui/swift-ui";
 
+import { t } from "../i18n";
 import { T } from "./theme";
 
 /**
@@ -31,14 +32,14 @@ export function ColorControl({
     // Native hand SwiftUI the full width, and a `ColorPicker` given a width
     // spreads to it, label leading and swatch trailing, which is the row this
     // wanted to be all along.
-    // Dark whatever the phone is set to. The chrome floats over a wallpaper and
-    // is always dark, so a SwiftUI island inheriting a light appearance would
-    // put dark text on dark glass.
-    <Host matchContents={MATCH} colorScheme="dark" style={styles.host}>
+    // No appearance of its own: this row lives inside a system sheet, and the
+    // sheet follows the phone. It used to be pinned dark, from when the whole
+    // app was, and pinning it now would be one dark row in a light menu.
+    <Host matchContents={MATCH} style={styles.host}>
       <ColorPicker
         selection={value}
         supportsOpacity={false}
-        label="Choose color"
+        label={t("chooseColor")}
         onSelectionChange={(next) => onChange(normalise(next))}
       />
     </Host>

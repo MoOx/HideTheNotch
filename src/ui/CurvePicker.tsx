@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { Canvas, Path, Skia } from "@shopify/react-native-skia";
 import * as Haptics from "expo-haptics";
 
+import { t } from "../i18n";
 import { Caption } from "./Caption";
 import { BUTTON } from "./CornerButton";
 import { Glass } from "./Glass";
@@ -24,10 +25,10 @@ const SHAPE: Record<CurveId, string> = {
   2: "M3 23 C 11 23, 15 3, 23 3",
 };
 
-const LABEL: Record<CurveId, string> = {
-  0: "Straight fade",
-  1: "Soft at the top",
-  2: "Soft at both ends",
+const LABEL: Record<CurveId, () => string> = {
+  0: () => t("curveStraight"),
+  1: () => t("curveSoftTop"),
+  2: () => t("curveSoftBoth"),
 };
 
 /**
@@ -54,8 +55,8 @@ export function CurvePicker({
 
   return (
     <View style={styles.wrap} pointerEvents="box-none">
-      <Caption>Style</Caption>
-      <Glass style={styles.column} radius={CELL / 2 + 4}>
+      <Caption>{t("style")}</Caption>
+      <Glass effect="clear" style={styles.column} radius={CELL / 2 + 4}>
         {([0, 1, 2] as CurveId[]).map((id) => {
           const on = id === value;
           const path = paths[id];
@@ -64,7 +65,7 @@ export function CurvePicker({
               key={id}
               accessibilityRole="radio"
               accessibilityState={{ selected: on }}
-              accessibilityLabel={LABEL[id]}
+              accessibilityLabel={LABEL[id]()}
               style={[styles.cell, on && styles.cellOn]}
               onPress={() => {
                 if (id !== value) {

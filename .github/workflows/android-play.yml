@@ -1,0 +1,126 @@
+name: Android to Google Play
+
+# The Android half of ios-testflight.yml, and deliberately its mirror image:
+# same shape, same secrets repository, same marker in a commit message. Adapted
+# from MoOx/certificates templates; prefer fixing that upstream over diverging
+# here.
+#
+# Repository secrets required (Settings > Secrets and variables > Actions):
+#
+#   CERTIFICATES_DEPLOY_KEY   read-only ed25519 deploy key for MoOx/certificates
+#   SECRETS_PASSPHRASE        passphrase for the certificates repo secrets/
+#
+# And, inside MoOx/certificates, under secrets/android/:
+#
+#   release.keystore              the upload key, not the app signing key:
+#                                 Play App Signing holds that one
+#   keystore.properties           storePassword, keyAlias, keyPassword
+#   play-service-account.json     a Google Cloud service account, invited in
+#                                 Play Console with "Release to testing tracks"
+#
+# The [play] commit marker exists only because workflow_dispatch cannot be
+# triggered from a branch that is not the default one. Drop it once this is on
+# main.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+    branches: ["**"]
+
+# One upload at a time: two runs racing for the same version code is how a
+# track ends up with a gap in it.
+concurrency:
+  group: android-play
+  cancel-in-progress: false
+
+jobs:
+  play:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: >-
+      github.event_name != 'push' ||
+      startsWith(github.ref, 'refs/tags/v') ||
+      contains(github.event.head_commit.message, '[play]')
+    env:
+      APP_IDENTIFIER: io.moox.HideTheNotch
+      ANDROID_PACKAGE_NAME: io.moox.hidethenotch
+      CERTS_REPO_URL: git@github.com:MoOx/certificates.git
+      SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
+      FASTLANE_SKIP_UPDATE_CHECK: "1"
+      # Source map upload only. Absent, the build still succeeds and the
+      # traces arrive minified.
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # A tag is the one thing here that claims to be a version, so it has to be
+      # the version. `v2.0.1` pushed onto a tree whose app.json still says 2.0.0
+      # uploads a build named after neither.
+      - name: The tag is the version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          tagged="${GITHUB_REF_NAME#v}"
+          declared=$(node -p "require('./app.json').expo.version")
+          if [ "$tagged" != "$declared" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match app.json version $declared."
+            echo "Move the tag, or bump the version, but do not ship them apart."
+            exit 1
+          fi
+          echo "$GITHUB_REF_NAME matches app.json."
+
+      # Fail here with a readable message rather than deep inside fastlane.
+      - name: Check the configuration is complete
+        run: |
+          missing=""
+          [ -n "$SECRETS_PASSPHRASE" ] || missing="$missing SECRETS_PASSPHRASE"
+          [ -n "${{ secrets.CERTIFICATES_DEPLOY_KEY }}" ] || missing="$missing CERTIFICATES_DEPLOY_KEY"
+          if [ -n "$missing" ]; then
+            echo "Missing:$missing"
+            echo "See README.md, section 'Shipping to Google Play'."
+            exit 1
+          fi
+          echo "Both values are present."
+
+      # Grants the runner read access to the private certificates repository.
+      - name: Access the certificates repository
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.CERTIFICATES_DEPLOY_KEY }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - run: npm ci
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      # The lane runs `expo prebuild` and writes the listings itself, so there
+      # is nothing to prepare beforehand.
+      - name: Build and upload to the internal track
+        run: bundle exec fastlane android beta
+
+      - name: Keep the logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fastlane-logs
+          path: |
+            fastlane/report.xml
+            android/app/build/outputs
+          if-no-files-found: ignore
+          retention-days: 7

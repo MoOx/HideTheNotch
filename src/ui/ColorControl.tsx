@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Slider } from "@expo/ui";
+import { useMaterialColors } from "@expo/ui/jetpack-compose";
+import { Host, Slider } from "@expo/ui/jetpack-compose";
 
+import { t } from "../i18n";
 import { Caption } from "./Caption";
 import { T } from "./theme";
 
@@ -11,7 +13,9 @@ import { T } from "./theme";
  * Android has no system colour panel to present, so it gets the honest general
  * answer: hue, saturation and brightness on three Material sliders. Not a
  * drawing of a colour wheel, which is the sort of thing that looks right in a
- * screenshot and is unusable with a thumb over it.
+ * screenshot and is unusable with a thumb over it. And not a colour picker
+ * package either: three sliders and forty lines of colour conversion is not
+ * worth a dependency, and every one of those packages draws its own wheel.
  *
  * They stay folded behind one row so that this reads as a menu item next to
  * Delete rather than as a control panel that happens to be in a menu, which is
@@ -28,35 +32,51 @@ export function ColorControl({
 }) {
   const [open, setOpen] = useState(false);
   const hsb = useMemo(() => toHsb(value), [value]);
+  // The row's own two colours, from the sheet's Material scheme rather than
+  // from the app's palette: `src/ui/theme.ts` is white on a wallpaper, which is
+  // the wrong ink for a menu that follows the phone.
+  const colors = useMaterialColors();
 
   return (
     <View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Choose color"
+        accessibilityLabel={t("chooseColor")}
         accessibilityState={{ expanded: open }}
         onPress={() => setOpen((v) => !v)}
         style={styles.row}
       >
-        <Text style={styles.rowText}>Choose color</Text>
-        <View style={[styles.swatch, { backgroundColor: value }]} />
+        <Text style={[styles.rowText, { color: colors.onSurface }]}>{t("chooseColor")}</Text>
+        <View
+          style={[styles.swatch, { backgroundColor: value, borderColor: colors.outlineVariant }]}
+        />
       </Pressable>
 
       {open ? (
         <View style={styles.sliders}>
-          {(["Hue", "Saturation", "Brightness"] as const).map((label, i) => (
+          {([t("hue"), t("saturation"), t("brightness")] as const).map((label, i) => (
             <View key={label} style={styles.slider}>
               <Caption>{label}</Caption>
-              <Slider
-                value={hsb[i]}
-                min={0}
-                max={1}
-                onValueChange={(v) => {
-                  const next: [number, number, number] = [hsb[0], hsb[1], hsb[2]];
-                  next[i] = v;
-                  onChange(fromHsb(next));
-                }}
-              />
+              {/* One Host per slider, and the slider its only child. These are
+                  Jetpack Compose views, not React Native ones: Compose needs a
+                  composition boundary of its own, and any plain View between
+                  the two breaks it. Without this the sliders did not render at
+                  all, which is what three labels with nothing beside them
+                  were. The height is given rather than measured, because a
+                  Material slider has one and a host that has to be told its
+                  size after the fact starts at zero. */}
+              <Host style={styles.host}>
+                <Slider
+                  value={hsb[i]}
+                  min={0}
+                  max={1}
+                  onValueChange={(v) => {
+                    const next: [number, number, number] = [hsb[0], hsb[1], hsb[2]];
+                    next[i] = v;
+                    onChange(fromHsb(next));
+                  }}
+                />
+              </Host>
             </View>
           ))}
         </View>
@@ -106,14 +126,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  rowText: { color: T.text, fontSize: T.rowText },
+  rowText: { fontSize: T.rowText },
   swatch: {
     width: SWATCH,
     height: SWATCH,
     borderRadius: SWATCH / 2,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(255,255,255,0.5)",
   },
   sliders: { gap: 6, paddingBottom: 10 },
   slider: { gap: 2 },
+  host: { height: 44 },
 });

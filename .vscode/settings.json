@@ -1,0 +1,39 @@
+{
+  // Formatting is oxfmt, the same binary `npm run format` runs, through the
+  // Oxc extension. `source.organizeImports` is deliberately absent: it sorts
+  // every import alphabetically, which fights the grouping this codebase uses.
+  // Only the unused ones are taken out, which is what nobody wants to do by
+  // hand.
+  "editor.defaultFormatter": "oxc.oxc-vscode",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.removeUnusedImports": "explicit"
+  },
+
+  // Auto-import, and keep the imports right when a file moves. There are no
+  // path aliases in tsconfig.json, so a relative specifier is the only correct
+  // answer and asking for it saves a wrong guess.
+  "typescript.suggest.autoImports": true,
+  "typescript.preferences.importModuleSpecifier": "relative",
+  "typescript.preferences.preferTypeOnlyAutoImports": true,
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "javascript.suggest.autoImports": true,
+  "javascript.preferences.importModuleSpecifier": "relative",
+  "javascript.updateImportsOnFileMove.enabled": "always",
+
+  // The repository's own TypeScript, so the editor and `npm run typecheck`
+  // never disagree about what compiles.
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+
+  // Generated or vendored, and never what anyone is searching for.
+  "search.exclude": {
+    "**/.harness": true,
+    "**/android": true,
+    "**/ios": true,
+    "**/marketing/captures": true
+  },
+  "files.associations": {
+    "*.cjs": "javascript"
+  }
+}

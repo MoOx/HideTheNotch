@@ -85,7 +85,34 @@ def asc_api_key
   )
 end
 
+# Writes both store listing trees from marketing/listing.json.
+#
+# Always, before any upload, rather than committing the two trees: they are six
+# languages of the same sentences under two sets of folder names, and a copy
+# that can drift is a copy that will. The generator also enforces every store
+# length limit, so a listing that would be rejected fails here instead.
+def write_listings!
+  Dir.chdir(ROOT) { sh("node", "tools/marketing/listing.cjs") }
+end
+
 # --- native project --------------------------------------------------------
+
+# Which commit a build was made from, which no store number can say.
+#
+# The two stores keep two counters, and Apple's restarts at one on every new
+# marketing version, so a build number identifies a build inside one store and
+# nothing beyond that. This is the same value on both platforms for the same
+# code, and the support sheet reports it.
+#
+# `EXPO_PUBLIC_*` is inlined by Metro at bundling, so it has to be set before
+# the bundle is made, which both `build_app` and the gradle task do as children
+# of this process.
+def stamp_commit!
+  sha = sh("git", "-C", ROOT, "rev-parse", "--short", "HEAD").strip
+  ENV["EXPO_PUBLIC_COMMIT"] = sha
+  UI.message("Building from #{sha}")
+  sha
+end
 
 # `expo prebuild --clean` fully regenerates the native project.
 # The chdir is explicit: `sh` runs from the fastlane/ directory.
@@ -129,6 +156,7 @@ platform :ios do
     # certificates on a CI runner.
     setup_ci if is_ci
 
+    stamp_commit!
     decrypt_secrets!
     api_key = asc_api_key
 
@@ -195,6 +223,84 @@ platform :ios do
     )
   end
 
+  desc "Push the store listing and the deck, without building anything"
+  lane :metadata do
+    decrypt_secrets!
+    write_listings!
+
+    # No binary: this lane exists so copy and screenshots can be corrected
+    # without a build, which is most of what a listing needs after the first
+    # one. `force` skips the HTML preview, which has nobody to look at it in CI.
+    upload_to_app_store(
+      api_key: asc_api_key,
+      app_identifier: bundle_id,
+      skip_binary_upload: true,
+      skip_app_version_update: false,
+      overwrite_screenshots: true,
+      force: true,
+      precheck_include_in_app_purchases: false,
+      submit_for_review: false
+    )
+  end
+
+  desc "Take the last TestFlight build to the App Store record, ready to submit"
+  lane :release do
+    decrypt_secrets!
+    write_listings!
+    api_key = asc_api_key
+
+    # The build to promote, which is the last one TestFlight took. Apple's
+    # numbering restarts at one on every marketing version, so this is asked
+    # for the version being released and means nothing outside it.
+    build = latest_testflight_build_number(
+      app_identifier: bundle_id,
+      api_key: api_key,
+      initial_build_number: 0
+    )
+    UI.user_error!("no build on TestFlight to promote") if build.to_i.zero?
+
+    version = JSON.parse(File.read(File.join(ROOT, "app.json")))["expo"]["version"]
+    UI.message("Promoting build #{build} as #{version}")
+
+    # Copy, screenshots and the chosen build, onto the version being prepared.
+    # App Store metadata belongs to a version rather than to the app, so this
+    # is what makes the listing and the binary one thing.
+    #
+    # It stops there. Submitting is a separate decision, and one that starts a
+    # review that cannot be taken back quietly, so it is a deliberate flag
+    # rather than the default: HTN_SUBMIT=1.
+    submit = ENV["HTN_SUBMIT"] == "1"
+    upload_to_app_store(
+      api_key: api_key,
+      app_identifier: bundle_id,
+      app_version: version,
+      build_number: build.to_s,
+      skip_binary_upload: true,
+      skip_app_version_update: false,
+      overwrite_screenshots: true,
+      force: true,
+      precheck_include_in_app_purchases: false,
+      submit_for_review: submit,
+      # Asked once here rather than by hand in the console on every release.
+      # This app uses no encryption beyond what the system provides, holds no
+      # account, and shows no advertising.
+      submission_information: {
+        export_compliance_uses_encryption: false,
+        add_id_info_uses_idfa: false
+      },
+      # Nothing goes on sale by itself: the version waits for a tap once the
+      # review has passed.
+      automatic_release: false
+    )
+
+    if submit
+      UI.success("Submitted #{version} (build #{build}) for review")
+    else
+      UI.success("#{version} (build #{build}) is ready in App Store Connect")
+      UI.message("Submit it there, or run this again with HTN_SUBMIT=1")
+    end
+  end
+
   desc "Create or renew the certificates and profiles (local only)"
   lane :certificates do
     UI.user_error!("run this from your machine, not from CI") if is_ci
@@ -215,49 +321,130 @@ platform :ios do
 end
 
 # --- Android ---------------------------------------------------------------
-# Not enabled yet: the Android secrets are missing from the shared repository.
-# See docs/90-android-later.md. This lane stays inert unless it is called.
+# Inert until the Android secrets exist in the shared repository:
+# android/release.keystore, android/keystore.properties and
+# android/play-service-account.json. See README.md, "Shipping to Google Play".
+
+# Builds the signed release bundle, and nothing else.
+#
+# Split out of the lane below because the first upload to Play cannot go
+# through the API: Google will not accept one for a package that has never had
+# a release, so somebody has to drag an AAB into the console once. That build
+# must not ask Play anything at all, hence the version code as an argument
+# rather than a lookup.
+def build_aab!(version_code)
+  props = load_properties(secret("android/keystore.properties"))
+
+  # Injected through -P so it survives `expo prebuild --clean`, which rewrites
+  # build.gradle on every run.
+  gradle(
+    task: "bundle",
+    build_type: "Release",
+    project_dir: File.join(ROOT, "android"),
+    properties: {
+      "android.injected.version.code" => version_code,
+      "android.injected.signing.store.file" => secret("android/release.keystore"),
+      "android.injected.signing.store.password" => props.fetch("storePassword"),
+      "android.injected.signing.key.alias" => props.fetch("keyAlias"),
+      "android.injected.signing.key.password" => props.fetch("keyPassword")
+    }
+  )
+  lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH]
+end
 
 platform :android do
-  desc "Build the AAB and ship it to the Google Play internal track"
-  lane :beta do
+  desc "Build a signed AAB and stop, for the one upload Google wants by hand"
+  lane :bundle do
+    stamp_commit!
     decrypt_secrets!
     expo_prebuild("android")
 
-    props = load_properties(secret("android/keystore.properties"))
+    # No call to Play, on purpose: this lane exists for the moment before the
+    # app has a release, when there is nothing there to ask.
+    code = ENV.fetch("ANDROID_VERSION_CODE", "1").to_i
+    path = build_aab!(code)
+
+    UI.success("Version code #{code}")
+    UI.success("Upload this by hand, once: #{path}")
+  end
+
+  desc "Build the AAB and ship it to the Google Play internal track"
+  lane :beta do
+    stamp_commit!
+    decrypt_secrets!
+    write_listings!
+    expo_prebuild("android")
+
     json_key = secret("android/play-service-account.json")
 
-    # Injected through -P so it survives `expo prebuild --clean`, which
-    # rewrites build.gradle.
     version_code = google_play_track_version_codes(
       package_name: android_package,
       track: "internal",
       json_key: json_key
     ).max.to_i + 1
 
-    gradle(
-      task: "bundle",
-      build_type: "Release",
-      project_dir: File.join(ROOT, "android"),
-      properties: {
-        "android.injected.version.code" => version_code,
-        "android.injected.signing.store.file" => secret("android/release.keystore"),
-        "android.injected.signing.store.password" => props.fetch("storePassword"),
-        "android.injected.signing.key.alias" => props.fetch("keyAlias"),
-        "android.injected.signing.key.password" => props.fetch("keyPassword")
-      }
-    )
+    build_aab!(version_code)
 
     upload_to_play_store(
       package_name: android_package,
       track: "internal",
       json_key: json_key,
       aab: lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH],
-      skip_upload_metadata: true,
-      skip_upload_images: true,
-      skip_upload_screenshots: true,
-      skip_upload_changelogs: true
+      # The listing goes up with the build. `supply` reads it out of
+      # fastlane/metadata/android, which `write_listings!` has just written from
+      # marketing/listing.json.
+      skip_upload_metadata: false,
+      skip_upload_images: false,
+      skip_upload_screenshots: false,
+      skip_upload_changelogs: false,
+      # Play keeps whatever it already has for a locale that is not in the
+      # tree, rather than blanking it. Ours is complete, but a missing folder
+      # should never empty a live listing.
+      validate_only: false
     )
+  end
+
+  desc "Promote the last internal build to production"
+  lane :release do
+    decrypt_secrets!
+    write_listings!
+    json_key = secret("android/play-service-account.json")
+
+    # The build to promote, which is the highest one on the internal track.
+    # Nothing is rebuilt: promoting is Play moving an existing artefact between
+    # tracks, so what reaches production is the very binary that was tested.
+    code = google_play_track_version_codes(
+      package_name: android_package,
+      track: "internal",
+      json_key: json_key
+    ).max
+    UI.user_error!("nothing on the internal track to promote") if code.nil?
+
+    # A fraction of users at first, if asked for. Play holds the rest until the
+    # rollout is finished by hand, which is worth doing on a release whose
+    # crash reporting has never been exercised in the wild.
+    rollout = ENV["HTN_ROLLOUT"]
+    UI.message("Promoting version code #{code}#{rollout ? " to #{rollout.to_f * 100}%" : ""}")
+
+    upload_to_play_store(
+      package_name: android_package,
+      json_key: json_key,
+      version_code: code,
+      track: "internal",
+      track_promote_to: "production",
+      rollout: rollout,
+      # The listing goes up in the same call, because on Play it is not part of
+      # a release: title, descriptions and screenshots belong to the app and
+      # change live, and only the changelog belongs to this version code.
+      skip_upload_apk: true,
+      skip_upload_aab: true,
+      skip_upload_metadata: false,
+      skip_upload_images: false,
+      skip_upload_screenshots: false,
+      skip_upload_changelogs: false
+    )
+
+    UI.success("Version code #{code} is on the production track")
   end
 end
 

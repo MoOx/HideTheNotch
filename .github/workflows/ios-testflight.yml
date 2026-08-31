@@ -50,9 +50,27 @@ jobs:
       SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
       FASTLANE_XCODEBUILD_SETTINGS_TIMEOUT: "120"
       FASTLANE_SKIP_UPDATE_CHECK: "1"
+      # Source map upload only. Absent, the build still succeeds and the
+      # traces arrive minified.
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
     steps:
       - uses: actions/checkout@v5
+
+      # A tag is the one thing here that claims to be a version, so it has to be
+      # the version. `v2.0.1` pushed onto a tree whose app.json still says 2.0.0
+      # uploads a build named after neither.
+      - name: The tag is the version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          tagged="${GITHUB_REF_NAME#v}"
+          declared=$(node -p "require('./app.json').expo.version")
+          if [ "$tagged" != "$declared" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match app.json version $declared."
+            echo "Move the tag, or bump the version, but do not ship them apart."
+            exit 1
+          fi
+          echo "$GITHUB_REF_NAME matches app.json."
 
       # Fail here with a readable message rather than deep inside fastlane.
       - name: Check the configuration is complete

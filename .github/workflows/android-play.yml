@@ -34,7 +34,12 @@ concurrency:
 jobs:
   internal:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # Ninety, like the iOS one. Sixty was not a limit this build was near until
+    # a Gradle daemon ran out of metaspace and spent the rest of the hour
+    # failing to allocate: the timeout killed a build that had already stopped
+    # making progress, which is the timeout doing its job. plugins/
+    # withGradleMemory.cjs is the fix; this is the margin.
+    timeout-minutes: 90
     # A tag ships a release. A `[play]` marker in the commit message ships a
     # work build, which is what lets releases be the only thing that ever gets
     # tagged. Every other push starts a run that stops right here, which costs

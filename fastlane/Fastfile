@@ -501,6 +501,21 @@ ANDROID_TRACKS = %w[internal alpha beta production].freeze
 # track at all, so `ANDROID_VERSION_CODE` overrules the lookup. That is the
 # same escape hatch the `bundle` lane uses, and the message below says to reach
 # for it.
+# The highest version code Play holds and the track it sits on, or nil when the
+# app has never had a release. Both answers are wanted: the next build needs the
+# number, and a listing upload needs the release to attach itself to.
+def highest_android_release(json_key)
+  found = ANDROID_TRACKS.filter_map do |track|
+    codes = google_play_track_version_codes(
+      package_name: android_package,
+      track: track,
+      json_key: json_key
+    )
+    [codes.max, track] if codes.max
+  end
+  found.max_by(&:first)
+end
+
 def next_android_version_code(json_key)
   override = ENV["ANDROID_VERSION_CODE"].to_s.strip
   unless override.empty?
@@ -508,15 +523,7 @@ def next_android_version_code(json_key)
     return override.to_i
   end
 
-  used = ANDROID_TRACKS.flat_map do |track|
-    google_play_track_version_codes(
-      package_name: android_package,
-      track: track,
-      json_key: json_key
-    )
-  end
-
-  highest = used.max
+  highest, = highest_android_release(json_key)
   if highest.nil?
     UI.important("No version code on any track. Asking for 1, which Play refuses")
     UI.important("if an AAB was ever uploaded by hand: ANDROID_VERSION_CODE=<n+1>.")
@@ -583,17 +590,36 @@ platform :android do
     dir = File.join(ROOT, "fastlane", "metadata", "android")
     UI.user_error!("nothing to upload: no fastlane/metadata/android") unless Dir.exist?(dir)
 
-    # The mirror of `ios metadata`, and on Play it is a more natural fit than it
-    # is on Apple: title, descriptions and images belong to the app rather than
-    # to a release, so they can be corrected on their own at any time, with no
-    # binary and no version in sight.
+    json_key = secret("android/play-service-account.json")
+
+    # A listing on Play belongs to the app rather than to a release, so it can
+    # be corrected on its own at any time, with no binary and no version in
+    # sight. Supply does not agree: `perform_upload_meta` fetches a track and a
+    # release before it writes a word, and without a version code it looks for
+    # release `''` and stops with "Could not find release for version code ''
+    # to update changelog". It does that even with changelogs skipped, because
+    # the guard around that whole block is an or across all four skip flags.
     #
-    # Changelogs are the exception, the one part of a listing that belongs to a
-    # version code, so they are left to `release`, which knows which code it is
-    # promoting. Sending them from here would mean guessing.
+    # So the release it wants is found and named. Nothing about it is uploaded:
+    # the binary is skipped, the changelog is skipped, and what goes up is the
+    # title, the descriptions and the pictures.
+    code, track = highest_android_release(json_key)
+    if code.nil?
+      UI.user_error!(
+        "Play has no release on any track, and supply will not write a listing " \
+        "without one to attach it to. `npm run beta:android` first."
+      )
+    end
+    UI.message("Writing the listing against version code #{code} on '#{track}'")
+
+    # Changelogs are the one part of a listing that belongs to a version code,
+    # so they are left to `release`, which knows which code it is promoting.
+    # Sending them from here would mean guessing.
     upload_to_play_store(
       package_name: android_package,
-      json_key: secret("android/play-service-account.json"),
+      json_key: json_key,
+      track: track,
+      version_code: code,
       skip_upload_apk: true,
       skip_upload_aab: true,
       skip_upload_changelogs: true,

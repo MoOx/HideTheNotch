@@ -1,0 +1,101 @@
+name: Store listings
+
+# Writes the copy and the deck to both stores, without photographing anything.
+#
+# `store-captures.yml` does this too, at the end of a run that shoots both
+# platforms first, which is right when the interface has moved. It is the wrong
+# shape for the other case, and the commoner one: a description was reworded, a
+# release note was written, a locale was added, and the pictures are the same
+# ones as yesterday. That is three minutes of work behind forty minutes of
+# rebuilding a deck nobody asked to change.
+#
+# So this takes the deck from the last successful capture run, the same way
+# `npm run deck:fetch` does on a laptop, and uploads it. Nothing is built and
+# nothing is shot.
+#
+#   [listings]   in a commit message
+#
+# `workflow_dispatch` cannot be triggered from a branch that is not the default
+# one, hence the marker, like the other workflows here.
+on:
+  workflow_dispatch:
+  push:
+    branches: ["**"]
+
+concurrency:
+  group: store-listings
+  cancel-in-progress: false
+
+jobs:
+  listings:
+    name: Push both listings
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[listings]')
+    env:
+      APP_IDENTIFIER: io.moox.HideTheNotch
+      ANDROID_PACKAGE_NAME: io.moox.hidethenotch
+      CERTS_REPO_URL: git@github.com:MoOx/certificates.git
+      SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
+      FASTLANE_SKIP_UPDATE_CHECK: "1"
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check the deploy key is present
+        run: |
+          if [ -z "${{ secrets.CERTIFICATES_DEPLOY_KEY }}" ]; then
+            echo "CERTIFICATES_DEPLOY_KEY is not set on this repository."
+            exit 1
+          fi
+
+      - name: Access the certificates repository
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.CERTIFICATES_DEPLOY_KEY }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      # The last deck that was composed, from whichever run composed it.
+      # `download-artifact` only reaches inside its own run, so this is `gh`,
+      # which is what fetch-deck.sh does from a laptop for the same reason.
+      #
+      # It fails the run rather than uploading nothing: `store:listing` refuses
+      # to write a listing with no deck, and a listing uploaded with no
+      # screenshots would empty the store record it was meant to correct.
+      - name: The last deck composed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eo pipefail
+          run=$(gh run list --workflow store-captures.yml --status success \
+            --limit 1 --json databaseId --jq '.[0].databaseId')
+          if [ -z "$run" ] || [ "$run" = "null" ]; then
+            echo "No successful store-captures run to take a deck from."
+            echo "Push a commit whose message carries [captures] first."
+            exit 1
+          fi
+          echo "==> deck from run $run"
+          gh run download "$run" -n store-deck -D marketing/renders
+          find marketing/renders -name '*.png' | wc -l | xargs echo "   PNG files:"
+
+      # Play first, because it always works once something has been uploaded:
+      # a listing there belongs to the app rather than to a release.
+      - name: Play listing
+        run: bundle exec fastlane android metadata
+
+      # Last, because it is the one that can legitimately fail. `deliver` writes
+      # onto whichever version is open for editing in App Store Connect, and on
+      # an app with none it retries for five minutes and gives up with "Cannot
+      # find edit app store version". Create the version with `promote:ios` or
+      # by hand, then this passes.
+      - name: App Store listing
+        run: bundle exec fastlane ios metadata

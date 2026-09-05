@@ -168,6 +168,22 @@ from a commit comment, or from a single comment kept up to date when the branch
 has a pull request. Two megabytes a run, against the hundred and ninety the deck
 itself weighs.
 
+**A listing can go up on its own**, which is the commoner case by far: a
+description reworded, a release note written, a locale added, and the pictures
+the same as yesterday. `[listings]` in a commit message runs
+`.github/workflows/store-listings.yml`, which takes the deck from the last
+successful capture run the way `npm run deck:fetch` does here, and uploads it.
+Three minutes rather than forty, and nothing is built or photographed.
+
+One thing supply insists on, and it is not obvious: it will not write a Play
+listing without a **release to attach it to**. `perform_upload_meta` fetches a
+track and a release before it writes a word, and with no version code it looks
+for release `''` and stops with "Could not find release for version code '' to
+update changelog", changelogs skipped or not. So `android metadata` finds the
+highest code Play holds and names it. Nothing about that release is touched: the
+binary is skipped, the changelog is skipped, and what goes up is the title, the
+descriptions and the pictures.
+
 The sheets are JPEG, which is not a contradiction of the rule above them: that
 rule is about the wallpaper, where block artefacts at the black to image
 boundary are what makes a cutout reappear. A contact sheet is a picture of a

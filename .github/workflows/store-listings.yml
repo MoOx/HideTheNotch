@@ -13,7 +13,15 @@ name: Store listings
 # `npm run deck:fetch` does on a laptop, and uploads it. Nothing is built and
 # nothing is shot.
 #
-#   [listings]   in a commit message
+#   [listings]        both stores
+#   [listings-play]   Play alone
+#   [listings-ios]    the App Store alone
+#
+# Split because the two are not equally safe to repeat. A Play listing belongs
+# to the app and can be rewritten at any time. `deliver` runs with
+# `overwrite_screenshots`, so an App Store listing is deleted and re-uploaded,
+# and doing that to a version somebody is about to submit is a bad moment to
+# discover a network fault.
 #
 # `workflow_dispatch` cannot be triggered from a branch that is not the default
 # one, hence the marker, like the other workflows here.
@@ -31,7 +39,11 @@ jobs:
     name: Push both listings
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[listings]')
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.message, '[listings]') ||
+      contains(github.event.head_commit.message, '[listings-play]') ||
+      contains(github.event.head_commit.message, '[listings-ios]')
     env:
       APP_IDENTIFIER: io.moox.HideTheNotch
       ANDROID_PACKAGE_NAME: io.moox.hidethenotch
@@ -96,6 +108,10 @@ jobs:
       # Play first, because it always works once something has been uploaded:
       # a listing there belongs to the app rather than to a release.
       - name: Play listing
+        if: >-
+          github.event_name == 'workflow_dispatch' ||
+          contains(github.event.head_commit.message, '[listings]') ||
+          contains(github.event.head_commit.message, '[listings-play]')
         run: bundle exec fastlane android metadata
 
       # Last, because it is the one that can legitimately fail. `deliver` writes
@@ -104,4 +120,8 @@ jobs:
       # find edit app store version". Create the version with `promote:ios` or
       # by hand, then this passes.
       - name: App Store listing
+        if: >-
+          github.event_name == 'workflow_dispatch' ||
+          contains(github.event.head_commit.message, '[listings]') ||
+          contains(github.event.head_commit.message, '[listings-ios]')
         run: bundle exec fastlane ios metadata

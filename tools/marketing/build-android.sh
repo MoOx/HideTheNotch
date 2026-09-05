@@ -29,6 +29,14 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 #
 # The release lanes are untouched, which is where a source map is worth having.
 export SENTRY_DISABLE_AUTO_UPLOAD=true
+
+# Sentry is off in the build this makes, and the app reads this rather than
+# guessing. A capture run is thirty cold starts on a loaded machine, and every
+# one that pauses two seconds decoding a photograph arrives in the real project
+# as an "App Hanging" issue: reports about a runner, burying reports about the
+# app. Metro inlines EXPO_PUBLIC_* at bundling, so it is decided here and cannot
+# come back on at runtime. See the `enabled` line in index.ts.
+export EXPO_PUBLIC_CAPTURE_BUILD=1
 cd "$ROOT"
 # shellcheck source=/dev/null
 . tools/marketing/stamp.sh

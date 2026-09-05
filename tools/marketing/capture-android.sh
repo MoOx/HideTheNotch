@@ -283,6 +283,19 @@ settle_focus() {
       echo
       echo "   A screenshot taken now is a picture of that, not of the app."
       echo "   Stopping rather than writing it into the deck."
+      echo
+      # What the dialog would have said, since it was turned off above.
+      #
+      # `hide_error_dialogs` is worth having and it takes the diagnosis with it:
+      # an app that crashes leaves the launcher in front and no message at all,
+      # which reads exactly like an app that was never launched. The log still
+      # knows, so it is printed here rather than left for whoever reruns this
+      # with the setting off.
+      echo "   The log, in case it died rather than lost focus:"
+      "$ADB" $ON logcat -d -t 400 2>/dev/null \
+        | grep -iE "FATAL EXCEPTION|AndroidRuntime|ANR in|Force finishing|died|$PKG.*(crash|kill)" \
+        | tail -25 | sed 's/^/     /' \
+        || echo "     nothing in it about a crash"
       exit 1
     fi
     printf '    ! %s in front, dismissing\n' \

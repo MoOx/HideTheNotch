@@ -34,7 +34,8 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       contains(github.event.head_commit.message, '[captures]') ||
-      contains(github.event.head_commit.message, '[store]')
+      contains(github.event.head_commit.message, '[store]') ||
+      contains(github.event.head_commit.message, '[captures-ios]')
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -98,7 +99,8 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       contains(github.event.head_commit.message, '[captures]') ||
-      contains(github.event.head_commit.message, '[store]')
+      contains(github.event.head_commit.message, '[store]') ||
+      contains(github.event.head_commit.message, '[captures-android]')
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -154,6 +156,18 @@ jobs:
     name: Compose both decks
     runs-on: ubuntu-latest
     needs: [ios, android]
+    # One platform is enough to compose from. A run that reshoots Android
+    # because its captures came out with a dialog across them has no reason to
+    # spend fifteen minutes on an iOS build that would produce the same pictures
+    # as yesterday, and the step below takes yesterday's.
+    #
+    # Neither shot means nothing was asked for, and the deck is skipped with
+    # them. Either failed means the pictures are not to be trusted, so the deck
+    # is skipped too rather than composed out of half a run.
+    if: >-
+      !cancelled() &&
+      (needs.ios.result == 'success' || needs.android.result == 'success') &&
+      needs.ios.result != 'failure' && needs.android.result != 'failure'
     # The preview below writes a branch and a comment, and the default token is
     # read only on a repository that says so.
     permissions:
@@ -168,18 +182,66 @@ jobs:
           cache-dependency-path: package-lock.json
       - run: npm ci
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: captures-ios
-          path: marketing/captures/ios
-      - uses: actions/download-artifact@v4
-        with:
-          name: captures-ipad
-          path: marketing/captures/ipad
-      - uses: actions/download-artifact@v4
-        with:
-          name: captures-android
-          path: marketing/captures/android
+      # Each platform's captures, from this run when it shot them and from the
+      # last run that did when it did not. That is what makes reshooting one
+      # platform worth doing: the other two are already on the shelf.
+      #
+      # It says out loud which ones are not this run's, because a deck composed
+      # from two commits is a reasonable thing to want and an unreasonable thing
+      # to do by accident. The fingerprint beside the captures is the other half
+      # of that warning, and `npm run deck` prints it.
+      - name: The captures
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eo pipefail
+          borrowed=0
+          fetch() {
+            if gh run download "$GITHUB_RUN_ID" -n "$1" -D "$2" 2>/dev/null; then
+              echo "==> $1, shot in this run"
+              return
+            fi
+            run=$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=$1&per_page=30" \
+              --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | last | .workflow_run.id')
+            if [ -z "$run" ] || [ "$run" = "null" ]; then
+              echo "!! no $1 in this run, and none kept from an earlier one."
+              echo "   Shoot that platform: [captures] shoots both, [captures-ios]"
+              echo "   and [captures-android] shoot one."
+              exit 1
+            fi
+            echo "==> $1, borrowed from run $run"
+            gh run download "$run" -n "$1" -D "$2"
+            borrowed=1
+          }
+          fetch captures-ios marketing/captures/ios
+          fetch captures-ipad marketing/captures/ipad
+          fetch captures-android marketing/captures/android
+          if [ "$borrowed" = "1" ]; then
+            echo
+            echo "!! this deck is composed from more than one run. Fine when only"
+            echo "   one platform moved, wrong when the interface did."
+          fi
+
+      # The runner's Chromium can draw the deck and cannot read half of it. It
+      # ships with no CJK font at all, so every Japanese and Chinese headline
+      # came out as tofu boxes, in a deck that was otherwise perfect and on its
+      # way to the store. Nothing in the composition fails when a glyph is
+      # missing: the box is a rendered character like any other.
+      #
+      # A macOS laptop has these fonts, which is why this survived every local
+      # run and appeared the first time a deck was composed on GitHub.
+      - name: Fonts the deck is written in
+        run: |
+          set -eo pipefail
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk >/dev/null
+          fc-cache -f >/dev/null
+          for lang in ja zh-cn; do
+            if [ -z "$(fc-list ":lang=$lang" 2>/dev/null)" ]; then
+              echo "No font on this runner can render $lang. The deck would be tofu."
+              exit 1
+            fi
+          done
+          echo "==> ja and zh-cn have a font"
 
       # Chromium is what draws the deck, and the runner already has one.
       - name: Compose

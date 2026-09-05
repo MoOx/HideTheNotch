@@ -158,6 +158,40 @@ The capture runs need Xcode and Android Studio respectively; the deck needs
 neither. So the deck can be recomposed, retimed, recoloured and relocalised on
 any machine that has the captures, but taking them again means the toolchain.
 
+**One platform can be reshot on its own.** Each is its own artefact, and the
+deck job takes what this run produced and borrows the rest from the last run
+that produced it. So an Android capture that came out wrong costs an Android
+run, not forty minutes of rebuilding an iOS deck that has not changed.
+
+| marker | what it shoots |
+| ------ | -------------- |
+| `[captures]` | both platforms, three decks, artefacts only |
+| `[captures-ios]` | iPhone and iPad only |
+| `[captures-android]` | the emulator only |
+| `[store]` | everything, then writes both listings |
+| `[listings]` | no captures at all, uploads the last deck composed |
+
+A borrowed artefact is announced in the log, and the run says so at the end: a
+deck composed from two runs is a reasonable thing to want when one platform
+moved, and a bad accident when the interface did. The fingerprint beside the
+captures is the other half of that warning.
+
+**The system's own dialogs are checked for.** The first complete Android run put
+"Pixel Launcher isn't responding" across the middle of all thirty shots, and
+nothing caught it: `steady_shot` compares two shots for stillness and weighs the
+file for blackness, and a dialog is perfectly still and perfectly opaque. The
+capture script now turns off error dialogs through `hide_error_dialogs`, and
+checks `mCurrentFocus` before and after every shot: anything but the app in
+front is dismissed with Back, three times, and then the run stops rather than
+writing a picture of a dialog into a deck.
+
+**The deck's own text needs fonts the runner does not have.** Chromium on
+ubuntu ships with none for Japanese or Chinese, so every CJK headline composed
+there came out as tofu boxes while the screenshots inside the phone frames were
+perfect. Nothing fails when a glyph is missing, the box is a rendered character
+like any other. The deck job installs `fonts-noto-cjk` and refuses to compose
+when `fc-list` cannot find a face for `ja` and `zh-cn`.
+
 **Every capture run posts a preview**, because an artefact cannot be looked at:
 it is a zip behind a token, and GitHub only renders an image in a comment from a
 public URL. `tools/marketing/contact-sheet.sh` draws one sheet per deck instead,

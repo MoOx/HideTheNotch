@@ -217,6 +217,21 @@ if [ "$CUTOUT" != "0" ]; then
   done
 fi
 
+# The system's own dialogs, which are the one thing a capture run cannot argue
+# with once they are on screen.
+#
+# Every one of the thirty Android shots in the first complete run carried
+# "Pixel Launcher isn't responding" across the middle of the phone. Not our app:
+# the launcher, which a cold booted emulator under thirty app starts is entitled
+# to lose patience with. Nothing caught it. `steady_shot` compares two shots for
+# stillness and weighs the file for blackness, and a dialog is perfectly still
+# and perfectly opaque, so it passed both and went into the deck.
+#
+# `hide_error_dialogs` is the preventive half: the framework skips the crash and
+# ANR dialogs entirely rather than drawing them. It is not a promise, so the
+# focus check below is the half that is.
+"$ADB" $ON shell settings put global hide_error_dialogs 1 >/dev/null
+
 if [ "${HTN_DEMO:-1}" != "0" ]; then
   "$ADB" $ON shell settings put global sysui_demo_allowed 1 >/dev/null
   demo -e command exit
@@ -242,6 +257,41 @@ fi
 # expo grants read on outright, and a file pushed anywhere under `/sdcard` is
 # judged by a FUSE view that answers by calling package rather than by Unix
 # mode. It came out `-rw-r--r--` and unreadable.
+
+# Whether the app is what the screen is showing, which is not the same question
+# as whether the app is running.
+#
+# `mCurrentFocus` names the window on top, and with the app up it reads
+# `io.moox.hidethenotch/io.moox.hidethenotch.MainActivity`. Anything else means
+# something is in front: a system dialog, a permission prompt, the launcher.
+# Whatever it is, a screenshot taken now is a picture of it.
+focused_on_app() {
+  "$ADB" $ON shell dumpsys window 2>/dev/null | grep -q "mCurrentFocus.*$PKG/"
+}
+
+# Back dismisses a system dialog, and the framework puts the app back in front.
+# Three goes, then the run stops: a deck of error dialogs is worse than no deck,
+# and it is exactly the kind of thing that is noticed on the store rather than
+# here.
+settle_focus() {
+  local n=0
+  until focused_on_app; do
+    if [ "$n" -ge 3 ]; then
+      echo
+      echo "!! something is in front of the app and will not go:"
+      "$ADB" $ON shell dumpsys window 2>/dev/null | grep -m1 "mCurrentFocus" | sed 's/^/     /'
+      echo
+      echo "   A screenshot taken now is a picture of that, not of the app."
+      echo "   Stopping rather than writing it into the deck."
+      exit 1
+    fi
+    printf '    ! %s in front, dismissing\n' \
+      "$("$ADB" $ON shell dumpsys window 2>/dev/null | grep -m1 mCurrentFocus | sed 's/.*u0 //; s/\/.*//' | tr -d '\r}')"
+    "$ADB" $ON shell input keyevent KEYCODE_BACK >/dev/null
+    sleep 1
+    n=$((n + 1))
+  done
+}
 
 # The ids come from the deck's own list, so adding a shot there is enough.
 # `HTN_SHOTS` narrows it, which is the difference between a thirty shot run and
@@ -303,13 +353,23 @@ for id in $IDS; do
 
   sleep "$SETTLE"
   take() { "$ADB" $ON exec-out screencap -p > "$1"; }
+
+  # Before, because a dialog that is already up is what the shot would be of.
+  settle_focus
   steady_shot "$OUT/$lang/$id.png"
+  # And after, because one that arrives mid shot is the same picture.
+  if ! focused_on_app; then
+    echo "    ! a dialog arrived during the shot, retaking"
+    settle_focus
+    steady_shot "$OUT/$lang/$id.png"
+  fi
 done
 done
 
 "$ADB" $ON shell cmd locale set-app-locales "$PKG" --locales "" >/dev/null 2>&1 || true
 
 demo -e command exit
+"$ADB" $ON shell settings delete global hide_error_dialogs >/dev/null 2>&1 || true
 
 # The screen goes back to being solid, so the next thing to use this emulator
 # gets it as it was.

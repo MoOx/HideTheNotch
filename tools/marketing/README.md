@@ -192,6 +192,36 @@ perfect. Nothing fails when a glyph is missing, the box is a rendered character
 like any other. The deck job installs `fonts-noto-cjk` and refuses to compose
 when `fc-list` cannot find a face for `ja` and `zh-cn`.
 
+**The app's page on moox.io is fed from here.** That page is three things at
+once now: the pitch, the two store links, and the privacy policy, because the
+privacy URL both stores carry points at it. Writing those by hand in a second
+repository is how a page ends up describing the app as it was two versions ago.
+
+So `tools/marketing/press-kit.cjs` assembles `marketing/press-kit/`: the copy in
+all six languages out of `marketing/listing.json`, the policy out of
+`marketing/privacy.md`, and web sized images out of the deck that was already
+composed and looked at. Half a megabyte, against the hundred and ninety the deck
+weighs, because a store screenshot is 1320 x 2868 and a page that loads five of
+those is a page nobody waits for.
+
+Every capture run force pushes it to the `press-kit` branch, so the site reads a
+stable URL:
+
+```
+https://raw.githubusercontent.com/MoOx/HideTheNotch/press-kit/index.json
+```
+
+Pinned to the branch rather than to a commit, unlike the preview below: a site
+build wants the current one, and there is nothing to compare between runs.
+`npm run press-kit` assembles it here.
+
+The policy is written from what the code does rather than from what the app
+means to do: no account, no ads, no analytics, no tracking, photos decoded and
+exported on the device, and one crash report to Sentry with the IP address,
+session replay, performance tracing and console breadcrumbs each turned off in
+`index.ts`. Every sentence in it can be checked against the source, which is the
+only kind of policy that stays true.
+
 **Every capture run posts a preview**, because an artefact cannot be looked at:
 it is a zip behind a token, and GitHub only renders an image in a comment from a
 public URL. `tools/marketing/contact-sheet.sh` draws one sheet per deck instead,

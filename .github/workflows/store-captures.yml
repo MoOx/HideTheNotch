@@ -303,6 +303,39 @@ jobs:
           # goes to a dead link instead of quietly showing a later run's deck.
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
+      # The app's page on moox.io reads this. It is the pitch, both store links
+      # and the privacy policy, and that last one is not optional: the privacy
+      # URL both stores were given points at that page, so Apple visits it.
+      #
+      # Published to a branch rather than pinned to a commit, unlike the preview
+      # above: a site build wants "the current one", and there is nothing to
+      # compare between runs. Half a megabyte, because the images are web sized
+      # rather than store sized.
+      - name: Press kit
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eo pipefail
+          npm run press-kit
+          work=$(mktemp -d)
+          cp -R marketing/press-kit/. "$work/"
+          cat > "$work/README.md" <<'EOF'
+          The press kit for this app, assembled by tools/marketing/press-kit.cjs
+          and force pushed here by .github/workflows/store-captures.yml.
+
+          `index.json` carries the copy in every language the stores have, both
+          store links, and the privacy policy. The images beside it are web
+          sized. moox.io reads this at build time; nothing merges this branch.
+          EOF
+          cd "$work"
+          git init -q -b press-kit
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "Press kit from ${GITHUB_SHA}"
+          git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" press-kit
+          echo "==> https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/press-kit/index.json"
+
       - name: Comment with the preview
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

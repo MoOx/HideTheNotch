@@ -349,67 +349,6 @@ platform :ios do
     )
   end
 
-  desc "Answer the App Privacy questionnaire, or say what to answer"
-  lane :privacy do
-    require "spaceship"
-
-    # The questionnaire App Store Connect calls "App Privacy". It is not the
-    # privacy policy URL, it is a separate form, and it is the thing that
-    # actually blocks a submission: "an administrator must provide information
-    # about its privacy practices". App Store Connect > your app > App
-    # Information > App Privacy. Only an Account Holder or an Admin may edit it,
-    # and answering is not enough: it has to be published.
-    #
-    # **The API key cannot do this, and that is Apple's doing.** These endpoints
-    # are not on the public App Store Connect API. Asked with a key,
-    # `v1/appDataUsageCategories` answers "The resource does not exist"; they
-    # live behind the same web session the browser uses, which is why fastlane's
-    # own action authenticates with an Apple ID and a password. Every other lane
-    # here uses the key, and putting an Apple ID password plus a two factor
-    # session that expires every month into the secrets, to fill a form that
-    # changes about once a year, is the wrong trade.
-    #
-    # So this lane does whichever half it can. With `FASTLANE_USER` set it
-    # uploads. Without, it prints what to select and where, which is the part
-    # that is actually hard: the form is not where anyone looks for it.
-    path = File.join(ROOT, "fastlane", "app_privacy_details.json")
-    UI.user_error!("no #{path} to answer from") unless File.exist?(path)
-    usages = JSON.parse(File.read(path))
-
-    UI.important("App Privacy, as this repository has it:")
-    UI.message("")
-    if usages.empty?
-      UI.message("  (nothing, which is not an answer Apple accepts)")
-    end
-    usages.each do |usage|
-      category = usage["category"] || "no data collected"
-      UI.message("  #{category}")
-      (usage["purposes"] || []).each { |purpose| UI.message("      used for  #{purpose}") }
-      (usage["data_protections"] || []).each { |p| UI.message("      marked    #{p}") }
-    end
-    UI.message("")
-
-    user = ENV["FASTLANE_USER"].to_s.strip
-    if user.empty?
-      UI.important("No FASTLANE_USER, so nothing was uploaded. Type it in once:")
-      UI.message("  App Store Connect > #{bundle_id} > App Information > App Privacy")
-      UI.message("  Answer as above, then Publish. An Admin or the Account Holder.")
-      UI.message("")
-      UI.message("  Or set FASTLANE_USER to an Apple ID with that role and run again.")
-      UI.message("  A two factor session is needed too: fastlane spaceauth -u <id>")
-      next
-    end
-
-    # fastlane's own action from here, since this is the path it was built for.
-    # The file is the same one printed above, so what goes up is what was read.
-    upload_app_privacy_details_to_app_store(
-      username: user,
-      app_identifier: bundle_id,
-      json_path: path,
-      skip_json_file_saving: true
-    )
-  end
-
   desc "Take the last TestFlight build to the App Store record, ready to submit"
   lane :release do
     decrypt_secrets!

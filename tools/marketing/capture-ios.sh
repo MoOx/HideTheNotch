@@ -38,6 +38,39 @@ LOCALES="${HTN_LOCALES:-en fr de es ja zh-Hans}"
 
 mkdir -p "$OUT"
 
+# A simulator that does not exist yet, which is most of them on a fresh machine
+# and on a GitHub runner alike. Xcode creates one device per model it feels like
+# and no more, so asking for an iPad on a machine that has only phones fails at
+# `bootstatus` with nothing useful said.
+#
+# It is created rather than substituted, because the deck is composed against
+# one exact screen: 2048 x 2732 is the thirteen inch Air and nothing else, and a
+# deck drawn from another iPad is a deck with the wrong metrics in it. If the
+# model itself is unknown to this Xcode there is nothing to do but say so.
+if ! xcrun simctl list devices available | grep -qF "$DEVICE ("; then
+  TYPE=$(xcrun simctl list devicetypes \
+    | grep -F "$DEVICE (" \
+    | sed -n 's/.*(\(com\.apple\.CoreSimulator\.SimDeviceType\.[^)]*\)).*/\1/p' \
+    | head -1)
+  if [ -z "$TYPE" ]; then
+    echo "This Xcode has no '$DEVICE'. What it does have:"
+    xcrun simctl list devicetypes | grep -iE "iphone|ipad" | sed 's/^/  /'
+    exit 1
+  fi
+  # The identifier trails the line here rather than sitting in brackets like
+  # the device type's, and the list comes out oldest first, so the newest is
+  # the last one: `iOS 27.0 (27.0 - 24A5423a) - com.apple...SimRuntime.iOS-27-0`
+  RUNTIME=$(xcrun simctl list runtimes ios \
+    | sed -n 's/.*\(com\.apple\.CoreSimulator\.SimRuntime\.iOS-[0-9-]*\).*/\1/p' \
+    | tail -1)
+  if [ -z "$RUNTIME" ]; then
+    echo "This Xcode has no iOS runtime to create '$DEVICE' with."
+    exit 1
+  fi
+  echo "==> creating $DEVICE on $RUNTIME"
+  xcrun simctl create "$DEVICE" "$TYPE" "$RUNTIME" >/dev/null
+fi
+
 echo "==> booting $DEVICE"
 xcrun simctl boot "$DEVICE" >/dev/null 2>&1 || true
 xcrun simctl bootstatus "$DEVICE" -b >/dev/null

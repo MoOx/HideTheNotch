@@ -65,10 +65,30 @@ jobs:
       # thing that needs them is the deck job below, in this same run. A week
       # is there for the case where the deck is wrong and the captures were
       # fine, which is worth not paying for twice.
+      # The same build, a second device. `npm run deck` composes three decks
+      # now, and the iPad one reads its own captures: without this the deck job
+      # stops on `no capture at marketing/captures/ipad/en/05-compare.png`,
+      # which is what it did the first time both halves got this far.
+      - name: Capture, iPad
+        env:
+          HTN_DEVICE: iPad Air 13-inch (M4)
+          HTN_OUT: marketing/captures/ipad
+        run: |
+          set -eo pipefail
+          HTN_APP=$(ls -d build/Build/Products/Release-iphonesimulator/*.app | head -1) \
+            tools/marketing/capture-ios.sh
+
       - uses: actions/upload-artifact@v4
         with:
           name: captures-ios
           path: marketing/captures/ios
+          if-no-files-found: error
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: captures-ipad
+          path: marketing/captures/ipad
           if-no-files-found: error
           retention-days: 7
 
@@ -152,6 +172,10 @@ jobs:
         with:
           name: captures-ios
           path: marketing/captures/ios
+      - uses: actions/download-artifact@v4
+        with:
+          name: captures-ipad
+          path: marketing/captures/ipad
       - uses: actions/download-artifact@v4
         with:
           name: captures-android

@@ -14,6 +14,12 @@ jobs:
     name: xcodebuild -sdk iphonesimulator
     runs-on: macos-latest
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[build-ios]')
+    env:
+      # A build that is installed once and thrown away has no use for a source
+      # map in Sentry, and no token to upload one with: sentry-cli exits 1 in
+      # that case rather than shrugging, which is how the capture workflow died
+      # before this was noticed here too. The lanes that ship keep theirs.
+      SENTRY_DISABLE_AUTO_UPLOAD: "true"
     steps:
       - uses: actions/checkout@v5
 

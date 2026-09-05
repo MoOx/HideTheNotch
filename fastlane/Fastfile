@@ -445,17 +445,35 @@ end
 # a release, so somebody has to drag an AAB into the console once. That build
 # must not ask Play anything at all, hence the version code as an argument
 # rather than a lookup.
+# What the generated project says it is, checked before four minutes are spent
+# hearing it from Play.
+#
+# `-Pandroid.injected.version.code` used to carry this number, and on this
+# toolchain it carries nothing at all: gradle accepted the property, the merged
+# manifest still came out `android:versionCode="1"`, and the refusal arrived
+# after the build had finished. Silently doing nothing is what made it worth two
+# builds to find. The number now goes in through `plugins/withVersionCode.cjs`,
+# which prebuild reads, and this is the receipt for it.
+def assert_version_code!(expected)
+  path = File.join(ROOT, "android", "app", "build.gradle")
+  found = File.read(path)[/^\s*versionCode\s+(\d+)/, 1]
+  return if found.to_i == expected.to_i
+
+  UI.user_error!(
+    "android/app/build.gradle says versionCode #{found || 'nothing'}, not #{expected}. " \
+    "ANDROID_VERSION_CODE has to be set before the prebuild that writes that file."
+  )
+end
+
 def build_aab!(version_code)
+  assert_version_code!(version_code)
   props = load_properties(secret("android/keystore.properties"))
 
-  # Injected through -P so it survives `expo prebuild --clean`, which rewrites
-  # build.gradle on every run.
   gradle(
     task: "bundle",
     build_type: "Release",
     project_dir: File.join(ROOT, "android"),
     properties: {
-      "android.injected.version.code" => version_code,
       "android.injected.signing.store.file" => secret("android/release.keystore"),
       "android.injected.signing.store.password" => props.fetch("storePassword"),
       "android.injected.signing.key.alias" => props.fetch("keyAlias"),
@@ -514,11 +532,15 @@ platform :android do
   lane :bundle do
     stamp_commit!
     decrypt_secrets!
-    expo_prebuild("android")
 
     # No call to Play, on purpose: this lane exists for the moment before the
     # app has a release, when there is nothing there to ask.
+    #
+    # It is settled before the prebuild, because the prebuild is what writes the
+    # number into the project. See `plugins/withVersionCode.cjs`.
     code = ENV.fetch("ANDROID_VERSION_CODE", "1").to_i
+    ENV["ANDROID_VERSION_CODE"] = code.to_s
+    expo_prebuild("android")
     path = build_aab!(code)
 
     UI.success("Version code #{code}")
@@ -529,11 +551,15 @@ platform :android do
   lane :beta do
     stamp_commit!
     decrypt_secrets!
-    expo_prebuild("android")
 
     json_key = secret("android/play-service-account.json")
 
+    # Asked before the prebuild, not after: the prebuild is what writes the
+    # number into `android/app/build.gradle`, and gradle has no way to change it
+    # afterwards. See `plugins/withVersionCode.cjs`.
     version_code = next_android_version_code(json_key)
+    ENV["ANDROID_VERSION_CODE"] = version_code.to_s
+    expo_prebuild("android")
 
     build_aab!(version_code)
 

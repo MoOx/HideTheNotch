@@ -339,6 +339,22 @@ sharing upload. `ANDROID_VERSION_CODE` overrules the lookup:
 ANDROID_VERSION_CODE=2 npm run beta:android
 ```
 
+**How the number reaches the build**, which took two refusals to get right.
+`app.json` is static JSON, so it cannot hold a number that only Play knows, and
+prebuild writes `versionCode 1` into `android/app/build.gradle` from the value
+it does not find there. The lane used to correct that with
+`-Pandroid.injected.version.code`, which on this toolchain does nothing at all:
+gradle accepts the property, the merged manifest still says
+`android:versionCode="1"`, and Play refuses the upload once the four minute
+build is over.
+
+So the lane asks Play **before** the prebuild, puts the answer in
+`ANDROID_VERSION_CODE`, and `plugins/withVersionCode.cjs` writes it into the
+config prebuild is about to render. `build_aab!` then reads the generated gradle
+file back and stops the run when it does not say what was asked for, because the
+whole cost of that bug was finding out late. Unset, the plugin changes nothing,
+which is what `npx expo run:android` wants.
+
 ### The store listings
 
 Both stores read a tree of small text files, and they agree on almost nothing:

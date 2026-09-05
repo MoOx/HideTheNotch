@@ -86,6 +86,7 @@
       "./plugins/withUIScene.cjs",
       "./plugins/withGradleDaemonJvm.cjs",
       "./plugins/withJitpackScope.cjs",
+      "./plugins/withVersionCode.cjs",
       [
         "@sentry/react-native/expo",
         {

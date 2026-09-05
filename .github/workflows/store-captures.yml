@@ -19,6 +19,11 @@ name: Store captures
 # the default one, hence the commit marker, like the other build workflows.
 on:
   workflow_dispatch:
+    inputs:
+      push_listings:
+        description: "Also push the composed deck and the copy to both stores"
+        type: boolean
+        default: false
   push:
     branches: ["**"]
 
@@ -26,7 +31,10 @@ jobs:
   ios:
     name: iOS simulator
     runs-on: macos-latest
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[captures]')
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.message, '[captures]') ||
+      contains(github.event.head_commit.message, '[store]')
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -67,7 +75,10 @@ jobs:
   android:
     name: Android emulator
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[captures]')
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.message, '[captures]') ||
+      contains(github.event.head_commit.message, '[store]')
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -155,3 +166,71 @@ jobs:
           name: store-deck
           path: marketing/renders/**/*.png
           if-no-files-found: error
+
+  metadata:
+    name: Push both listings
+    runs-on: ubuntu-latest
+    needs: [deck]
+    # Never on a plain `[captures]` run. Photographing the app is something you
+    # do to look at the result; writing it to two stores is something you do on
+    # purpose, so it takes its own word.
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.push_listings) ||
+      contains(github.event.head_commit.message, '[store]')
+    env:
+      APP_IDENTIFIER: io.moox.HideTheNotch
+      ANDROID_PACKAGE_NAME: io.moox.hidethenotch
+      CERTS_REPO_URL: git@github.com:MoOx/certificates.git
+      SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
+      FASTLANE_SKIP_UPDATE_CHECK: "1"
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check the deploy key is present
+        run: |
+          if [ -z "${{ secrets.CERTIFICATES_DEPLOY_KEY }}" ]; then
+            echo "CERTIFICATES_DEPLOY_KEY is not set on this repository."
+            exit 1
+          fi
+
+      - name: Access the certificates repository
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.CERTIFICATES_DEPLOY_KEY }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      # The deck the job above just composed. `store:listing` refuses to write a
+      # listing with no deck at all, on purpose, so this is not optional.
+      - uses: actions/download-artifact@v4
+        with:
+          name: store-deck
+          path: marketing/renders
+
+      - name: What the deck holds
+        run: find marketing/renders -name '*.png' | sort
+
+      # Play first, because it is the one that always works: a listing there
+      # belongs to the app rather than to a release, so it goes up whether or
+      # not anything has ever shipped. Both lanes regenerate the metadata trees
+      # from marketing/listing.json before uploading, and neither builds a thing.
+      - name: Play listing
+        run: bundle exec fastlane android metadata
+
+      # Last, because it is the one that can legitimately fail. `deliver` writes
+      # onto whichever version is open for editing in App Store Connect, and on
+      # an app with none it retries for five minutes and gives up with "Cannot
+      # find edit app store version". That is not this workflow being broken, it
+      # is App Store Connect having no version to write to: create it with
+      # `promote:ios` or by hand, then this passes.
+      - name: App Store listing
+        run: bundle exec fastlane ios metadata

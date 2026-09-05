@@ -18,6 +18,17 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+
+# A capture build is photographed and thrown away, so its source maps are noise
+# in Sentry and its upload is a network call that can fail. It did: both halves
+# of the first `[store]` run died here, iOS on the "Bundle React Native code and
+# images" phase and Android on `createBundleReleaseJsAndAssets_SentryUpload`,
+# because a capture run carries no `SENTRY_AUTH_TOKEN` and sentry-cli exits 1
+# rather than shrugging. Nothing in a deck is ever symbolicated, so the upload
+# is not skipped reluctantly: it should never have run.
+#
+# The release lanes are untouched, which is where a source map is worth having.
+export SENTRY_DISABLE_AUTO_UPLOAD=true
 cd "$ROOT"
 # shellcheck source=/dev/null
 . tools/marketing/stamp.sh

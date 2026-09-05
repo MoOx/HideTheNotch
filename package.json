@@ -12,6 +12,7 @@
     "captures:ios": "tools/marketing/build-ios-sim.sh && HTN_APP=$(ls -d build/Build/Products/Release-iphonesimulator/*.app | head -1) tools/marketing/capture-ios.sh",
     "captures:ipad": "tools/marketing/build-ios-sim.sh && HTN_APP=$(ls -d build/Build/Products/Release-iphonesimulator/*.app | head -1) HTN_DEVICE=\"iPad Air 13-inch (M4)\" HTN_OUT=marketing/captures/ipad tools/marketing/capture-ios.sh",
     "deck:fetch": "tools/marketing/fetch-deck.sh",
+    "deck:preview": "tools/marketing/contact-sheet.sh",
     "deck": "node tools/marketing/compose.cjs --out marketing/renders/app-store && node tools/marketing/compose.cjs --spec marketing/shots-ipad.json --out marketing/renders/app-store-ipad && node tools/marketing/compose.cjs --spec marketing/shots-play.json --out marketing/renders/play",
     "demo:android": "tools/marketing/demo-android.sh",
     "format": "oxfmt",

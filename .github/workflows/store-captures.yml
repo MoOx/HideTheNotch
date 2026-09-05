@@ -134,6 +134,11 @@ jobs:
     name: Compose both decks
     runs-on: ubuntu-latest
     needs: [ios, android]
+    # The preview below writes a branch and a comment, and the default token is
+    # read only on a repository that says so.
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -166,6 +171,97 @@ jobs:
           name: store-deck
           path: marketing/renders/**/*.png
           if-no-files-found: error
+
+      # --- the preview -----------------------------------------------------
+      #
+      # A deck cannot be looked at from here: it is ninety images and a hundred
+      # and ninety megabytes, and the artefact above is a zip behind a token, so
+      # GitHub will not render anything out of it. One contact sheet per deck
+      # can be looked at, and it carries every locale, which is the only way a
+      # capture that failed in Japanese and nowhere else is ever noticed.
+      - name: ImageMagick
+        run: command -v magick >/dev/null 2>&1 || sudo apt-get install -y --no-install-recommends imagemagick
+
+      - name: Contact sheets
+        run: tools/marketing/contact-sheet.sh build/sheets
+
+      # An orphan branch, force pushed, so this never touches the history of a
+      # real one. One commit with no parent: the previous set stops being
+      # reachable rather than piling up behind it. Two megabytes a run, against
+      # the hundred and ninety the deck itself would have cost, which is why the
+      # captures are not committed in the first place.
+      - name: Publish the sheets
+        id: publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eo pipefail
+          work=$(mktemp -d)
+          cp build/sheets/*.jpg "$work/"
+          cat > "$work/README.md" <<'EOF'
+          Contact sheets for the last store capture run, one row per locale.
+
+          Written by .github/workflows/store-captures.yml, force pushed on every
+          run, and referenced from a commit or pull request comment. Nothing
+          reads this branch, nothing merges it, and the sheets it held before
+          are gone. The decks themselves are run artefacts.
+          EOF
+          cd "$work"
+          git init -q -b deck-preview
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "Deck preview for ${GITHUB_SHA}"
+          git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" deck-preview
+          # Pinned to this commit rather than to the branch, so an old comment
+          # goes to a dead link instead of quietly showing a later run's deck.
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Comment with the preview
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PREVIEW_SHA: ${{ steps.publish.outputs.sha }}
+        run: |
+          set -eo pipefail
+          raw="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${PREVIEW_SHA}"
+          run="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          body=$(mktemp)
+          {
+            echo "### Deck preview \`${GITHUB_SHA:0:7}\`"
+            echo
+            echo "One row per locale, one column per shot. Click a sheet for it full size."
+            echo "The decks themselves are in the [\`store-deck\` artefact](${run})."
+            echo
+            for sheet in build/sheets/preview-*.jpg; do
+              name=$(basename "$sheet" .jpg); name=${name#preview-}
+              echo "**${name}**"
+              echo
+              echo "[![${name}](${raw}/$(basename "$sheet"))](${raw}/$(basename "$sheet"))"
+              echo
+            done
+            echo "<sub>Sheets are JPEG and downscaled, for spotting a capture that went wrong."
+            echo "Judge the black against the deck itself. Replaced by the next run.</sub>"
+          } > "$body"
+
+          # A pull request gets one comment kept up to date, because a branch
+          # under review is pushed to more than once and a stack of these would
+          # bury the conversation. A branch without one gets a commit comment,
+          # which is the only place there is to put it.
+          pr=$(gh pr list --head "${GITHUB_REF_NAME}" --state open --json number --jq '.[0].number' 2>/dev/null || true)
+          if [ -n "$pr" ] && [ "$pr" != "null" ]; then
+            mine=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${pr}/comments"               --jq '[.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("### Deck preview")))] | last | .id' 2>/dev/null || true)
+            if [ -n "$mine" ] && [ "$mine" != "null" ]; then
+              gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${mine}" -F body=@"$body" >/dev/null
+              echo "Updated the preview comment on #${pr}."
+            else
+              gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${pr}/comments" -F body=@"$body" >/dev/null
+              echo "Commented on #${pr}."
+            fi
+          else
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/comments" -F body=@"$body" >/dev/null
+            echo "Commented on ${GITHUB_SHA:0:7}."
+          fi
 
   metadata:
     name: Push both listings

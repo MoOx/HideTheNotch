@@ -158,6 +158,23 @@ The capture runs need Xcode and Android Studio respectively; the deck needs
 neither. So the deck can be recomposed, retimed, recoloured and relocalised on
 any machine that has the captures, but taking them again means the toolchain.
 
+**Every capture run posts a preview**, because an artefact cannot be looked at:
+it is a zip behind a token, and GitHub only renders an image in a comment from a
+public URL. `tools/marketing/contact-sheet.sh` draws one sheet per deck instead,
+every locale as a row and every shot as a column, which is the only way a
+capture that failed in Japanese and nowhere else gets noticed. The workflow
+force pushes the three sheets to an orphan `deck-preview` branch and links them
+from a commit comment, or from a single comment kept up to date when the branch
+has a pull request. Two megabytes a run, against the hundred and ninety the deck
+itself weighs.
+
+The sheets are JPEG, which is not a contradiction of the rule above them: that
+rule is about the wallpaper, where block artefacts at the black to image
+boundary are what makes a cutout reappear. A contact sheet is a picture of a
+picture, for deciding whether a run worked, and as PNG the same sheet is ten
+megabytes rather than six hundred kilobytes because the app dithers its
+gradients on purpose. `npm run deck:preview` draws them here.
+
 The captures themselves are not committed. They are output, a hundred and fifty
 megabytes of it, and a run against a changed interface replaces every file:
 committing them wrote that weight into the history once per run, for good.

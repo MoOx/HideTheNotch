@@ -16,6 +16,7 @@ name: Store listings
 #   [listings]        both stores
 #   [listings-play]   Play alone
 #   [listings-ios]    the App Store alone
+#   [privacy]         the App Privacy questionnaire, and no listing at all
 #
 # Split because the two are not equally safe to repeat. A Play listing belongs
 # to the app and can be rewritten at any time. `deliver` runs with
@@ -43,7 +44,8 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       contains(github.event.head_commit.message, '[listings]') ||
       contains(github.event.head_commit.message, '[listings-play]') ||
-      contains(github.event.head_commit.message, '[listings-ios]')
+      contains(github.event.head_commit.message, '[listings-ios]') ||
+      contains(github.event.head_commit.message, '[privacy]')
     env:
       APP_IDENTIFIER: io.moox.HideTheNotch
       ANDROID_PACKAGE_NAME: io.moox.hidethenotch
@@ -90,6 +92,11 @@ jobs:
       # to write a listing with no deck, and a listing uploaded with no
       # screenshots would empty the store record it was meant to correct.
       - name: The last deck composed
+        if: >-
+          github.event_name == 'workflow_dispatch' ||
+          contains(github.event.head_commit.message, '[listings]') ||
+          contains(github.event.head_commit.message, '[listings-play]') ||
+          contains(github.event.head_commit.message, '[listings-ios]')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -119,6 +126,15 @@ jobs:
       # an app with none it retries for five minutes and gives up with "Cannot
       # find edit app store version". Create the version with `promote:ios` or
       # by hand, then this passes.
+      # The questionnaire, which is not a listing and not the privacy policy URL.
+      # It is what App Store Connect refuses a submission without, and it is
+      # answered from fastlane/app_privacy_details.json.
+      - name: App Privacy questionnaire
+        if: >-
+          github.event_name == 'workflow_dispatch' ||
+          contains(github.event.head_commit.message, '[privacy]')
+        run: bundle exec fastlane ios privacy
+
       - name: App Store listing
         if: >-
           github.event_name == 'workflow_dispatch' ||

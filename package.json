@@ -28,6 +28,7 @@
     "promote:android": "tools/fastlane.sh android release",
     "metadata:android": "tools/fastlane.sh android metadata",
     "metadata:ios": "tools/fastlane.sh ios metadata",
+    "privacy:ios": "tools/fastlane.sh ios privacy",
     "release": "node tools/release.cjs",
     "store:listing": "node tools/marketing/listing.cjs",
     "marketing:serve": "node tools/marketing/serve.cjs",

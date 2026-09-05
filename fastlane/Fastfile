@@ -349,6 +349,103 @@ platform :ios do
     )
   end
 
+  desc "Answer the App Privacy questionnaire from the file in this repository"
+  lane :privacy do
+    decrypt_secrets!
+    require "spaceship"
+
+    # The questionnaire App Store Connect calls "App Privacy", which is not the
+    # privacy policy URL and is the thing that actually blocks a submission:
+    # "an administrator must provide information about its privacy practices".
+    # It is a form nobody finds twice, so the answers live in
+    # `fastlane/app_privacy_details.json` and this writes them.
+    #
+    # **Not `upload_app_privacy_details_to_app_store`.** That action calls
+    # `Spaceship::ConnectAPI.login`, which is an Apple ID, a password and a two
+    # factor session that expires. Every other lane here authenticates with the
+    # App Store Connect API key, and adding a password to the secrets to answer
+    # a form would be the wrong trade. `asc_api_key` sets
+    # `Spaceship::ConnectAPI.token`, so the models below go through the key, and
+    # what follows is the upload half of that action and nothing else.
+    path = File.join(ROOT, "fastlane", "app_privacy_details.json")
+    UI.user_error!("no #{path} to answer from") unless File.exist?(path)
+    usages = JSON.parse(File.read(path))
+
+    asc_api_key
+
+    app = Spaceship::ConnectAPI::App.find(bundle_id)
+    UI.user_error!("no app on this account for #{bundle_id}") if app.nil?
+
+    # What Apple actually offers, asked rather than assumed. The identifiers are
+    # an enumeration on their side, so a typo in the file is answered with the
+    # list of real ones instead of a 400 with nothing in it.
+    categories = Spaceship::ConnectAPI::AppDataUsageCategory.all(includes: "grouping").map(&:id)
+    purposes = Spaceship::ConnectAPI::AppDataUsagePurpose.all.map(&:id)
+
+    if env_flag?("HTN_PRIVACY_LIST")
+      UI.important("Categories Apple offers:")
+      categories.sort.each { |c| UI.message("  #{c}") }
+      UI.important("Purposes Apple offers:")
+      purposes.sort.each { |p| UI.message("  #{p}") }
+      next
+    end
+
+    usages.each do |usage|
+      category = usage["category"]
+      unless category.nil? || categories.include?(category)
+        UI.error("#{path} names a category Apple does not have: #{category}")
+        UI.error("Run it again with HTN_PRIVACY_LIST=1 to see the real ones.")
+        UI.user_error!("unknown category")
+      end
+      (usage["purposes"] || []).each do |purpose|
+        next if purposes.include?(purpose)
+        UI.error("#{path} names a purpose Apple does not have: #{purpose}")
+        UI.error("Run it again with HTN_PRIVACY_LIST=1 to see the real ones.")
+        UI.user_error!("unknown purpose")
+      end
+    end
+
+    # Replaced rather than added to, because a questionnaire is answered whole
+    # and a leftover answer from a previous version is a wrong answer.
+    existing = Spaceship::ConnectAPI::AppDataUsage.all(
+      app_id: app.id,
+      includes: "category,grouping,purpose,dataProtection",
+      limit: 500
+    )
+    UI.message("Clearing #{existing.size} existing answer(s)")
+    existing.each(&:delete!)
+
+    usages.each do |usage|
+      category = usage["category"]
+      # "Not collected" is an answer with no purpose, and it still has to be
+      # written, so the loop runs once with none rather than not at all.
+      for_purposes = usage["purposes"] || []
+      for_purposes = [nil] if for_purposes.empty?
+
+      for_purposes.each do |purpose|
+        (usage["data_protections"] || []).each do |protection|
+          UI.message([category, purpose, protection].compact.join(" / "))
+          Spaceship::ConnectAPI::AppDataUsage.create(
+            app_id: app.id,
+            app_data_usage_category_id: category,
+            app_data_usage_protection_id: protection,
+            app_data_usage_purpose_id: purpose
+          )
+        end
+      end
+    end
+
+    # Answered is not the same as published, and only a published questionnaire
+    # unblocks a submission.
+    state = Spaceship::ConnectAPI::AppDataUsagesPublishState.get(app_id: app.id)
+    if state.published
+      UI.success("App Privacy was already published, and now says what the file says")
+    else
+      state.publish!
+      UI.success("App Privacy published")
+    end
+  end
+
   desc "Take the last TestFlight build to the App Store record, ready to submit"
   lane :release do
     decrypt_secrets!

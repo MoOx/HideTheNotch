@@ -68,6 +68,12 @@ jobs:
       # `download-artifact` only reaches inside its own run, so this is `gh`,
       # which is what fetch-deck.sh does from a laptop for the same reason.
       #
+      # The **artefact** is what is looked for, not a green run. A capture run
+      # composes the deck in one job and uploads the listings in a later one, so
+      # a listing that fails marks the whole run `failure` and leaves a
+      # perfectly good deck behind it. Asking for the newest successful run
+      # found none, which is how this step failed the first time it ran.
+      #
       # It fails the run rather than uploading nothing: `store:listing` refuses
       # to write a listing with no deck, and a listing uploaded with no
       # screenshots would empty the store record it was meant to correct.
@@ -76,10 +82,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -eo pipefail
-          run=$(gh run list --workflow store-captures.yml --status success \
-            --limit 1 --json databaseId --jq '.[0].databaseId')
+          run=$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=store-deck&per_page=30" \
+            --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | last | .workflow_run.id')
           if [ -z "$run" ] || [ "$run" = "null" ]; then
-            echo "No successful store-captures run to take a deck from."
+            echo "No store-deck artefact anywhere, or every one of them has expired."
             echo "Push a commit whose message carries [captures] first."
             exit 1
           fi

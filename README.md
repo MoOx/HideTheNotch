@@ -536,7 +536,7 @@ keychain here; `APPLE_TEAM_ID` has to be in `.env` or exported.
 | The app record | Play Console, created by hand, Play App Signing accepted | every Android upload |
 | One AAB uploaded by hand | Play Console, once, `npm run bundle:android` builds it | the API refuses a package that has never had a release |
 | Content rating, Data safety, privacy policy URL, target audience, ads declaration | Play Console | Play will not publish without all five |
-| App Privacy answers | `npm run privacy:ios`, from `fastlane/app_privacy_details.json` | Apple will not accept a submission without them |
+| App Privacy answers, published | App Store Connect > App Information > App Privacy, by an Admin. `npm run privacy:ios` prints what to select, from `fastlane/app_privacy_details.json` | Apple will not accept a submission without them, and it is not the privacy policy URL |
 | A privacy policy that answers | `moox.io/apps/hide-the-notch/privacy` | both stores check the URL |
 
 **In the repository**

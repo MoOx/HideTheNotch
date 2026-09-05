@@ -269,12 +269,22 @@ focused_on_app() {
   "$ADB" $ON shell dumpsys window 2>/dev/null | grep -q "mCurrentFocus.*$PKG/"
 }
 
-# Back dismisses a system dialog, and the framework puts the app back in front.
-# Three goes, then the run stops: a deck of error dialogs is worse than no deck,
-# and it is exactly the kind of thing that is noticed on the store rather than
-# here.
+# Two different things put something else in front, so this tries both.
+#
+# A dialog is dismissed with Back. That is the case this was written for.
+#
+# The app being pushed to the background is the other, and it is the one that
+# actually happens here: `hide_error_dialogs` means the launcher's ANR is
+# handled without a dialog, so instead of a box over the app the launcher simply
+# restarts and comes forward, and the app is behind it, alive and unfocused. The
+# log says nothing because nothing crashed. Back does not help with that at all,
+# and the fix is to ask for the shot again.
+#
+# Three goes, then the run stops. A deck of error dialogs, or of home screens,
+# is worse than no deck, and it is exactly the kind of thing that gets noticed
+# on the store rather than here.
 settle_focus() {
-  local n=0
+  local id="$1" n=0
   until focused_on_app; do
     if [ "$n" -ge 3 ]; then
       echo
@@ -298,10 +308,16 @@ settle_focus() {
         || echo "     nothing in it about a crash"
       exit 1
     fi
-    printf '    ! %s in front, dismissing\n' \
-      "$("$ADB" $ON shell dumpsys window 2>/dev/null | grep -m1 mCurrentFocus | sed 's/.*u0 //; s/\/.*//' | tr -d '\r}')"
-    "$ADB" $ON shell input keyevent KEYCODE_BACK >/dev/null
-    sleep 1
+    who="$("$ADB" $ON shell dumpsys window 2>/dev/null | grep -m1 mCurrentFocus | sed 's/.*u0 //; s/\/.*//' | tr -d '\r}')"
+    if [ "$n" -eq 0 ]; then
+      printf '    ! %s in front, dismissing\n' "$who"
+      "$ADB" $ON shell input keyevent KEYCODE_BACK >/dev/null
+    else
+      printf '    ! %s still in front, asking for %s again\n' "$who" "$id"
+      "$ADB" $ON shell am start -a android.intent.action.VIEW \
+        -d "hidethenotch://shot/$id" >/dev/null
+    fi
+    sleep 1.5
     n=$((n + 1))
   done
 }
@@ -367,13 +383,13 @@ for id in $IDS; do
   sleep "$SETTLE"
   take() { "$ADB" $ON exec-out screencap -p > "$1"; }
 
-  # Before, because a dialog that is already up is what the shot would be of.
-  settle_focus
+  # Before, because whatever is already in front is what the shot would be of.
+  settle_focus "$id"
   steady_shot "$OUT/$lang/$id.png"
-  # And after, because one that arrives mid shot is the same picture.
+  # And after, because something arriving mid shot is the same picture.
   if ! focused_on_app; then
-    echo "    ! a dialog arrived during the shot, retaking"
-    settle_focus
+    echo "    ! something arrived during the shot, retaking"
+    settle_focus "$id"
     steady_shot "$OUT/$lang/$id.png"
   fi
 done

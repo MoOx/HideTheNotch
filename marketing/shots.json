@@ -49,13 +49,6 @@
       "badges": [],
       "background": "radial-gradient(120% 70% at 50% 0%, #3a1140 0%, #170a18 55%, #070409 100%)",
       "screen": "marketing/captures/ios/{lang}/04-export.png"
-    },
-    {
-      "id": "card",
-      "layout": "half",
-      "scale": 0.86,
-      "badges": [],
-      "screen": "marketing/captures/ios/{lang}/01-editor.png"
     }
   ],
   "locales": {

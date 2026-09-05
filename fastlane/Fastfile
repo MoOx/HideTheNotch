@@ -465,6 +465,50 @@ def build_aab!(version_code)
   lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH]
 end
 
+# Every track Play can hold a release on, because a version code is spent for
+# the whole app rather than for the track it was uploaded to.
+ANDROID_TRACKS = %w[internal alpha beta production].freeze
+
+# The next version code Google will accept, which is not the same question as
+# "what is on the internal track".
+#
+# It used to be, and that is what asked for 1 on an app whose 1 had already
+# been uploaded by hand: the internal track answered with nothing, nothing plus
+# one is one, and Play refused it after a four minute build. A code is reserved
+# for the package forever, on any track, published or not, so the only useful
+# maximum is the one taken across all of them.
+#
+# Even that can be short. A code spent on a draft release that was later
+# deleted, or on an internal app sharing upload, is gone and appears on no
+# track at all, so `ANDROID_VERSION_CODE` overrules the lookup. That is the
+# same escape hatch the `bundle` lane uses, and the message below says to reach
+# for it.
+def next_android_version_code(json_key)
+  override = ENV["ANDROID_VERSION_CODE"].to_s.strip
+  unless override.empty?
+    UI.important("ANDROID_VERSION_CODE is set, so Play is not asked: #{override}")
+    return override.to_i
+  end
+
+  used = ANDROID_TRACKS.flat_map do |track|
+    google_play_track_version_codes(
+      package_name: android_package,
+      track: track,
+      json_key: json_key
+    )
+  end
+
+  highest = used.max
+  if highest.nil?
+    UI.important("No version code on any track. Asking for 1, which Play refuses")
+    UI.important("if an AAB was ever uploaded by hand: ANDROID_VERSION_CODE=<n+1>.")
+    return 1
+  end
+
+  UI.message("Highest version code across #{ANDROID_TRACKS.join(', ')}: #{highest}")
+  highest + 1
+end
+
 platform :android do
   desc "Build a signed AAB and stop, for the one upload Google wants by hand"
   lane :bundle do
@@ -489,11 +533,7 @@ platform :android do
 
     json_key = secret("android/play-service-account.json")
 
-    version_code = google_play_track_version_codes(
-      package_name: android_package,
-      track: "internal",
-      json_key: json_key
-    ).max.to_i + 1
+    version_code = next_android_version_code(json_key)
 
     build_aab!(version_code)
 
@@ -507,6 +547,54 @@ platform :android do
       skip_upload_screenshots: true,
       skip_upload_changelogs: true
     )
+  end
+
+  desc "Push the store listing, without building anything"
+  lane :metadata do
+    decrypt_secrets!
+    write_listings!
+
+    dir = File.join(ROOT, "fastlane", "metadata", "android")
+    UI.user_error!("nothing to upload: no fastlane/metadata/android") unless Dir.exist?(dir)
+
+    # The mirror of `ios metadata`, and on Play it is a more natural fit than it
+    # is on Apple: title, descriptions and images belong to the app rather than
+    # to a release, so they can be corrected on their own at any time, with no
+    # binary and no version in sight.
+    #
+    # Changelogs are the exception, the one part of a listing that belongs to a
+    # version code, so they are left to `release`, which knows which code it is
+    # promoting. Sending them from here would mean guessing.
+    upload_to_play_store(
+      package_name: android_package,
+      json_key: secret("android/play-service-account.json"),
+      skip_upload_apk: true,
+      skip_upload_aab: true,
+      skip_upload_changelogs: true,
+      skip_upload_metadata: false,
+      skip_upload_images: false,
+      skip_upload_screenshots: false
+    )
+  end
+
+  desc "Report the version codes Play holds, and what the next build would ask for"
+  lane :codes do
+    decrypt_secrets!
+    json_key = secret("android/play-service-account.json")
+
+    ANDROID_TRACKS.each do |track|
+      codes = google_play_track_version_codes(
+        package_name: android_package,
+        track: track,
+        json_key: json_key
+      )
+      UI.message(format("  %-12s %s", track, codes.empty? ? "nothing" : codes.sort.join(", ")))
+    end
+
+    # Deliberately after the listing, so the numbers it is derived from are on
+    # screen above it. This lane exists because the alternative way of finding
+    # out was a four minute build followed by a refusal.
+    UI.success("Next build would ask for #{next_android_version_code(json_key)}")
   end
 
   desc "Promote the last internal build to production"

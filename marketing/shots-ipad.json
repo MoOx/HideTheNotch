@@ -1,22 +1,6 @@
 {
-  "//": "The store deck, as data. The layout is declared once, under `shots`, and each locale carries only what it says: `copy` keyed by shot id, its badges, its seal, and `lang`, which is the language the captures were taken in. Adding a language is a `copy` block, not another copy of the deck.",
-  "device": {
-    "shot": {
-      "w": 1080,
-      "h": 2400
-    },
-    "screenRadius": 92,
-    "bezel": 20,
-    "rim": "linear-gradient(150deg, #8d9196 0%, #4d5054 22%, #1e2022 48%, #5d6165 78%, #a7abb0 100%)",
-    "cutout": {
-      "shape": "punch",
-      "w": 68,
-      "h": 68,
-      "y": 37,
-      "r": 34,
-      "x": 0.5
-    }
-  },
+  "//": "The iPad deck. A copy of shots.json with the iPhone settings left exactly as they were, because they are a starting point rather than an answer: the device block, the layouts and the scales all want an eye on a 3:4 canvas. Apple asks for this slot only because v1 was published on iPad, so it is a formality, but it goes through the same pipeline as the rest rather than being uploaded by hand. What is genuinely iPad here is three things: the canvas size, the absence of a cutout, and where the captures come from.",
+  "slot": "APP_IPAD_PRO_3GEN_129",
   "ink": "#ffffff",
   "background": "radial-gradient(120% 70% at 50% 0%, #1b2340 0%, #0a0b10 55%, #050507 100%)",
   "shots": [
@@ -27,7 +11,7 @@
       "drop": 60,
       "size": 122,
       "seal": true,
-      "screen": "marketing/captures/android/{lang}/05-compare.png"
+      "screen": "marketing/captures/ipad/{lang}/05-compare.png"
     },
     {
       "id": "effect",
@@ -36,7 +20,7 @@
       "drop": 60,
       "badges": [],
       "background": "radial-gradient(120% 70% at 50% 0%, #10303c 0%, #071319 55%, #04080a 100%)",
-      "screen": "marketing/captures/android/{lang}/01-editor.png"
+      "screen": "marketing/captures/ipad/{lang}/01-editor.png"
     },
     {
       "id": "photo",
@@ -45,7 +29,7 @@
       "drop": 60,
       "badges": [],
       "background": "radial-gradient(120% 70% at 50% 0%, #2a1c3f 0%, #100a16 55%, #060409 100%)",
-      "screen": "marketing/captures/android/{lang}/02-import.png"
+      "screen": "marketing/captures/ipad/{lang}/02-import.png"
     },
     {
       "id": "shape",
@@ -54,7 +38,7 @@
       "drop": 60,
       "badges": [],
       "background": "radial-gradient(120% 70% at 50% 0%, #1b3040 0%, #0a1016 55%, #050708 100%)",
-      "screen": "marketing/captures/android/{lang}/03-home.png"
+      "screen": "marketing/captures/ipad/{lang}/03-home.png"
     },
     {
       "id": "export",
@@ -64,7 +48,7 @@
       "size": 92,
       "badges": [],
       "background": "radial-gradient(120% 70% at 50% 0%, #3a1140 0%, #170a18 55%, #070409 100%)",
-      "screen": "marketing/captures/android/{lang}/04-export.png"
+      "screen": "marketing/captures/ipad/{lang}/04-export.png"
     }
   ],
   "locales": {
@@ -212,7 +196,7 @@
         }
       }
     },
-    "ja-JP": {
+    "ja": {
       "lang": "ja",
       "badges": ["無料", "広告なし", "アカウント不要"],
       "seal": {
@@ -248,7 +232,7 @@
         }
       }
     },
-    "zh-CN": {
+    "zh-Hans": {
       "lang": "zh-Hans",
       "badges": ["免费", "无广告", "无需账号"],
       "seal": {
@@ -284,5 +268,18 @@
         }
       }
     }
+  },
+  "device": {
+    "//": "2048 x 2732 is what an iPad Air 13 inch simulator writes, and a valid size for the 13 inch slot alongside the 2064 x 2752 of an iPad Pro. The cutout is `none` because an iPad has none: the compositor paints no hole, which is the honest picture of what the app does there. Radius, bezel and rim are the iPhone's, deliberately, and are the first thing to adjust.",
+    "shot": {
+      "w": 2048,
+      "h": 2732
+    },
+    "cutout": {
+      "shape": "none"
+    },
+    "screenRadius": 165,
+    "bezel": 26,
+    "rim": "linear-gradient(150deg, #b9bcc0 0%, #6f7378 22%, #2c2e31 48%, #7d8186 78%, #cfd2d6 100%)"
   }
 }

@@ -8,37 +8,79 @@ Expo SDK 57, React Native 0.86, React 19.2, `@shopify/react-native-skia` 2.6
 
 ---
 
-## What changed from v1
+## From a clone to production
 
-The 2017 version photographed the React Native view tree with
-`react-native-view-shot`: the source photo was shrunk to screen size **before**
-being captured, so exports were capped at screen resolution. Here a **recipe** is
-described as JSON and drawn by a single function, always in points; the preview
-plays it at scale 1, the export applies `canvas.scale(density)` before calling
-it.
+The whole path, in the order it happens. Every line is explained further down;
+this is the map.
 
-```
-src/recipe/types.ts     the recipe (source and mask), serialisable
-src/render/draw.ts      drawRecipe(canvas, ctx), the single drawing path
-src/render/export.ts    offscreen surface at native pixels, PNG, camera roll
+```sh
+git clone git@github.com:MoOx/HideTheNotch.git && cd HideTheNotch
+npm install                   # deps, patches, and the git hooks
+npm run ios                   # or android: a development build on the simulator
+npm start                     # from then on, JavaScript reloads into it
 ```
 
-Preview and export parity is therefore **structural** rather than watched: there
-is only one path.
+Then, for a change:
 
-The geometry that path is given is always the one the device reports. There is
-no target picker and there is nothing to pick: a wallpaper is cut for the screen
-it will be set on, and the one screen the app can measure is the one in your
-hand.
+```sh
+npm run typecheck
+npm run verify                # the two properties, on real pixels, no device
+git commit && git push        # CI runs both again, plus the two bundles
+```
 
-## The two properties everything rests on
+Then, to ship it. v2 goes out from this machine, and the tag comes last: a tag
+that starts a release assumes the release works, which is not yet known here.
 
-1. **Black under the cutout is absolute.** On OLED a black pixel is an off
+```sh
+npm run doctor                # what the lanes need, and what is actually set
+# bump expo.version in app.json, write the release note in marketing/listing.json
+npm run deck:fetch            # the screenshots, without which no listing uploads
+
+npm run beta:ios              # build, sign, upload to TestFlight
+npm run beta:android          # build, sign, upload to the Play internal track
+# install both on a real phone and look at the top of the screen
+
+npm run promote:ios           # attach the build, upload copy and screenshots
+SUBMIT_FOR_REVIEW=1 npm run promote:ios       # and start the review
+PLAY_ROLLOUT=0.1 npm run promote:android      # production, a tenth of users first
+
+npm run release -- --push     # tag it, once it is out
+```
+
+The very first Android release has one more step, done once by hand in the Play
+Console, and Play may want a closed test before it opens production at all. Both
+are in the checklist.
+
+Details, in order of when you need them: [what a release
+needs](#what-a-release-needs) is the checklist to run through first, [putting v2
+on sale](#putting-v2-on-sale-from-this-machine) explains each step above, and
+[what the two stores disagree about](#what-the-two-stores-disagree-about) is why
+iOS and Android are not symmetrical.
+
+---
+
+## The three properties everything rests on
+
+1. **Preview and export are the same drawing.** A recipe is described as JSON
+   and drawn by one function, always in points: the preview plays it at scale 1,
+   the export applies `canvas.scale(density)` before calling it. Parity is
+   therefore structural rather than watched, because there is only one path.
+
+   ```
+   src/recipe/types.ts     the recipe (source and mask), serialisable
+   src/render/draw.ts      drawRecipe(canvas, ctx), the single drawing path
+   src/render/export.ts    offscreen surface at native pixels, PNG, camera roll
+   ```
+
+   Never add a second path. An export that is not what was on screen is the one
+   bug this app cannot ship.
+
+2. **Black under the cutout is absolute.** On OLED a black pixel is an off
    pixel, so it is optically identical to the panel around the camera.
    `#010101` shows in a dark room. Exports are PNG: JPEG produces block
    artefacts at the black to image boundary, which makes the cutout reappear.
 
-2. **The fade is dithered, in the right place.** The shader does not composite
+3. **The fade is dithered, in the right place.** The shader does not composite
    translucent black over the source: it **takes the source as an input**
    (`uniform shader uSrc`) and computes the final colour. Dithering the alpha
    does not dither the output, because the noise is attenuated by the luminance
@@ -47,9 +89,16 @@ hand.
    with a triangular probability density, computed in output pixels. The fade
    itself is computed in linear light.
 
-Both are checked on real pixels, see below.
+The last two are checked on real pixels by `npm run verify`, see below. The
+first one is not checked, it is enforced: there is one function, and both
+callers call it.
 
 ## Geometry
+
+The geometry the drawing is given is always the one the device reports. There is
+no target picker and there is nothing to pick: a wallpaper is cut for the screen
+it will be set on, and the one screen the app can measure is the one in your
+hand.
 
 Everything measurable is measured (window size, density, safe areas). The
 cutout box is asked for in three layers, in this order:
@@ -117,9 +166,8 @@ workflow through `node-version-file` and `ruby/setup-ruby`. They come from the
 templates in `MoOx/certificates`, so bump them there. Ruby is only needed to
 release, and `rbenv install` is how a machine catches up with a bump.
 
-Every step from here to a version on sale is in
-[From a clone to the store](#from-a-clone-to-the-store), including what a small
-patch does *not* need.
+The whole path to a version on sale is at the top of this file, and
+[Releasing](#releasing-in-detail) explains each step of it.
 
 `npm install` applies `patches/`, through `patch-package` on `postinstall`, and
 so does `npm ci` on CI. There is one patch: `@expo/ui`'s `BottomSheet` gains a
@@ -154,11 +202,11 @@ checks:
 
 ---
 
-## Building without EAS
+## The workflows
 
-The repository is public, so standard GitHub runners are free and unmetered,
-**macOS included**. The EAS quotas (15 builds per OS per month on the free plan)
-stop being a constraint: you can never use it at all.
+Nothing is built on a service. The repository is public, so GitHub's runners are
+free and unmetered, macOS included, and every build happens on one of them or on
+your own machine. No account, no quota, no `eas.json`.
 
 | Workflow | Runner | Trigger | Result |
 | -------- | ------ | ------- | ------ |
@@ -269,6 +317,28 @@ Drag that into Play Console, Internal testing, Create new release. From then on
 `fastlane android beta` does the whole thing, and the `[play]` marker in a commit
 message runs it on CI.
 
+#### Version codes, and the one that got away
+
+A version code is spent for the **package**, forever, on whatever track it was
+uploaded to and whether or not that release was ever published. `android beta`
+therefore takes the highest code across `internal`, `alpha`, `beta` and
+`production` and adds one. It used to ask the internal track alone, which is how
+it asked for 1 on an app whose 1 had been uploaded by hand somewhere else, and
+Play refused it after a four minute build.
+
+```sh
+npm run codes:android       # what Play holds, and what the next build would ask for
+```
+
+That lane calls Play and builds nothing, so it answers in seconds. When the
+number it reports is still refused, the code was spent somewhere no track
+reports it, such as a draft release that was later deleted or an internal app
+sharing upload. `ANDROID_VERSION_CODE` overrules the lookup:
+
+```sh
+ANDROID_VERSION_CODE=2 npm run beta:android
+```
+
 ### The store listings
 
 Both stores read a tree of small text files, and they agree on almost nothing:
@@ -353,12 +423,6 @@ not worth a device picker: a wallpaper generated for a screen you are not
 holding cannot be checked against the screen it is for, which is the one thing
 this app is about.
 
-### What EAS is still good for
-
-Nothing for builds. `eas update` remains the shortest way to push a JS-only
-change to an already installed build without rebuilding, and the free plan
-(1,000 monthly active users) is far beyond any testing use.
-
 ### Why not Expo Go
 
 Expo Go ships a fixed set of native modules. `@shopify/react-native-skia`,
@@ -398,138 +462,196 @@ to check the native module against a shape you chose yourself.
 
 ---
 
-## From a clone to the store
+## Releasing, in detail
 
-Every step, in order, with what each one actually needs. Nothing below is
-implied by anything above it: the first block is enough to work on the app, and
-most changes never leave it.
+The map is at the top of this file. This is each step of it, with what it needs
+and why it is a step rather than something a script decides on its own.
 
-### Working on it
+### Two ways to reach the testers
 
-```sh
-git clone git@github.com:MoOx/HideTheNotch.git && cd HideTheNotch
-npm install                 # applies patches/ and points git at .githooks
-npm run ios                 # or: npm run android
-```
-
-`npm run ios` is `expo run:ios`: it generates the native project, builds it, and
-leaves a development build on the simulator. After the first time, `npm start`
-is enough, since JavaScript reloads into the build already installed. Expo Go
-cannot open this app, see below.
-
-Before pushing anything that touches the rendering:
-
-```sh
-npm run typecheck
-npm run verify              # the two properties, on real pixels
-```
-
-Formatting and linting happen on their own, in the pre-commit hook, and again in
-CI.
-
-### Shipping a build to the testers
-
-Nothing here is done by hand: the two workflows build and upload, on a runner,
-from a clean checkout. Put `[testflight]` or `[play]` in a commit message and
-push.
+From CI, with a marker in the commit message, which builds on a runner from a
+clean checkout:
 
 ```sh
 git commit -m "Fix the fade at the bottom edge [testflight] [play]"
 git push
 ```
 
-TestFlight and the Play internal track both take about ten minutes. The same
-lanes exist locally, for when CI is not the problem you want to be debugging:
+From this machine, which is what v2 is doing until the whole path has been
+walked once:
 
 ```sh
-npm run beta:ios            # bundle exec fastlane ios beta
-npm run beta:android
+npm run beta:ios            # builds, signs, uploads to TestFlight
+npm run beta:android        # builds, signs, uploads to the internal track
 ```
 
-Both need `.env` and access to the certificates repository, see below. Neither
-is needed in the normal course of things.
+Every command that reaches fastlane goes through `tools/fastlane.sh`, which
+installs the gems the first time it is asked and then gets out of the way. They
+land in `vendor/bundle`, inside the project, for the same reason `node_modules`
+is: `rm -rf vendor` undoes it and nothing outside this directory changes. So a
+fresh clone needs `npm install` and nothing else, even to ship.
 
-Every one of these goes through `tools/fastlane.sh`, which installs the gems the
-first time it is asked and then gets out of the way. They land in
-`vendor/bundle`, inside the project, for the same reason `node_modules` is: `rm
--rf vendor` undoes it, and nothing outside this directory changes. So a fresh
-clone needs `npm install` and nothing else, even to ship.
+### What a release needs
 
-### Putting a version on sale
+Everything below has to be true before a version can go out. Most of it is set
+up once and then forgotten, which is exactly why it is worth listing: the things
+that stop a release are the things nobody has looked at in a year.
 
-Three steps, and they are three because each one is a decision.
+**On this machine**
 
-**One, tag it.** The tag is what starts a release, rather than a record of one:
+| What | How to tell |
+| ---- | ----------- |
+| Xcode, for the iOS build | `xcodebuild -version` |
+| A JDK 17 or 21, for the Android build | `java -version`, and see the note on `JAVA_HOME` above |
+| Node and Ruby at the declared versions | `node -v`, `ruby -v`, against `.node-version` and `.ruby-version` |
+| The values the lanes read | `npm run doctor`, which names every one and which lane wants it |
+| Read access to `MoOx/certificates` | the lanes clone it themselves, over ssh |
+
+`npm run doctor` is the one to run first. It reads `.env.example`, which
+declares every value and the lanes that need it, and reports what the process
+can actually see. `MATCH_PASSWORD` and `SECRETS_PASSPHRASE` come from the
+keychain here; `APPLE_TEAM_ID` has to be in `.env` or exported.
+
+**In the two consoles**
+
+| What | Where | Needed for |
+| ---- | ----- | ---------- |
+| The app record | App Store Connect. It exists: v1 is published | every iOS upload |
+| The app record | Play Console, created by hand, Play App Signing accepted | every Android upload |
+| One AAB uploaded by hand | Play Console, once, `npm run bundle:android` builds it | the API refuses a package that has never had a release |
+| Content rating, Data safety, privacy policy URL, target audience, ads declaration | Play Console | Play will not publish without all five |
+| App Privacy answers | App Store Connect | Apple will not accept a submission without them |
+| A privacy policy that answers | `moox.io/apps/hide-the-notch/privacy` | both stores check the URL |
+
+**In the repository**
+
+| What | How to tell |
+| ---- | ----------- |
+| A deck, composed and looked at | `marketing/renders/` is not empty, `npm run marketing:serve` shows it |
+| Copy that fits every store limit | `npm run store:listing` refuses to write anything over |
+| A release note nobody has read twice | `release` per locale in `marketing/listing.json` |
+| `expo.version` bumped | `app.json` |
+
+### Putting v2 on sale, from this machine
+
+A tag that starts a release assumes the release works. That is a fair
+assumption for the tenth one and a poor one for the first, where the iOS build
+can fail, the Android build can fail, and the review can come back rejected. So
+v2 goes out by hand, in the order below, and the tag is written at the end as a
+record rather than at the start as a trigger.
+
+**One, prove the code.** The same three the CI would run:
+
+```sh
+npm run lint && npm run typecheck && npm run verify
+```
+
+**Two, the pictures.** Only if the interface moved since the last deck. It needs
+both toolchains, or the CI capture run, and it must be looked at:
+
+```sh
+npm run captures:ios && npm run captures:android && npm run deck
+npm run marketing:serve     # or: npm run deck:fetch, for the CI-built deck
+```
+
+**Three, the builds, and try them.**
+
+```sh
+npm run beta:ios            # to TestFlight
+npm run beta:android        # to the internal track
+```
+
+Then install both from TestFlight and from the Play internal link, on a real
+phone, and look at the top of the screen. This is the step the whole app exists
+for and the only one no automation can do.
+
+**Four, iOS to the App Store.**
+
+```sh
+npm run promote:ios                          # attaches the build, uploads copy and deck
+SUBMIT_FOR_REVIEW=1 npm run promote:ios      # and starts the review
+```
+
+The first form is safe to run as often as you like: it prepares the version in
+App Store Connect and stops. The second starts a review that cannot be
+withdrawn quietly. Even after the review passes, the version waits for a tap
+before going on sale, because `automatic_release` is false.
+
+**This is also the step that creates the version.** A build on TestFlight is a
+build, not a version: nothing appears under Distribution in App Store Connect
+until a version record exists, and uploading to TestFlight does not make one.
+`promote:ios` passes the version number from `app.json`, and `deliver` creates
+it when it is not there. `metadata:ios` deliberately passes no version, so it
+writes onto whichever version is already open for editing, and on an app that
+has none it retries for five minutes and gives up with `Cannot find edit app
+store version`. First release: `promote:ios`, or create the version by hand in
+App Store Connect, then `metadata:ios` works for every correction afterwards.
+
+**Five, Android to production.**
+
+```sh
+PLAY_ROLLOUT=0.1 npm run promote:android     # a tenth of users first
+npm run promote:android                      # or everyone at once
+```
+
+This promotes the artefact that is already on the internal track, so what
+reaches production is the binary that was tested, and it carries the listing
+with it. A partial rollout is worth it here: the crash reporting has never run
+in the wild, and Play holds the rest until the rollout is finished by hand.
+
+**Six, record it.**
 
 ```sh
 npm run release -- --push
 ```
 
-It refuses a dirty tree, an existing tag, a version that has not gone up, and a
-release note identical to the last one's (that note is `release` per locale in
-`marketing/listing.json`, and is what both stores show as What's New). Pushing
-the tag runs both workflows, which build and upload exactly as above. The
-workflows refuse a tag whose number does not match `app.json`.
+Pushing the tag re-runs both build workflows on the commit that shipped. That is
+not waste during this phase, it is the point: the pipeline gets exercised
+against a commit whose release is already done, so a failure costs nothing and
+tells you what to fix before the next version depends on it. `npm run release`
+without `--push` writes the tag and leaves it here, if you would rather not.
 
-**Two, the pictures, if they changed.** The screenshots do not come from the tag
-and are not rebuilt by it:
+Once a release has gone through that way and CI has proved it can do the same,
+the order flips: tag first, and let the workflows do steps three to five.
 
-```sh
-npm run deck:fetch          # the deck from the last CI capture run
-npm run marketing:serve     # look at it before it goes anywhere
-```
+#### Does Android need testers before production?
 
-Skip this entirely when the interface has not moved. `npm run deck` says so when
-the captures no longer match the code.
+Possibly, and it depends on the age of the developer account rather than on the
+app. Google requires a **personal** developer account **created after 13
+November 2023** to run a closed test with at least **12 testers opted in
+continuously for 14 days** before production access is granted at all. Accounts
+older than that date, and organisation accounts, are exempt.
 
-**Three, promote.** The tagged build is on TestFlight and on the internal track,
-which is not the same as being on sale. Two ways, and the first one needs
-nothing but a browser: run **iOS to the App Store** and **Android to
-production** from the Actions tab. Both are forms, one with a "Submit for
-review" checkbox and one with a rollout fraction, and neither compiles
-anything, so a release can happen from a phone.
+Play Console says which case applies: if the requirement is on this account, the
+Production track is disabled until it is met, and the dashboard shows the tester
+count and the days elapsed. Worth looking before planning a release date, since
+14 days is not something to discover on the day.
 
-The same two lanes, from here:
-
-```sh
-npm run promote:ios         # last TestFlight build onto the App Store record
-npm run promote:android     # last internal build onto the production track
-```
-
-`promote:ios` attaches the build to the version, uploads the copy and the deck,
-and stops there: App Store metadata belongs to a version, so this is what makes
-the listing and the binary one thing. Submitting starts a review that cannot be
-withdrawn quietly, so it is a separate word: `SUBMIT_FOR_REVIEW=1 npm run
-promote:ios`. Even then the version waits for a tap before going on sale.
-
-`promote:android` moves the artefact between tracks, so what reaches production
-is the binary that was tested. `PLAY_ROLLOUT=0.1 npm run promote:android` gives
-it to a tenth of users first, and Play holds the rest until the rollout is
-finished by hand.
-
-The store listing goes up from these two lanes and from `npm run metadata:ios`,
-and from nowhere else. A `[play]` work build used to carry it too, which meant
-any internal build could rewrite a live Play page: on Play a listing belongs to
-the app rather than to a track, so it now travels only with a release.
+If it does apply, the internal track is not enough: it has to be a **closed**
+test, and the 12 testers have to stay opted in for the whole fortnight. Nothing
+in this repository changes for that, `npm run beta:android` already uploads
+where a closed test reads from.
 
 ### The smallest useful change
 
-A patch that touches JavaScript and nothing else needs, in full:
+Once the path above has been walked once and CI has been shown to do the same, a
+patch that touches JavaScript and nothing else needs, in full:
 
 ```sh
 # edit, then
 npm run verify              # only if you touched the rendering
-git commit -m "..." && git push          # CI checks types, pixels, bundles
 # bump expo.version in app.json, write the release note in marketing/listing.json
-npm run release -- --push
+npm run release -- --push   # the tag builds and uploads both platforms
 npm run promote:ios && npm run promote:android
 ```
 
-No captures, no deck, no local build, no fastlane on your machine. The parts
-people reach for out of habit and that a patch does not need: `npm run
-captures:*` (the interface did not change), `expo prebuild` (the workflows do
-their own), and anything in `fastlane/` locally (the runners hold the
-certificates).
+No captures, no deck, no local build, no fastlane on your machine for the build
+itself. The parts people reach for out of habit and that a patch does not need:
+`npm run captures:*` (the interface did not change), `expo prebuild` (the
+workflows do their own), and `npm run beta:*` (the tag already ran them).
+
+Until then, the order in [Putting v2 on sale](#putting-v2-on-sale-from-this-machine)
+holds: build here, look at it, ship it, tag afterwards.
 
 ### What the two stores disagree about
 
@@ -545,18 +667,19 @@ feature graphic are per locale and change live, without a release and without a
 review of the binary. Only the changelog belongs to a version code.
 
 So `npm run metadata:ios` exists, to correct copy or replace screenshots on the
-version being prepared without building anything, and there is no Android
-equivalent because `promote:android` and `beta:android` both carry the listing
-with them and that is the only place it can go.
+version being prepared without building anything. It needs that version to
+already be open for editing, which `promote:ios` or App Store Connect creates.
+
+`npm run metadata:android` is the same idea, and on Play it is the easier of the
+two: the listing belongs to the app, so it goes up on its own at any time, with
+no binary, no version and no review. `promote:android` also carries it, but
+waiting for a promotion to fix a description, or to answer a Play Console
+complaining that the full description is missing, is a promotion made for the
+wrong reason. The changelog is the one part left out of this lane, because it is
+the one part that belongs to a version code.
 
 ## Still to do
 
-Everything known to be missing is in
-[`docs/2026-todo.md`](docs/2026-todo.md), in the order it should be done. The
-two largest items:
-
-- Set the wallpaper in one gesture: App Intent and shortcut on iOS,
-  `WallpaperManager.setBitmap()` on Android. Both need native code.
-- Families 12 (generative), 08 (organic decor), 07 (hanging object) and 09
-  (content camouflage), see
-  [`docs/2026-feasibility-and-ui.md`](docs/2026-feasibility-and-ui.md).
+[`docs/2026-todo.md`](docs/2026-todo.md), in the order it should be done, and it
+is the only list. Nothing is kept here in parallel, because two lists means one
+of them is out of date and neither says which.

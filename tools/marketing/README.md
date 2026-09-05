@@ -89,16 +89,22 @@ whose screen is exactly 1080 x 2400 at 420 dpi. A Pixel 9 or 10 is a different
 screen (the 10 Pro is 1280 x 2856 at 480 dpi), so following it would mean moving
 the deck's metrics and the wallpapers with it.
 
-**The hole is put there, and it is a real one.** No AVD has a cutout, whatever
-phone its profile is named after, and an app that hides one has nothing to show
-on a screen that has none. The capture script turns on the AOSP overlay the
-"Display cutout" developer option switches between
-(`com.android.internal.display.cutout.emulation.hole`) before it installs
-anything, so `DisplayCutout` reports a punch hole, SystemUI lays the status bar
-out around it, and the app finds it through the native module exactly as it
-would on a phone. It is turned off again at the end of the run, and it fails the
-run rather than the deck if the system image has no such overlay. `HTN_CUTOUT=0`
-for a real phone, which has its own.
+**The hole is put there, and it is a real one, and it is in the middle.** The
+capture script turns on one of the AOSP overlays the "Display cutout" developer
+option switches between, before it installs anything, so `DisplayCutout` reports
+a punch hole, SystemUI lays the status bar out around it, and the app finds it
+through the native module exactly as it would on a phone. It is turned off again
+at the end of the run, and it fails the run rather than the deck if the system
+image has no such overlay. `HTN_CUTOUT=0` for a real phone, which has its own.
+
+Which overlay is not a detail, and the names are no guide: `hole` puts the
+camera in the **top left corner**, not in the middle, so the app masked the
+corner while the deck drew a hole in the centre of the same picture. The one to
+ask for is `emu01`, measured at 479..601 x 0..132 on a 1080 wide screen, which
+is centred and is what the Play deck is composed against. It is also what an API
+35 image reports with every overlay off, so the AVD already has the right hole
+and the script only asserts it. `capture-android.sh` lists the other four with
+the rectangle each one produces.
 
 **The emulator is cold booted, and that is not a detail.** A quick boot
 snapshot restores SystemUI with everything else, including a status bar laid out
@@ -168,13 +174,31 @@ Every run captures all six languages, one directory each under
 `captures/<platform>/`, because a store listing wants a deck per locale and the
 only thing that changes between them is what the app says.
 
-The Android status bar is set by four demo mode commands, found by trying them
-on a live emulator rather than derived from how demo mode ought to work. Twice
-that reasoning was wrong in the same way: demo mode is a replacement, not a
-filter, and `enter` puts the whole network group into it. A group handed nothing
-is not a group that is absent, so given a radio it drew 3G whatever it was told,
-and given nothing it drew a satellite, which is Android 15 for "no service".
-Wifi alone threads between the two.
+The Android status bar is set by six demo mode commands, found by trying them on
+a live emulator rather than derived from how demo mode ought to work. Two facts
+took several passes to see, and between them they explain why this kept being
+decided both ways:
+
+`enter` does not reset a session already in demo mode, and a `network` command
+sent into a live one **adds** a glyph rather than replacing it. That is the
+second wifi, and it is why the script exits, waits a second for the exit to
+land, and only then enters and sends `network` once. `exit` is a broadcast, so
+an `enter` in the same breath is not an entry at all. Testing a command by
+firing it at a bar that is already up gives the duplicate and the wrong
+conclusion.
+
+`enter` alone does not hold. The demo network state does not survive a SystemUI
+restart, and enabling the cutout overlay causes one. With no wifi icon left,
+Android 15 waits about ten seconds and then draws a **satellite**, its way of
+writing "no service". Anything that looked at the bar a second after the
+broadcast saw a clean bar and shipped it. Wifi shown and mobile hidden, asserted
+once after `enter`, comes back through the restart intact.
+
+`npm run demo:android` puts a running emulator into exactly that state, hole and
+bar, without a capture run around it, and `tools/marketing/demo-android.sh off`
+takes it back out. Looking at the app on an emulator dressed like the deck is
+how most of the drawing bugs are found, and rerunning six languages to get there
+costs twenty minutes.
 
 iOS resolves the language from `NSUserDefaults`, and a launch argument of the
 form `-Key value` lands there for that launch alone, so nothing device wide is

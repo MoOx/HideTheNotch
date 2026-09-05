@@ -67,15 +67,27 @@ SETTLE="${HTN_SETTLE:-0.6}"
 # is where the app reads the hole from. So the capture is of a phone with a
 # camera in its screen, and the app finds it the way it finds a real one.
 #
-#   hole       punch hole, centred, what the Play deck wants
-#   corner     punch hole in the top left
-#   double     one at each end
-#   tall       a notch
-#   waterfall  curved edges, no cutout
+# Measured on an API 35 arm64 image at 1080 x 2400, because the names do not say
+# where the hole is and the one this used to pick says the opposite of where it
+# puts it:
+#
+#   emu01      centred punch hole, 479..601 x 0..132, what the Play deck wants
+#   hole       punch hole in the top left corner, 0..136 x 0..136
+#   corner     corner cutout on the right, 954..1080 x 0..126
+#   double     a bar across the top and another across the bottom
+#   tall       a wide notch, centred, 414..666 x 0..126
+#   waterfall  curved edges, no cutout at all
+#
+# `emu01` is also what this image reports with every overlay off, so turning it
+# on asserts the geometry rather than changing it. `hole` was the default here
+# and it is the one wrong answer: it moves the camera into the top left corner,
+# the app masks the top left, the status bar is laid out around the corner, and
+# the deck then draws its own hole in the middle of a phone whose black is not
+# there.
 #
 # HTN_CUTOUT=0 leaves the screen alone, which is what a run against a real
 # phone wants.
-CUTOUT="${HTN_CUTOUT:-hole}"
+CUTOUT="${HTN_CUTOUT:-emu01}"
 LOCALES="${HTN_LOCALES:-en fr de es ja zh-Hans}"
 
 mkdir -p "$OUT"
@@ -150,20 +162,30 @@ if [ -n "${HTN_APK:-}" ]; then
   "$ADB" $ON install -r "$HTN_APK" >/dev/null
 fi
 
-# The status bar, and the three lines it takes.
+# The status bar, and the six lines it takes.
 #
-# `enter` on its own already gives the bar this deck wants: one wifi, one
-# battery, nothing else. Every command sent after it added to that rather than
-# describing it, which is the opposite of what the name suggests and the whole
-# of the bug. `network -e wifi show` was the second wifi glyph. `battery` and
-# `status` were the icons that came and went beside it.
+# Two rules, both measured on a live emulator, and between them they account for
+# every contradictory conclusion this file has carried about demo mode.
 #
-# So this asks for two things demo mode does not do by itself, and nothing more:
-# a fixed clock, and no notifications, since demo mode puts one of its own up on
-# `enter`, two overlapping squares next to the clock.
+# One: `enter` does not reset a session that is already in demo mode, and a
+# `network` command sent into a live one adds a glyph beside the one that is
+# there rather than replacing it. That is where the second wifi came from, and
+# it is why this exits first, waits for the exit to land, and sends `network`
+# exactly once per `enter`.
 #
-# Anything added here should be checked against the bar, not against the
-# documentation. The commands exist; sending them is what costs.
+# Two: `enter` alone is not enough, whatever the bar looks like in the second
+# after it. The demo network state does not survive a SystemUI restart, and the
+# cutout overlay above causes one. Left with no wifi icon, Android 15 waits
+# about ten seconds and then draws a satellite, which is its way of writing "no
+# service", and a run that shot sooner never saw it coming. Wifi shown and
+# mobile hidden, asserted once, comes back through the restart intact.
+#
+# So: a fixed clock, no notifications, since demo mode raises one of its own on
+# `enter`, two overlapping squares next to the clock, a full battery, and one
+# wifi.
+#
+# Anything added here should be checked against the bar twenty seconds later,
+# not against the documentation, and not one second after the broadcast.
 #
 # HTN_DEMO=0 leaves the real bar alone, real clock included.
 demo() { "$ADB" $ON shell am broadcast -a com.android.systemui.demo "$@" >/dev/null; }
@@ -197,9 +219,18 @@ fi
 
 if [ "${HTN_DEMO:-1}" != "0" ]; then
   "$ADB" $ON shell settings put global sysui_demo_allowed 1 >/dev/null
+  demo -e command exit
+  # `exit` is a broadcast, so it is a request rather than a fact. An `enter`
+  # sent in the same breath lands while the old session is still up, which is
+  # not an entry at all, and the `network` command below then duplicates the
+  # wifi it was supposed to set. A second and a half is plenty; nothing here
+  # is in a hurry.
+  sleep 1.5
   demo -e command enter
   demo -e command clock -e hhmm 0941
   demo -e command notifications -e visible false
+  demo -e command battery -e level 100 -e plugged false
+  demo -e command network -e wifi show -e level 4 -e mobile hide
 else
   demo -e command exit
 fi

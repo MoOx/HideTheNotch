@@ -24,11 +24,25 @@ if ! command -v gh >/dev/null 2>&1; then
   exit 1
 fi
 
+# The last run that produced the thing, which is not the last run that went
+# green. A capture run composes the deck in one job and uploads the listings in
+# a later one, so a listing that fails marks the whole run `failure` and leaves
+# a perfectly good deck behind it. Asking for the newest successful run threw
+# that deck away and reported there was none.
+#
+# So the artefact is what is looked for, not the run. `expired` matters because
+# the captures are kept a week and the deck ninety days.
+ARTEFACT="store-deck"
+[ "$WHAT" = "captures" ] && ARTEFACT="captures-ios"
+
 RUN="${1:-}"
 if [ -z "$RUN" ]; then
-  echo "==> looking for the last successful $WORKFLOW"
-  RUN=$(gh run list --workflow "$WORKFLOW" --status success --limit 1 \
-    --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)
+  echo "==> looking for the last $ARTEFACT from $WORKFLOW"
+  REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null || true)
+  RUN=$(gh api "repos/$REPO/actions/artifacts?name=$ARTEFACT&per_page=30" \
+    --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | last | .workflow_run.id' \
+    2>/dev/null || true)
+  [ "$RUN" = "null" ] && RUN=""
 fi
 
 if [ -z "$RUN" ] || [ "$RUN" = "null" ]; then

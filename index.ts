@@ -34,6 +34,24 @@ Sentry.init({
   // Public by design: it names where reports go and grants nothing.
   dsn: "https://23cae301c46e40879003d4e578f0155f@o109907.ingest.us.sentry.io/241860",
 
+  /**
+   * Off in a build made to be photographed.
+   *
+   * The store captures are taken from a release build, which is the point:
+   * the deck has to show the app people install. But a release build is a
+   * production build to Sentry, so a capture run of six languages by five
+   * shots is thirty cold starts on a loaded CI machine, and every one of them
+   * that takes two seconds to decode a photograph arrives as an "App Hanging"
+   * issue against the real project. They are not reports about the app, they
+   * are reports about a runner, and they bury the ones that are.
+   *
+   * `tools/marketing/build-ios-sim.sh` and `build-android.sh` set this, so it
+   * is off for exactly the builds nobody installs. Metro inlines
+   * `EXPO_PUBLIC_*` at bundling, so this is decided when the bundle is made
+   * and cannot be turned back on at runtime.
+   */
+  enabled: process.env.EXPO_PUBLIC_CAPTURE_BUILD !== "1",
+
   // Which build a report came from, in the two fields Sentry indexes by. The
   // commit is stamped by the release lane (`stamp_commit!` in the Fastfile), so
   // a stack trace points at a state of the repository rather than at a version

@@ -18,6 +18,25 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+
+# A capture build is photographed and thrown away, so its source maps are noise
+# in Sentry and its upload is a network call that can fail. It did: both halves
+# of the first `[store]` run died here, iOS on the "Bundle React Native code and
+# images" phase and Android on `createBundleReleaseJsAndAssets_SentryUpload`,
+# because a capture run carries no `SENTRY_AUTH_TOKEN` and sentry-cli exits 1
+# rather than shrugging. Nothing in a deck is ever symbolicated, so the upload
+# is not skipped reluctantly: it should never have run.
+#
+# The release lanes are untouched, which is where a source map is worth having.
+export SENTRY_DISABLE_AUTO_UPLOAD=true
+
+# Sentry is off in the build this makes, and the app reads this rather than
+# guessing. A capture run is thirty cold starts on a loaded machine, and every
+# one that pauses two seconds decoding a photograph arrives in the real project
+# as an "App Hanging" issue: reports about a runner, burying reports about the
+# app. Metro inlines EXPO_PUBLIC_* at bundling, so it is decided here and cannot
+# come back on at runtime. See the `enabled` line in index.ts.
+export EXPO_PUBLIC_CAPTURE_BUILD=1
 cd "$ROOT"
 # shellcheck source=/dev/null
 . tools/marketing/stamp.sh

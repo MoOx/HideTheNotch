@@ -62,22 +62,39 @@ function write(file, text) {
 }
 
 /** Every PNG of a rendered deck, in order, copied under a numbered name. */
-function screenshots(from, to) {
-  if (!fs.existsSync(from)) {
+/**
+ * Every deck for one locale, into the one directory the store reads.
+ *
+ * Several sources rather than one, because a listing can carry more than one
+ * device: the App Store wants a phone deck and an iPad deck on the same
+ * version, and they arrive from two directories. `deliver` sorts screenshots
+ * onto slots by their resolution rather than by their name, so both sets can
+ * sit side by side and land where they belong.
+ *
+ * The destination is emptied once, before any of them, and the counter runs
+ * across all of them: both stores order screenshots by filename, so the deck's
+ * own order has to survive as a number, and each device's shots stay in order
+ * among themselves whatever number they start at.
+ */
+function screenshots(sources, to) {
+  const dirs = [].concat(sources).filter((dir) => fs.existsSync(dir));
+  if (dirs.length === 0) {
     return 0;
   }
   fs.rmSync(to, { recursive: true, force: true });
   fs.mkdirSync(to, { recursive: true });
-  const files = fs
-    .readdirSync(from)
-    .filter((f) => f.endsWith(".png"))
-    .sort();
-  files.forEach((f, i) => {
-    // Both stores order screenshots by file name, so the deck's own order has
-    // to survive as a number rather than as a directory listing.
-    fs.copyFileSync(path.join(from, f), path.join(to, `${String(i + 1).padStart(2, "0")}-${f}`));
-  });
-  return files.length;
+
+  let n = 0;
+  for (const from of dirs) {
+    for (const f of fs
+      .readdirSync(from)
+      .filter((x) => x.endsWith(".png"))
+      .sort()) {
+      n += 1;
+      fs.copyFileSync(path.join(from, f), path.join(to, `${String(n).padStart(2, "0")}-${f}`));
+    }
+  }
+  return n;
 }
 
 function main() {
@@ -129,11 +146,14 @@ function main() {
     write(path.join(play, "changelogs", "default.txt"), copy.release);
 
     const apple_n = screenshots(
-      path.join(ROOT, "marketing/renders/app-store", locale),
+      [
+        path.join(ROOT, "marketing/renders/app-store", locale),
+        path.join(ROOT, "marketing/renders/app-store-ipad", locale),
+      ],
       path.join(SHOTS, locale),
     );
     const play_n = screenshots(
-      path.join(ROOT, "marketing/renders/play", PLAY_LOCALE[locale]),
+      [path.join(ROOT, "marketing/renders/play", PLAY_LOCALE[locale])],
       path.join(play, "images", "phoneScreenshots"),
     );
 

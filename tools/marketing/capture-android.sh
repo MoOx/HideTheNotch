@@ -67,15 +67,27 @@ SETTLE="${HTN_SETTLE:-0.6}"
 # is where the app reads the hole from. So the capture is of a phone with a
 # camera in its screen, and the app finds it the way it finds a real one.
 #
-#   hole       punch hole, centred, what the Play deck wants
-#   corner     punch hole in the top left
-#   double     one at each end
-#   tall       a notch
-#   waterfall  curved edges, no cutout
+# Measured on an API 35 arm64 image at 1080 x 2400, because the names do not say
+# where the hole is and the one this used to pick says the opposite of where it
+# puts it:
+#
+#   emu01      centred punch hole, 479..601 x 0..132, what the Play deck wants
+#   hole       punch hole in the top left corner, 0..136 x 0..136
+#   corner     corner cutout on the right, 954..1080 x 0..126
+#   double     a bar across the top and another across the bottom
+#   tall       a wide notch, centred, 414..666 x 0..126
+#   waterfall  curved edges, no cutout at all
+#
+# `emu01` is also what this image reports with every overlay off, so turning it
+# on asserts the geometry rather than changing it. `hole` was the default here
+# and it is the one wrong answer: it moves the camera into the top left corner,
+# the app masks the top left, the status bar is laid out around the corner, and
+# the deck then draws its own hole in the middle of a phone whose black is not
+# there.
 #
 # HTN_CUTOUT=0 leaves the screen alone, which is what a run against a real
 # phone wants.
-CUTOUT="${HTN_CUTOUT:-hole}"
+CUTOUT="${HTN_CUTOUT:-emu01}"
 LOCALES="${HTN_LOCALES:-en fr de es ja zh-Hans}"
 
 mkdir -p "$OUT"
@@ -150,20 +162,30 @@ if [ -n "${HTN_APK:-}" ]; then
   "$ADB" $ON install -r "$HTN_APK" >/dev/null
 fi
 
-# The status bar, and the three lines it takes.
+# The status bar, and the six lines it takes.
 #
-# `enter` on its own already gives the bar this deck wants: one wifi, one
-# battery, nothing else. Every command sent after it added to that rather than
-# describing it, which is the opposite of what the name suggests and the whole
-# of the bug. `network -e wifi show` was the second wifi glyph. `battery` and
-# `status` were the icons that came and went beside it.
+# Two rules, both measured on a live emulator, and between them they account for
+# every contradictory conclusion this file has carried about demo mode.
 #
-# So this asks for two things demo mode does not do by itself, and nothing more:
-# a fixed clock, and no notifications, since demo mode puts one of its own up on
-# `enter`, two overlapping squares next to the clock.
+# One: `enter` does not reset a session that is already in demo mode, and a
+# `network` command sent into a live one adds a glyph beside the one that is
+# there rather than replacing it. That is where the second wifi came from, and
+# it is why this exits first, waits for the exit to land, and sends `network`
+# exactly once per `enter`.
 #
-# Anything added here should be checked against the bar, not against the
-# documentation. The commands exist; sending them is what costs.
+# Two: `enter` alone is not enough, whatever the bar looks like in the second
+# after it. The demo network state does not survive a SystemUI restart, and the
+# cutout overlay above causes one. Left with no wifi icon, Android 15 waits
+# about ten seconds and then draws a satellite, which is its way of writing "no
+# service", and a run that shot sooner never saw it coming. Wifi shown and
+# mobile hidden, asserted once, comes back through the restart intact.
+#
+# So: a fixed clock, no notifications, since demo mode raises one of its own on
+# `enter`, two overlapping squares next to the clock, a full battery, and one
+# wifi.
+#
+# Anything added here should be checked against the bar twenty seconds later,
+# not against the documentation, and not one second after the broadcast.
 #
 # HTN_DEMO=0 leaves the real bar alone, real clock included.
 demo() { "$ADB" $ON shell am broadcast -a com.android.systemui.demo "$@" >/dev/null; }
@@ -195,11 +217,35 @@ if [ "$CUTOUT" != "0" ]; then
   done
 fi
 
+# The system's own dialogs, which are the one thing a capture run cannot argue
+# with once they are on screen.
+#
+# Every one of the thirty Android shots in the first complete run carried
+# "Pixel Launcher isn't responding" across the middle of the phone. Not our app:
+# the launcher, which a cold booted emulator under thirty app starts is entitled
+# to lose patience with. Nothing caught it. `steady_shot` compares two shots for
+# stillness and weighs the file for blackness, and a dialog is perfectly still
+# and perfectly opaque, so it passed both and went into the deck.
+#
+# `hide_error_dialogs` is the preventive half: the framework skips the crash and
+# ANR dialogs entirely rather than drawing them. It is not a promise, so the
+# focus check below is the half that is.
+"$ADB" $ON shell settings put global hide_error_dialogs 1 >/dev/null
+
 if [ "${HTN_DEMO:-1}" != "0" ]; then
   "$ADB" $ON shell settings put global sysui_demo_allowed 1 >/dev/null
+  demo -e command exit
+  # `exit` is a broadcast, so it is a request rather than a fact. An `enter`
+  # sent in the same breath lands while the old session is still up, which is
+  # not an entry at all, and the `network` command below then duplicates the
+  # wifi it was supposed to set. A second and a half is plenty; nothing here
+  # is in a hurry.
+  sleep 1.5
   demo -e command enter
   demo -e command clock -e hhmm 0941
   demo -e command notifications -e visible false
+  demo -e command battery -e level 100 -e plugged false
+  demo -e command network -e wifi show -e level 4 -e mobile hide
 else
   demo -e command exit
 fi
@@ -211,6 +257,70 @@ fi
 # expo grants read on outright, and a file pushed anywhere under `/sdcard` is
 # judged by a FUSE view that answers by calling package rather than by Unix
 # mode. It came out `-rw-r--r--` and unreadable.
+
+# Whether the app is what the screen is showing, which is not the same question
+# as whether the app is running.
+#
+# `mCurrentFocus` names the window on top, and with the app up it reads
+# `io.moox.hidethenotch/io.moox.hidethenotch.MainActivity`. Anything else means
+# something is in front: a system dialog, a permission prompt, the launcher.
+# Whatever it is, a screenshot taken now is a picture of it.
+focused_on_app() {
+  "$ADB" $ON shell dumpsys window 2>/dev/null | grep -q "mCurrentFocus.*$PKG/"
+}
+
+# Two different things put something else in front, so this tries both.
+#
+# A dialog is dismissed with Back. That is the case this was written for.
+#
+# The app being pushed to the background is the other, and it is the one that
+# actually happens here: `hide_error_dialogs` means the launcher's ANR is
+# handled without a dialog, so instead of a box over the app the launcher simply
+# restarts and comes forward, and the app is behind it, alive and unfocused. The
+# log says nothing because nothing crashed. Back does not help with that at all,
+# and the fix is to ask for the shot again.
+#
+# Three goes, then the run stops. A deck of error dialogs, or of home screens,
+# is worse than no deck, and it is exactly the kind of thing that gets noticed
+# on the store rather than here.
+settle_focus() {
+  local id="$1" n=0
+  until focused_on_app; do
+    if [ "$n" -ge 3 ]; then
+      echo
+      echo "!! something is in front of the app and will not go:"
+      "$ADB" $ON shell dumpsys window 2>/dev/null | grep -m1 "mCurrentFocus" | sed 's/^/     /'
+      echo
+      echo "   A screenshot taken now is a picture of that, not of the app."
+      echo "   Stopping rather than writing it into the deck."
+      echo
+      # What the dialog would have said, since it was turned off above.
+      #
+      # `hide_error_dialogs` is worth having and it takes the diagnosis with it:
+      # an app that crashes leaves the launcher in front and no message at all,
+      # which reads exactly like an app that was never launched. The log still
+      # knows, so it is printed here rather than left for whoever reruns this
+      # with the setting off.
+      echo "   The log, in case it died rather than lost focus:"
+      "$ADB" $ON logcat -d -t 400 2>/dev/null \
+        | grep -iE "FATAL EXCEPTION|AndroidRuntime|ANR in|Force finishing|died|$PKG.*(crash|kill)" \
+        | tail -25 | sed 's/^/     /' \
+        || echo "     nothing in it about a crash"
+      exit 1
+    fi
+    who="$("$ADB" $ON shell dumpsys window 2>/dev/null | grep -m1 mCurrentFocus | sed 's/.*u0 //; s/\/.*//' | tr -d '\r}')"
+    if [ "$n" -eq 0 ]; then
+      printf '    ! %s in front, dismissing\n' "$who"
+      "$ADB" $ON shell input keyevent KEYCODE_BACK >/dev/null
+    else
+      printf '    ! %s still in front, asking for %s again\n' "$who" "$id"
+      "$ADB" $ON shell am start -a android.intent.action.VIEW \
+        -d "hidethenotch://shot/$id" >/dev/null
+    fi
+    sleep 1.5
+    n=$((n + 1))
+  done
+}
 
 # The ids come from the deck's own list, so adding a shot there is enough.
 # `HTN_SHOTS` narrows it, which is the difference between a thirty shot run and
@@ -272,13 +382,23 @@ for id in $IDS; do
 
   sleep "$SETTLE"
   take() { "$ADB" $ON exec-out screencap -p > "$1"; }
+
+  # Before, because whatever is already in front is what the shot would be of.
+  settle_focus "$id"
   steady_shot "$OUT/$lang/$id.png"
+  # And after, because something arriving mid shot is the same picture.
+  if ! focused_on_app; then
+    echo "    ! something arrived during the shot, retaking"
+    settle_focus "$id"
+    steady_shot "$OUT/$lang/$id.png"
+  fi
 done
 done
 
 "$ADB" $ON shell cmd locale set-app-locales "$PKG" --locales "" >/dev/null 2>&1 || true
 
 demo -e command exit
+"$ADB" $ON shell settings delete global hide_error_dialogs >/dev/null 2>&1 || true
 
 # The screen goes back to being solid, so the next thing to use this emulator
 # gets it as it was.

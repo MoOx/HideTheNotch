@@ -19,6 +19,11 @@ name: Store captures
 # the default one, hence the commit marker, like the other build workflows.
 on:
   workflow_dispatch:
+    inputs:
+      push_listings:
+        description: "Also push the composed deck and the copy to both stores"
+        type: boolean
+        default: false
   push:
     branches: ["**"]
 
@@ -26,7 +31,11 @@ jobs:
   ios:
     name: iOS simulator
     runs-on: macos-latest
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[captures]')
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.message, '[captures]') ||
+      contains(github.event.head_commit.message, '[store]') ||
+      contains(github.event.head_commit.message, '[captures-ios]')
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -57,6 +66,19 @@ jobs:
       # thing that needs them is the deck job below, in this same run. A week
       # is there for the case where the deck is wrong and the captures were
       # fine, which is worth not paying for twice.
+      # The same build, a second device. `npm run deck` composes three decks
+      # now, and the iPad one reads its own captures: without this the deck job
+      # stops on `no capture at marketing/captures/ipad/en/05-compare.png`,
+      # which is what it did the first time both halves got this far.
+      - name: Capture, iPad
+        env:
+          HTN_DEVICE: iPad Air 13-inch (M4)
+          HTN_OUT: marketing/captures/ipad
+        run: |
+          set -eo pipefail
+          HTN_APP=$(ls -d build/Build/Products/Release-iphonesimulator/*.app | head -1) \
+            tools/marketing/capture-ios.sh
+
       - uses: actions/upload-artifact@v4
         with:
           name: captures-ios
@@ -64,10 +86,21 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: captures-ipad
+          path: marketing/captures/ipad
+          if-no-files-found: error
+          retention-days: 7
+
   android:
     name: Android emulator
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[captures]')
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.message, '[captures]') ||
+      contains(github.event.head_commit.message, '[store]') ||
+      contains(github.event.head_commit.message, '[captures-android]')
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -123,6 +156,23 @@ jobs:
     name: Compose both decks
     runs-on: ubuntu-latest
     needs: [ios, android]
+    # One platform is enough to compose from. A run that reshoots Android
+    # because its captures came out with a dialog across them has no reason to
+    # spend fifteen minutes on an iOS build that would produce the same pictures
+    # as yesterday, and the step below takes yesterday's.
+    #
+    # Neither shot means nothing was asked for, and the deck is skipped with
+    # them. Either failed means the pictures are not to be trusted, so the deck
+    # is skipped too rather than composed out of half a run.
+    if: >-
+      !cancelled() &&
+      (needs.ios.result == 'success' || needs.android.result == 'success') &&
+      needs.ios.result != 'failure' && needs.android.result != 'failure'
+    # The preview below writes a branch and a comment, and the default token is
+    # read only on a repository that says so.
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -132,14 +182,66 @@ jobs:
           cache-dependency-path: package-lock.json
       - run: npm ci
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: captures-ios
-          path: marketing/captures/ios
-      - uses: actions/download-artifact@v4
-        with:
-          name: captures-android
-          path: marketing/captures/android
+      # Each platform's captures, from this run when it shot them and from the
+      # last run that did when it did not. That is what makes reshooting one
+      # platform worth doing: the other two are already on the shelf.
+      #
+      # It says out loud which ones are not this run's, because a deck composed
+      # from two commits is a reasonable thing to want and an unreasonable thing
+      # to do by accident. The fingerprint beside the captures is the other half
+      # of that warning, and `npm run deck` prints it.
+      - name: The captures
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eo pipefail
+          borrowed=0
+          fetch() {
+            if gh run download "$GITHUB_RUN_ID" -n "$1" -D "$2" 2>/dev/null; then
+              echo "==> $1, shot in this run"
+              return
+            fi
+            run=$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=$1&per_page=30" \
+              --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | last | .workflow_run.id')
+            if [ -z "$run" ] || [ "$run" = "null" ]; then
+              echo "!! no $1 in this run, and none kept from an earlier one."
+              echo "   Shoot that platform: [captures] shoots both, [captures-ios]"
+              echo "   and [captures-android] shoot one."
+              exit 1
+            fi
+            echo "==> $1, borrowed from run $run"
+            gh run download "$run" -n "$1" -D "$2"
+            borrowed=1
+          }
+          fetch captures-ios marketing/captures/ios
+          fetch captures-ipad marketing/captures/ipad
+          fetch captures-android marketing/captures/android
+          if [ "$borrowed" = "1" ]; then
+            echo
+            echo "!! this deck is composed from more than one run. Fine when only"
+            echo "   one platform moved, wrong when the interface did."
+          fi
+
+      # The runner's Chromium can draw the deck and cannot read half of it. It
+      # ships with no CJK font at all, so every Japanese and Chinese headline
+      # came out as tofu boxes, in a deck that was otherwise perfect and on its
+      # way to the store. Nothing in the composition fails when a glyph is
+      # missing: the box is a rendered character like any other.
+      #
+      # A macOS laptop has these fonts, which is why this survived every local
+      # run and appeared the first time a deck was composed on GitHub.
+      - name: Fonts the deck is written in
+        run: |
+          set -eo pipefail
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk >/dev/null
+          fc-cache -f >/dev/null
+          for lang in ja zh-cn; do
+            if [ -z "$(fc-list ":lang=$lang" 2>/dev/null)" ]; then
+              echo "No font on this runner can render $lang. The deck would be tofu."
+              exit 1
+            fi
+          done
+          echo "==> ja and zh-cn have a font"
 
       # Chromium is what draws the deck, and the runner already has one.
       - name: Compose
@@ -155,3 +257,195 @@ jobs:
           name: store-deck
           path: marketing/renders/**/*.png
           if-no-files-found: error
+
+      # --- the preview -----------------------------------------------------
+      #
+      # A deck cannot be looked at from here: it is ninety images and a hundred
+      # and ninety megabytes, and the artefact above is a zip behind a token, so
+      # GitHub will not render anything out of it. One contact sheet per deck
+      # can be looked at, and it carries every locale, which is the only way a
+      # capture that failed in Japanese and nowhere else is ever noticed.
+      - name: ImageMagick
+        run: command -v magick >/dev/null 2>&1 || sudo apt-get install -y --no-install-recommends imagemagick
+
+      - name: Contact sheets
+        run: tools/marketing/contact-sheet.sh build/sheets
+
+      # An orphan branch, force pushed, so this never touches the history of a
+      # real one. One commit with no parent: the previous set stops being
+      # reachable rather than piling up behind it. Two megabytes a run, against
+      # the hundred and ninety the deck itself would have cost, which is why the
+      # captures are not committed in the first place.
+      - name: Publish the sheets
+        id: publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eo pipefail
+          work=$(mktemp -d)
+          cp build/sheets/*.jpg "$work/"
+          cat > "$work/README.md" <<'EOF'
+          Contact sheets for the last store capture run, one row per locale.
+
+          Written by .github/workflows/store-captures.yml, force pushed on every
+          run, and referenced from a commit or pull request comment. Nothing
+          reads this branch, nothing merges it, and the sheets it held before
+          are gone. The decks themselves are run artefacts.
+          EOF
+          cd "$work"
+          git init -q -b deck-preview
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "Deck preview for ${GITHUB_SHA}"
+          git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" deck-preview
+          # Pinned to this commit rather than to the branch, so an old comment
+          # goes to a dead link instead of quietly showing a later run's deck.
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      # The app's page on moox.io reads this: the raw captures, web sized. Not
+      # the deck, which has its headline burned into the picture and is the
+      # wrong material for a page that lays out its own text; and not the copy,
+      # which is committed and served by raw GitHub where it is.
+      #
+      # Published to a branch rather than pinned to a commit, unlike the preview
+      # above: a site build wants "the current one", and there is nothing to
+      # compare between runs.
+      - name: Press kit
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eo pipefail
+          npm run press-kit
+          work=$(mktemp -d)
+          cp -R marketing/press-kit/. "$work/"
+          cat > "$work/README.md" <<'EOF'
+          The press kit for this app, assembled by tools/marketing/press-kit.cjs
+          and force pushed here by .github/workflows/store-captures.yml.
+
+          `index.json` carries the copy in every language the stores have, both
+          store links, and the privacy policy. The images beside it are web
+          sized. moox.io reads this at build time; nothing merges this branch.
+          EOF
+          cd "$work"
+          git init -q -b press-kit
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "Press kit from ${GITHUB_SHA}"
+          git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" press-kit
+          echo "==> https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/press-kit/index.json"
+
+      - name: Comment with the preview
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PREVIEW_SHA: ${{ steps.publish.outputs.sha }}
+        run: |
+          set -eo pipefail
+          raw="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${PREVIEW_SHA}"
+          run="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          body=$(mktemp)
+          {
+            echo "### Deck preview \`${GITHUB_SHA:0:7}\`"
+            echo
+            echo "One row per locale, one column per shot. Click a sheet for it full size."
+            echo "The decks themselves are in the [\`store-deck\` artefact](${run})."
+            echo
+            for sheet in build/sheets/preview-*.jpg; do
+              name=$(basename "$sheet" .jpg); name=${name#preview-}
+              echo "**${name}**"
+              echo
+              echo "[![${name}](${raw}/$(basename "$sheet"))](${raw}/$(basename "$sheet"))"
+              echo
+            done
+            echo "<sub>Sheets are JPEG and downscaled, for spotting a capture that went wrong."
+            echo "Judge the black against the deck itself. Replaced by the next run.</sub>"
+          } > "$body"
+
+          # A pull request gets one comment kept up to date, because a branch
+          # under review is pushed to more than once and a stack of these would
+          # bury the conversation. A branch without one gets a commit comment,
+          # which is the only place there is to put it.
+          pr=$(gh pr list --head "${GITHUB_REF_NAME}" --state open --json number --jq '.[0].number' 2>/dev/null || true)
+          if [ -n "$pr" ] && [ "$pr" != "null" ]; then
+            mine=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${pr}/comments"               --jq '[.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("### Deck preview")))] | last | .id' 2>/dev/null || true)
+            if [ -n "$mine" ] && [ "$mine" != "null" ]; then
+              gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${mine}" -F body=@"$body" >/dev/null
+              echo "Updated the preview comment on #${pr}."
+            else
+              gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${pr}/comments" -F body=@"$body" >/dev/null
+              echo "Commented on #${pr}."
+            fi
+          else
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/comments" -F body=@"$body" >/dev/null
+            echo "Commented on ${GITHUB_SHA:0:7}."
+          fi
+
+  metadata:
+    name: Push both listings
+    runs-on: ubuntu-latest
+    needs: [deck]
+    # Never on a plain `[captures]` run. Photographing the app is something you
+    # do to look at the result; writing it to two stores is something you do on
+    # purpose, so it takes its own word.
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.push_listings) ||
+      contains(github.event.head_commit.message, '[store]')
+    env:
+      APP_IDENTIFIER: io.moox.HideTheNotch
+      ANDROID_PACKAGE_NAME: io.moox.hidethenotch
+      CERTS_REPO_URL: git@github.com:MoOx/certificates.git
+      SECRETS_PASSPHRASE: ${{ secrets.SECRETS_PASSPHRASE }}
+      FASTLANE_SKIP_UPDATE_CHECK: "1"
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check the deploy key is present
+        run: |
+          if [ -z "${{ secrets.CERTIFICATES_DEPLOY_KEY }}" ]; then
+            echo "CERTIFICATES_DEPLOY_KEY is not set on this repository."
+            exit 1
+          fi
+
+      - name: Access the certificates repository
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.CERTIFICATES_DEPLOY_KEY }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      # The deck the job above just composed. `store:listing` refuses to write a
+      # listing with no deck at all, on purpose, so this is not optional.
+      - uses: actions/download-artifact@v4
+        with:
+          name: store-deck
+          path: marketing/renders
+
+      - name: What the deck holds
+        run: find marketing/renders -name '*.png' | sort
+
+      # Play first, because it is the one that always works: a listing there
+      # belongs to the app rather than to a release, so it goes up whether or
+      # not anything has ever shipped. Both lanes regenerate the metadata trees
+      # from marketing/listing.json before uploading, and neither builds a thing.
+      - name: Play listing
+        run: bundle exec fastlane android metadata
+
+      # Last, because it is the one that can legitimately fail. `deliver` writes
+      # onto whichever version is open for editing in App Store Connect, and on
+      # an app with none it retries for five minutes and gives up with "Cannot
+      # find edit app store version". That is not this workflow being broken, it
+      # is App Store Connect having no version to write to: create it with
+      # `promote:ios` or by hand, then this passes.
+      - name: App Store listing
+        run: bundle exec fastlane ios metadata

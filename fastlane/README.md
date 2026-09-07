@@ -79,6 +79,22 @@ Build a signed AAB and stop, for the one upload Google wants by hand
 
 Build the AAB and ship it to the Google Play internal track
 
+### android metadata
+
+```sh
+[bundle exec] fastlane android metadata
+```
+
+Push the store listing, without building anything
+
+### android codes
+
+```sh
+[bundle exec] fastlane android codes
+```
+
+Report the version codes Play holds, and what the next build would ask for
+
 ### android release
 
 ```sh

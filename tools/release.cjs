@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 /**
- * Tags a version, which is how one gets published.
+ * Tags a version, and checks it deserves to be tagged.
  *
- * The tag is the cause of a release, not a record of one. Both workflows fire
- * on `refs/tags/v*`, so pushing `v2.0.1` is what sends a build to TestFlight and
- * to the Play internal track, and the build that goes out is by construction the
- * commit that was tagged. Day to day builds keep their own way in, a `[testflight]`
- * or `[play]` marker in a commit message, and leave no tag behind: that is the
- * whole point, and the reason there is no tag written after an upload.
+ * **The tag no longer causes anything.** It used to: both workflows fired on
+ * `refs/tags/v*`, so pushing `v2.0.1` was what sent a build. That made an
+ * accidental push, a moved tag, or a tag written a day early into a release,
+ * and it meant the tag could not be used as a plain record of what shipped.
+ * The releases are started by hand from the Actions tab now, and this writes
+ * the tag that says what went.
  *
- * So this is a gate rather than a convenience. It refuses four things, each of
- * which has shipped somewhere at some point:
+ * The checks are the point, and they are worth as much either way. It refuses
+ * four things, each of which has shipped somewhere at some point:
  *
  *   a dirty tree          the commit built would not be the commit reviewed
  *   a tag already there   a version is published once
@@ -23,7 +23,10 @@
  * tag is enough to catch that, and costs nothing.
  *
  *   npm run release           checks, writes the tag, prints the push command
- *   npm run release -- --push checks, writes it, pushes it, which starts a release
+ *   npm run release -- --push checks, writes it, pushes it
+ *
+ * Pushing it starts nothing. Run the workflow from the Actions tab when the
+ * release is meant to go.
  */
 const { execFileSync } = require("child_process");
 const path = require("path");

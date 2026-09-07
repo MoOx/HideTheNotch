@@ -49,13 +49,6 @@
       "badges": [],
       "background": "radial-gradient(120% 70% at 50% 0%, #3a1140 0%, #170a18 55%, #070409 100%)",
       "screen": "marketing/captures/ios/{lang}/04-export.png"
-    },
-    {
-      "id": "card",
-      "layout": "half",
-      "scale": 0.86,
-      "badges": [],
-      "screen": "marketing/captures/ios/{lang}/01-editor.png"
     }
   ],
   "locales": {
@@ -70,28 +63,34 @@
       "copy": {
         "split": {
           "headline": "The notch\ndisappears.",
-          "sub": "Forget it, in a couple of taps."
+          "sub": "Forget it, in a couple of taps.",
+          "body": "On an OLED screen a black pixel is an off pixel, so the black the app draws is optically the same as the panel around the camera. The cutout does not get covered up. It stops existing."
         },
         "effect": {
           "headline": "The effect\nyou want.",
-          "sub": "Fade, rounded band, retro stripes…"
+          "sub": "Fade, rounded band, retro stripes…",
+          "body": "Three ways, and one slider each. A fade that dissolves into the image with no edge at all, a rounded band that follows the corners of the screen, or a halftone that breaks the black into stripes."
         },
         "photo": {
           "headline": "Any photo\nyou like.",
-          "sub": "Pick one from your collection, or generate a wallpaper of your own."
+          "sub": "Pick one from your collection, or generate a wallpaper of your own.",
+          "body": "Bring the photo that matters and frame it the way you want, or start from a gradient and reshape it by hand. Either way it is decoded and exported on the phone, and never sent anywhere."
         },
         "shape": {
           "headline": "Preview it,\nat a glance.",
-          "sub": "Adjust the effect in a moment."
+          "sub": "Adjust the effect in a moment.",
+          "body": "Hold the wallpaper and it appears on a sketched home screen, icons on top. It is the only way to judge the thing that actually matters: whether the black reads as hardware rather than as a black rectangle."
         },
         "export": {
           "headline": "Export it,\nfree.",
-          "sub": "Keep the image, or share it."
+          "sub": "Keep the image, or share it.",
+          "body": "PNG at the exact resolution of your screen, and never JPEG. JPEG makes block artefacts where the black meets the image, and those artefacts are precisely what makes a cutout reappear."
         },
         "card": {
           "headline": "Nothing to unlock,\nnothing to pay.",
           "line": "No ads. No account. No tracking.",
-          "note": "The only purchase is a tip, if you ever feel like leaving one."
+          "note": "The only purchase is a tip, if you ever feel like leaving one.",
+          "body": "Free, with no advertising, no account and no tracking. The only purchase is a tip, if you ever feel like leaving one."
         }
       }
     },

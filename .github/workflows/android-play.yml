@@ -21,8 +21,16 @@ name: Android to Google Play (internal)
 
 on:
   workflow_dispatch:
+    # Tags no longer publish. Pushing `v2.0.1` used to be what sent a build,
+    # and that made the tag a trigger rather than a record: an accidental push,
+    # a moved tag, or a tag written before the code was ready all shipped
+    # something. The releases go out from the Actions tab now, deliberately, and
+    # a tag is written afterwards to say what went. `tools/release.cjs` still
+    # writes it and no longer needs to push it to cause anything.
+    #
+    # Restoring the old behaviour is one line: `tags: ["v*"]` here. The job
+    # condition and the version guard below still know what to do with a tag.
   push:
-    tags: ["v*"]
     branches: ["**"]
 
 # One upload at a time: two runs racing for the same version code is how a
@@ -34,7 +42,12 @@ concurrency:
 jobs:
   internal:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # Ninety, like the iOS one. Sixty was not a limit this build was near until
+    # a Gradle daemon ran out of metaspace and spent the rest of the hour
+    # failing to allocate: the timeout killed a build that had already stopped
+    # making progress, which is the timeout doing its job. plugins/
+    # withGradleMemory.cjs is the fix; this is the margin.
+    timeout-minutes: 90
     # A tag ships a release. A `[play]` marker in the commit message ships a
     # work build, which is what lets releases be the only thing that ever gets
     # tagged. Every other push starts a run that stops right here, which costs

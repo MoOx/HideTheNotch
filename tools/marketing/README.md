@@ -89,16 +89,22 @@ whose screen is exactly 1080 x 2400 at 420 dpi. A Pixel 9 or 10 is a different
 screen (the 10 Pro is 1280 x 2856 at 480 dpi), so following it would mean moving
 the deck's metrics and the wallpapers with it.
 
-**The hole is put there, and it is a real one.** No AVD has a cutout, whatever
-phone its profile is named after, and an app that hides one has nothing to show
-on a screen that has none. The capture script turns on the AOSP overlay the
-"Display cutout" developer option switches between
-(`com.android.internal.display.cutout.emulation.hole`) before it installs
-anything, so `DisplayCutout` reports a punch hole, SystemUI lays the status bar
-out around it, and the app finds it through the native module exactly as it
-would on a phone. It is turned off again at the end of the run, and it fails the
-run rather than the deck if the system image has no such overlay. `HTN_CUTOUT=0`
-for a real phone, which has its own.
+**The hole is put there, and it is a real one, and it is in the middle.** The
+capture script turns on one of the AOSP overlays the "Display cutout" developer
+option switches between, before it installs anything, so `DisplayCutout` reports
+a punch hole, SystemUI lays the status bar out around it, and the app finds it
+through the native module exactly as it would on a phone. It is turned off again
+at the end of the run, and it fails the run rather than the deck if the system
+image has no such overlay. `HTN_CUTOUT=0` for a real phone, which has its own.
+
+Which overlay is not a detail, and the names are no guide: `hole` puts the
+camera in the **top left corner**, not in the middle, so the app masked the
+corner while the deck drew a hole in the centre of the same picture. The one to
+ask for is `emu01`, measured at 479..601 x 0..132 on a 1080 wide screen, which
+is centred and is what the Play deck is composed against. It is also what an API
+35 image reports with every overlay off, so the AVD already has the right hole
+and the script only asserts it. `capture-android.sh` lists the other four with
+the rectangle each one produces.
 
 **The emulator is cold booted, and that is not a detail.** A quick boot
 snapshot restores SystemUI with everything else, including a status bar laid out
@@ -152,6 +158,119 @@ The capture runs need Xcode and Android Studio respectively; the deck needs
 neither. So the deck can be recomposed, retimed, recoloured and relocalised on
 any machine that has the captures, but taking them again means the toolchain.
 
+**One platform can be reshot on its own.** Each is its own artefact, and the
+deck job takes what this run produced and borrows the rest from the last run
+that produced it. So an Android capture that came out wrong costs an Android
+run, not forty minutes of rebuilding an iOS deck that has not changed.
+
+| marker | what it shoots |
+| ------ | -------------- |
+| `[captures]` | both platforms, three decks, artefacts only |
+| `[captures-ios]` | iPhone and iPad only |
+| `[captures-android]` | the emulator only |
+| `[store]` | everything, then writes both listings |
+| `[listings]` | no captures at all, uploads the last deck composed |
+
+A borrowed artefact is announced in the log, and the run says so at the end: a
+deck composed from two runs is a reasonable thing to want when one platform
+moved, and a bad accident when the interface did. The fingerprint beside the
+captures is the other half of that warning.
+
+**The system's own dialogs are checked for.** The first complete Android run put
+"Pixel Launcher isn't responding" across the middle of all thirty shots, and
+nothing caught it: `steady_shot` compares two shots for stillness and weighs the
+file for blackness, and a dialog is perfectly still and perfectly opaque. The
+capture script now turns off error dialogs through `hide_error_dialogs`, and
+checks `mCurrentFocus` before and after every shot: anything but the app in
+front is dismissed with Back, three times, and then the run stops rather than
+writing a picture of a dialog into a deck.
+
+**The deck's own text needs fonts the runner does not have.** Chromium on
+ubuntu ships with none for Japanese or Chinese, so every CJK headline composed
+there came out as tofu boxes while the screenshots inside the phone frames were
+perfect. Nothing fails when a glyph is missing, the box is a rendered character
+like any other. The deck job installs `fonts-noto-cjk` and refuses to compose
+when `fc-list` cannot find a face for `ja` and `zh-cn`.
+
+**The app's page on moox.io is fed from here.** That page is three things at
+once now: the pitch, the two store links, and the privacy policy, because the
+privacy URL both stores carry points at it.
+
+**The words are not published, because they already have a URL.**
+`marketing/listing.json` and `marketing/privacy.md` are committed and this
+repository is public, so raw GitHub serves both and the page reads them where
+they are. Generating a copy would be the fourth place this app's description
+lives and the first to go stale.
+
+**Nor is the deck.** The deck is a screenshot posed inside a drawn phone with
+the headline burned into the picture, which is what a store demands and the
+wrong material for a web page: text inside an image cannot be selected,
+translated, reflowed or read aloud. A page rebuilds that layout in HTML and
+wants what the deck started from.
+
+So `tools/marketing/press-kit.cjs` publishes the one thing that has no URL yet:
+the raw captures, at 720px and JPEG rather than 1320px and two megabytes each.
+Fifteen of them, iPhone, iPad and Android, keeping the capture's own name so
+`03-home` still says what it is. Every capture run force pushes them, and
+`index.json` beside them names the files and points back at the two URLs above:
+
+```
+https://raw.githubusercontent.com/MoOx/HideTheNotch/press-kit/index.json
+```
+
+**And the deck's running order travels with them.** `marketing/shots.json`
+already knows which headline goes with which capture, in six languages, because
+that is what the App Store deck is composed from. A page rebuilding that story
+in HTML would otherwise retype all of it, and the two would part company on the
+first rewording. It is not readable as it stands, which is why the kit does the
+join: the spec points at a capture that is not published, and its shape is full
+of things a page has no use for, perspective and drop shadows and seal geometry.
+So `story` comes out with an order, a headline, a subtitle and the name of a
+picture that has a URL, plus the badges and the seal per language. Six steps,
+five with a screenshot and one card the deck draws with words alone.
+
+`npm run press-kit` assembles it here.
+
+The policy is written from what the code does rather than from what the app
+means to do: no account, no ads, no analytics, no tracking, photos decoded and
+exported on the device, and one crash report to Sentry with the IP address,
+session replay, performance tracing and console breadcrumbs each turned off in
+`index.ts`. Every sentence in it can be checked against the source, which is the
+only kind of policy that stays true.
+
+**Every capture run posts a preview**, because an artefact cannot be looked at:
+it is a zip behind a token, and GitHub only renders an image in a comment from a
+public URL. `tools/marketing/contact-sheet.sh` draws one sheet per deck instead,
+every locale as a row and every shot as a column, which is the only way a
+capture that failed in Japanese and nowhere else gets noticed. The workflow
+force pushes the three sheets to an orphan `deck-preview` branch and links them
+from a commit comment, or from a single comment kept up to date when the branch
+has a pull request. Two megabytes a run, against the hundred and ninety the deck
+itself weighs.
+
+**A listing can go up on its own**, which is the commoner case by far: a
+description reworded, a release note written, a locale added, and the pictures
+the same as yesterday. `[listings]` in a commit message runs
+`.github/workflows/store-listings.yml`, which takes the deck from the last
+successful capture run the way `npm run deck:fetch` does here, and uploads it.
+Three minutes rather than forty, and nothing is built or photographed.
+
+One thing supply insists on, and it is not obvious: it will not write a Play
+listing without a **release to attach it to**. `perform_upload_meta` fetches a
+track and a release before it writes a word, and with no version code it looks
+for release `''` and stops with "Could not find release for version code '' to
+update changelog", changelogs skipped or not. So `android metadata` finds the
+highest code Play holds and names it. Nothing about that release is touched: the
+binary is skipped, the changelog is skipped, and what goes up is the title, the
+descriptions and the pictures.
+
+The sheets are JPEG, which is not a contradiction of the rule above them: that
+rule is about the wallpaper, where block artefacts at the black to image
+boundary are what makes a cutout reappear. A contact sheet is a picture of a
+picture, for deciding whether a run worked, and as PNG the same sheet is ten
+megabytes rather than six hundred kilobytes because the app dithers its
+gradients on purpose. `npm run deck:preview` draws them here.
+
 The captures themselves are not committed. They are output, a hundred and fifty
 megabytes of it, and a run against a changed interface replaces every file:
 committing them wrote that weight into the history once per run, for good.
@@ -168,13 +287,31 @@ Every run captures all six languages, one directory each under
 `captures/<platform>/`, because a store listing wants a deck per locale and the
 only thing that changes between them is what the app says.
 
-The Android status bar is set by four demo mode commands, found by trying them
-on a live emulator rather than derived from how demo mode ought to work. Twice
-that reasoning was wrong in the same way: demo mode is a replacement, not a
-filter, and `enter` puts the whole network group into it. A group handed nothing
-is not a group that is absent, so given a radio it drew 3G whatever it was told,
-and given nothing it drew a satellite, which is Android 15 for "no service".
-Wifi alone threads between the two.
+The Android status bar is set by six demo mode commands, found by trying them on
+a live emulator rather than derived from how demo mode ought to work. Two facts
+took several passes to see, and between them they explain why this kept being
+decided both ways:
+
+`enter` does not reset a session already in demo mode, and a `network` command
+sent into a live one **adds** a glyph rather than replacing it. That is the
+second wifi, and it is why the script exits, waits a second for the exit to
+land, and only then enters and sends `network` once. `exit` is a broadcast, so
+an `enter` in the same breath is not an entry at all. Testing a command by
+firing it at a bar that is already up gives the duplicate and the wrong
+conclusion.
+
+`enter` alone does not hold. The demo network state does not survive a SystemUI
+restart, and enabling the cutout overlay causes one. With no wifi icon left,
+Android 15 waits about ten seconds and then draws a **satellite**, its way of
+writing "no service". Anything that looked at the bar a second after the
+broadcast saw a clean bar and shipped it. Wifi shown and mobile hidden, asserted
+once after `enter`, comes back through the restart intact.
+
+`npm run demo:android` puts a running emulator into exactly that state, hole and
+bar, without a capture run around it, and `tools/marketing/demo-android.sh off`
+takes it back out. Looking at the app on an emulator dressed like the deck is
+how most of the drawing bugs are found, and rerunning six languages to get there
+costs twenty minutes.
 
 iOS resolves the language from `NSUserDefaults`, and a launch argument of the
 form `-Key value` lands there for that launch alone, so nothing device wide is

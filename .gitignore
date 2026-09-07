@@ -59,6 +59,11 @@ renders/
 # the only thing anyone needed them in the tree for.
 marketing/captures/
 
+# The press kit, assembled by tools/marketing/press-kit.cjs from the listing,
+# the privacy policy and the composed deck. Output, like the two above, and
+# published to the `press-kit` branch for moox.io to read.
+marketing/press-kit/
+
 # fastlane
 fastlane/report.xml
 fastlane/Preview.html

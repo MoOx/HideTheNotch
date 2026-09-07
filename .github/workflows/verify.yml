@@ -2,14 +2,28 @@ name: Verify
 
 on:
   push:
-    paths: ["src/**", "App.tsx", "tools/**", "package.json", ".github/workflows/verify.yml"]
+    paths:
+      - "src/**"
+      - "App.tsx"
+      - "tools/**"
+      - "assets/**"
+      - "app.json"
+      - "package.json"
+      - ".github/workflows/verify.yml"
   pull_request:
-    paths: ["src/**", "App.tsx", "tools/**", "package.json", ".github/workflows/verify.yml"]
+    paths:
+      - "src/**"
+      - "App.tsx"
+      - "tools/**"
+      - "assets/**"
+      - "app.json"
+      - "package.json"
+      - ".github/workflows/verify.yml"
   workflow_dispatch:
 
 jobs:
   verify:
-    name: Types, rendering, bundles
+    name: Types, rendering, artwork, bundles
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -37,6 +51,16 @@ jobs:
       # absolute black under the cutout, fade actually dithered.
       - name: Verify the rendering
         run: npm run verify
+
+      # The icon has one source, tools/brand.cjs, and the rasters every platform
+      # reads are committed next to it. This redraws all of them and compares,
+      # which is what stops the two from drifting: they had, and the Android
+      # icon was a year behind the others. Chromium draws them, and the runner
+      # already has one.
+      - name: Verify the brand artwork
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: npm run brand:check
 
       - name: Bundle iOS
         run: npx expo export --platform ios --output-dir /tmp/export-ios

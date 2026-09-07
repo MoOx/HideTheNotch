@@ -6,7 +6,8 @@
   "scripts": {
     "android": "expo run:android",
     "avd": "tools/marketing/create-avd.sh",
-    "brand": "node tools/brand.cjs",
+    "brand": "npm run build:harness && node tools/brand.cjs",
+    "brand:check": "npm run build:harness && node tools/check-brand.cjs",
     "build:harness": "tsc -p tsconfig.harness.json && node tools/harness-check.cjs",
     "captures:android": "tools/marketing/build-android.sh && HTN_APK=$(ls android/app/build/outputs/apk/release/*.apk | head -1) tools/marketing/capture-android.sh",
     "captures:ios": "tools/marketing/build-ios-sim.sh && HTN_APP=$(ls -d build/Build/Products/Release-iphonesimulator/*.app | head -1) tools/marketing/capture-ios.sh",

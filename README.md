@@ -388,7 +388,7 @@ which is what a correction to the copy actually needs.
 | ----- | ------------------- |
 | Screenshots | `npm run deck`, into `marketing/renders/` |
 | App Store icon, 1024, **no alpha channel** | `assets/icon.png`, plus `icon-dark.png` and `icon-tinted.png`. Apple takes them out of the binary rather than the listing, so nothing uploads them: they are the ones in the asset catalogue. iOS 18 derives the two it is not given, badly, which is why it is given them |
-| Android adaptive icon, three layers | `android-icon-background.png`, `-foreground.png`, `-monochrome.png`. Not sizes: the launcher composes them, masks the result to whatever shape it uses, and moves them against each other when the icon is dragged. The monochrome one is what a themed icon is cut from |
+| Android adaptive icon, three layers | `android-icon-background.png`, `-foreground.png`, `-monochrome.png`. Not sizes: the launcher composes them, masks the result to whatever shape it uses, and moves them against each other when the icon is dragged. Drawn on the 108 unit canvas with the icon in the inner 72, which is the part every mask keeps. The monochrome one is what a themed icon is cut from, and the band stays out of it: that layer is repainted in one colour, so black at half opacity would come back as a slab |
 | Play listing icon, **exactly 512, 32 bit** | `assets/play-icon.png`. Play checks both, which is why it is a second file and not the same one |
 | Play feature graphic, 1024 x 500 | `assets/feature-graphic.png`. Play will not publish a listing without it |
 
@@ -397,6 +397,14 @@ same gradient, the same grid, the same band, the same marks. What differs is
 never the design, it is what each platform composes it from (one flat square on
 iOS, three layers on Android) and what each store checks (1024 with no alpha for
 Apple, exactly 512 and 32 bit for Play).
+
+That last paragraph was true of the intent and not of the code: the Android
+layers had their own recipe and never got the band, so the phones ran a year
+behind every other surface. They are views of the same drawing now, and
+`npm run brand:check` redraws all of it and compares, in CI on any change to
+`assets/`, `app.json`, `src/` or `tools/`. The rasters are committed because a
+build must not need a browser, which is exactly what makes them able to fall
+behind, so the check is the price of committing them. See `docs/icon.md`.
 
 Note that none of these are *sizes*. An old icon template hands you twenty
 files because you used to export every density by hand; both toolchains

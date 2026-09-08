@@ -83,24 +83,46 @@ function tones(tone) {
   }
 }
 
+/** A number, in as few characters as it takes to be the same number. */
+const n = (v) => Number(v.toFixed(3)).toString();
+
 /**
  * The blueprint grid, at 512, exactly as Sketch drew it.
  *
  * Two diagonals, five rules each way and three rings, all on one construction
  * circle. It is drawn at 8.25 percent white: 25 percent stroke inside a group
  * at 33, which is faint enough to be texture and not decoration.
+ *
+ * `bleed` runs every line that many units past the square without moving any of
+ * them, which is what Android's background layer needs: a launcher slides that
+ * layer under its mask, so lines that stopped at the icon's own edge would show
+ * their ends travelling.
  */
-const GRID = `
+const RULES = [33.07, 158.74, 255.49, 352.23, 477.9];
+const ACROSS = [478.97, 353.05, 256.12, 159.18, 33.27];
+const RINGS = [222.42, 136.64, 96.75];
+const CENTRE = { x: 255.49, y: 256.12 };
+const EDGE = { x0: 0.16, y0: 0.29, x1: 510.81, y1: 511.95 };
+
+function grid(bleed = 0) {
+  const x0 = n(EDGE.x0 - bleed);
+  const y0 = n(EDGE.y0 - bleed);
+  const x1 = n(EDGE.x1 + bleed);
+  const y1 = n(EDGE.y1 + bleed);
+  const down = RULES.map((x) => `M${n(x)},${y0} L${n(x)},${y1}`).join(" ");
+  const across = ACROSS.map((y) => `M${x0},${n(y)} L${x1},${n(y)}`).join(" ");
+  const rings = RINGS.map((r) => `<circle cx="${CENTRE.x}" cy="${CENTRE.y}" r="${r}"/>`).join("");
+  return `
   <g opacity="0.33" fill="none" stroke="#F3EFEA" stroke-opacity="0.25" stroke-width="2">
-    <path d="M0.16,0.29 L510.81,511.95 M510.81,0.29 L0.16,511.95"/>
-    <path d="M33.07,0.29 L33.07,511.95 M158.74,0.29 L158.74,511.95 M255.49,0.29 L255.49,511.95
-             M352.23,0.29 L352.23,511.95 M477.90,0.29 L477.90,511.95"/>
-    <path d="M0.16,478.97 L510.81,478.97 M0.16,353.05 L510.81,353.05 M0.16,256.12 L510.81,256.12
-             M0.16,159.18 L510.81,159.18 M0.16,33.27 L510.81,33.27"/>
-    <circle cx="255.49" cy="256.12" r="222.42"/>
-    <circle cx="255.49" cy="256.12" r="136.64"/>
-    <circle cx="255.49" cy="256.12" r="96.75"/>
+    <path d="M${x0},${y0} L${x1},${y1} M${x1},${y0} L${x0},${y1}"/>
+    <path d="${down}"/>
+    <path d="${across}"/>
+    ${rings}
   </g>`;
+}
+
+/** The grid as the square icon wears it: stopping exactly at the square. */
+const GRID = grid();
 
 /** The pencil and the brush, white, from the one file that holds them. */
 function marks() {
@@ -169,16 +191,65 @@ const BAND = `M582,0 L582,214 L547,214 L547,212.000779
  * rectangle stuck on the artwork, and no amount of dissolving it fixed that: an
  * icon is 60 pixels and a demonstration needs more room than that.
  */
-function icon(side, { telling = ICON, alpha = 0.5, tone = "light" } = {}) {
-  const k = side / 512;
-  const band =
-    telling === "plain"
-      ? ""
-      : `<g opacity="${alpha}" transform="scale(${k.toFixed(6)}) translate(-35,-48)">
-           <path d="${BAND}" fill="#000000"/>
-         </g>`;
+function icon(side, opts = {}) {
+  return square(side, iconBody(side, opts), { tone: opts.tone ?? "light" });
+}
 
-  return square(side, `${markBlock(side, 0.76)}${band}`, { tone });
+/**
+ * The band, over a square of `side`.
+ *
+ * `bleed` runs it that many units past the square on three sides, changing
+ * nothing inside it. That is the Android margin being filled: a launcher that
+ * crops or slides the foreground layer finds the band still there rather than
+ * the end of it.
+ *
+ * The numbers below are read off the path above, in its own coordinates: the
+ * square sits at (35, 48) in them, the band's straight lower edge is at y = 90,
+ * and where the square cuts its sides it is at its lowest, y = 214.
+ */
+function band(side, { alpha = 0.5, bleed = 0 } = {}) {
+  const k = side / 512;
+  const b = bleed / k;
+  // With a margin to spill into, the band is clipped to the square and the
+  // margin is filled with what the band *is* at each edge, rather than with
+  // more of the drawing. The band is drawn for something wider than the icon
+  // and ends out there in two rails, which inside a square icon are cut off by
+  // the frame; on the Android canvas there is no frame until the launcher's
+  // mask, so those rails would show as a pair of ears in the margin.
+  //
+  // What continues instead: the solid top across the whole width, and at each
+  // side the depth the band has where the square cuts it, which is the whole
+  // 214 since the shape is at its lowest exactly there. So the band runs off
+  // both sides, the way a band across a screen does, and the only edge left in
+  // the canvas is at the canvas edge, where nothing can reach it.
+  const sides = [35 - b, 547].map(
+    (x) =>
+      `<rect x="${n(x)}" y="${n(48 - b)}" width="${n(b)}" height="${n(166 + b)}" fill="#000000"/>`,
+  );
+  const shape =
+    bleed > 0
+      ? `<defs><clipPath id="band"><rect x="35" y="48" width="512" height="512"/></clipPath></defs>` +
+        `<rect x="${n(35 - b)}" y="${n(48 - b)}" width="${n(512 + 2 * b)}" height="${n(42 + b)}" fill="#000000"/>` +
+        sides.join("") +
+        `<g clip-path="url(#band)"><path d="${BAND}" fill="#000000"/></g>`
+      : `<path d="${BAND}" fill="#000000"/>`;
+  // One group at half opacity rather than each shape at half of its own:
+  // overlapping them individually would darken the seam.
+  return `<g opacity="${alpha}" transform="scale(${k.toFixed(6)}) translate(-35,-48)">
+           ${shape}
+         </g>`;
+}
+
+/**
+ * The icon without its ground: the marks, and the band over them.
+ *
+ * Split out because Android wants exactly this half on its own layer, and the
+ * whole point is that it is the same half. There is one drawing of this icon in
+ * this file, and this is it.
+ */
+function iconBody(side, { telling = ICON, alpha = 0.5, bleed = 0 } = {}) {
+  const over = telling === "plain" ? "" : band(side, { alpha, bleed });
+  return `${markBlock(side, 0.76)}${over}`;
 }
 
 /** Gradient, grid, then whatever else, in a square of `side`. */
@@ -193,6 +264,71 @@ function square(side, body, { grid = true, background = true, tone = "light" } =
     ${background ? `<rect width="${side}" height="${side}" fill="url(#bg)"/>` : ""}
     ${grid ? `<g transform="scale(${k})">${GRID}</g>` : ""}
     ${body}
+  </svg>`;
+}
+
+// --- the same icon, on Android's canvas -------------------------------------
+
+/**
+ * The adaptive icon: one drawing, on the canvas Android hands a launcher.
+ *
+ * That canvas is 108 units wide and only the middle 72 are certain to survive:
+ * the launcher masks the result to whatever shape the phone's skin uses, and
+ * slides the layers against each other when the icon is touched. So the icon
+ * goes into the inner 72 at exactly the proportions it has everywhere else, and
+ * everything that would stop at its edge is continued into the 18 unit margin,
+ * which is the part a mask crops and a parallax uncovers.
+ *
+ * The split is what Android asks for and nothing more, ground from drawing:
+ *
+ *   background   the gradient and the grid
+ *   foreground   the marks and the band
+ *   monochrome   the marks alone
+ *
+ * The band stays out of the monochrome layer on purpose. A themed icon is cut
+ * from that layer's alpha and repainted in one colour of the system's choosing,
+ * so half opaque black would come back as a solid slab of that colour with the
+ * marks lost inside it.
+ *
+ * This is also the drift this function exists to make impossible. The Android
+ * layers were once composed here from their own recipe, marks on a gradient and
+ * no band, so the phones ran a year behind the icon every other surface showed.
+ * They are views of `iconBody` now: there is nothing left to forget to update.
+ */
+function adaptive(side, layer) {
+  const inner = (side * 72) / 108;
+  const off = (side - inner) / 2;
+  const k = inner / 512;
+  const open = `<svg xmlns="http://www.w3.org/2000/svg" width="${side}" height="${side}"
+      viewBox="0 0 ${side} ${side}">`;
+  const at = (body) => `<g transform="translate(${n(off)},${n(off)})">${body}</g>`;
+
+  if (layer === "background") {
+    // The gradient runs the diagonal of the *icon*, and is carried on past both
+    // of its ends rather than stretched over the whole canvas: what a launcher
+    // shows has to be the gradient every other surface shows, stop for stop.
+    // The inner square covers the middle two thirds of the canvas diagonal, so
+    // each end is extended by a quarter of the run, in the colour the ramp
+    // would have reached there.
+    const margin = off / side;
+    const past = margin / (1 - 2 * margin);
+    const ramp = (t) => rgb(hex(FROM).map((v, i) => v + t * (hex(TO)[i] - v)));
+    return `${open}
+    <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="${ramp(-past)}"/>
+      <stop offset="1" stop-color="${ramp(1 + past)}"/>
+    </linearGradient></defs>
+    <rect width="${side}" height="${side}" fill="url(#bg)"/>
+    ${at(`<g transform="scale(${k.toFixed(6)})">${grid(off / k)}</g>`)}
+  </svg>`;
+  }
+
+  if (layer !== "foreground" && layer !== "monochrome") {
+    throw new Error(`no such adaptive layer: ${layer}`);
+  }
+  const body = layer === "monochrome" ? markBlock(inner, 0.76) : iconBody(inner, { bleed: off });
+  return `${open}
+    ${at(body)}
   </svg>`;
 }
 
@@ -446,14 +582,77 @@ async function splash(w, h, out) {
   png(svg, w, h, out);
 }
 
+/**
+ * Every file this script draws, and the one drawing each of them comes from.
+ *
+ * The table is the point: `main()` writes it, `tools/check-brand.cjs` redraws it
+ * and compares, so `assets/` cannot drift from the recipe in either direction,
+ * and adding a surface is a line here rather than a second drawing of the icon
+ * somewhere else. `app.json` names these files and nothing but these files.
+ */
+function surfaces() {
+  return [
+    // Full bleed at 1024: iOS masks the corners itself, and asking for a
+    // pre-rounded icon is how you get a rounded icon inside a rounded mask.
+    // Three tones rather than one, because iOS 18 asks for three and derives
+    // the two it is not given, badly. They are the same drawing: `dark` has the
+    // light taken out of it for a dark home screen, `tinted` is grey so the
+    // system can paint it in whatever colour the user picked.
+    { file: "icon.png", side: 1024, art: () => icon(1024) },
+    { file: "icon-dark.png", side: 1024, art: () => icon(1024, { tone: "dark" }) },
+    { file: "icon-tinted.png", side: 1024, art: () => icon(1024, { tone: "tinted" }) },
+    { file: "favicon.png", side: 64, art: () => icon(64) },
+
+    // Android's adaptive icon: three layers, all of them views of the icon
+    // above, on the 108 dp canvas `adaptive` explains.
+    { file: "android-icon-background.png", side: 1024, art: () => adaptive(1024, "background") },
+    { file: "android-icon-foreground.png", side: 1024, art: () => adaptive(1024, "foreground") },
+    { file: "android-icon-monochrome.png", side: 1024, art: () => adaptive(1024, "monochrome") },
+
+    { file: "feature-graphic.png", w: 1024, h: 500, art: () => feature(1024, 500) },
+
+    // Play wants the listing icon at exactly 512 and as a 32 bit PNG, and it
+    // checks both. Apple wants 1024 with no alpha at all and takes it out of
+    // the binary rather than the listing, which is why `icon.png` above is the
+    // one and only file for the App Store.
+    { file: "play-icon.png", side: 512, keepAlpha: true, art: () => icon(512) },
+
+    // The marks alone, for Android's system splash, which is a colour and a
+    // masked icon and nothing else. The same layer a themed icon is cut from,
+    // for the same reason: Android 12 masks a launch icon to a circle, and only
+    // the inner two thirds of the canvas are certain to survive it.
+    { file: "splash-icon.png", side: 1024, art: () => adaptive(1024, "monochrome") },
+
+    // 1290 by 2796, which is an iPhone 15 Pro Max. It is scaled to cover
+    // whatever screen it lands on, and a mesh gradient survives that without a
+    // seam. The only surface here that is rendered rather than drawn, which is
+    // why it writes itself instead of handing back an SVG.
+    { file: "splash.png", w: 1290, h: 2796, draw: (out) => splash(1290, 2796, out) },
+  ];
+}
+
+/** One surface, to one file. */
+async function draw(surface, out) {
+  if (surface.draw) {
+    await surface.draw(out);
+    return;
+  }
+  const w = surface.w ?? surface.side;
+  const h = surface.h ?? surface.side;
+  png(surface.art(), w, h, out, { keepAlpha: surface.keepAlpha === true });
+}
+
 module.exports = {
   icon,
+  adaptive,
   square,
   markBlock,
   markPatch,
   feature,
   png,
   splash,
+  surfaces,
+  draw,
   GRID,
   FROM,
   TO,
@@ -472,62 +671,15 @@ async function main() {
       png(icon(1024, { telling }), 1024, 1024, out(`icon-${telling}.png`));
       png(icon(180, { telling }), 180, 180, out(`icon-${telling}-180.png`));
     }
+    // The one surface a candidate run still wants whole, since the marks over
+    // the gradient are the thing being judged.
+    await splash(1290, 2796, out("splash.png"));
+    return;
   }
 
-  if (!tryOnly) {
-    // Full bleed at 1024: iOS masks the corners itself, and asking for a
-    // pre-rounded icon is how you get a rounded icon inside a rounded mask.
-    // Three tones rather than one, because iOS 18 asks for three and derives
-    // the two it is not given, badly. They are the same drawing: `dark` has the
-    // light taken out of it for a dark home screen, `tinted` is grey so the
-    // system can paint it in whatever colour the user picked.
-    png(icon(1024), 1024, 1024, out("icon.png"));
-    png(icon(1024, { tone: "dark" }), 1024, 1024, out("icon-dark.png"));
-    png(icon(1024, { tone: "tinted" }), 1024, 1024, out("icon-tinted.png"));
-    png(icon(64), 64, 64, out("favicon.png"));
-
-    // Android's adaptive icon is two layers the system moves against each
-    // other, so the marks cannot be baked into the background, and a third
-    // monochrome layer is what a themed icon is cut from. All three are drawn
-    // at 1024 over the 108 dp canvas: the outer 18 percent on each side can be
-    // cropped by any launcher's mask, so nothing that matters goes there.
-    png(square(1024, ""), 1024, 1024, out("android-icon-background.png"));
-    png(
-      square(1024, markBlock(1024, 0.5), { grid: false, background: false }),
-      1024,
-      1024,
-      out("android-icon-foreground.png"),
-    );
-    png(
-      square(1024, markBlock(1024, 0.5), { grid: false, background: false }),
-      1024,
-      1024,
-      out("android-icon-monochrome.png"),
-    );
-
-    png(feature(1024, 500), 1024, 500, out("feature-graphic.png"));
-
-    // Play wants the listing icon at exactly 512 and as a 32 bit PNG, and it
-    // checks both. Apple wants 1024 with no alpha at all and takes it out of
-    // the binary rather than the listing, which is why `icon.png` above is the
-    // one and only file for the App Store.
-    png(icon(512), 512, 512, out("play-icon.png"), { keepAlpha: true });
-
-    // The marks alone, for Android's system splash, which is a colour and a
-    // masked icon and nothing else. At half the square, because Android 12
-    // masks a launch icon to a circle and only the inner two thirds of it are
-    // certain to survive.
-    png(
-      square(1024, markBlock(1024, 0.5), { grid: false, background: false }),
-      1024,
-      1024,
-      out("splash-icon.png"),
-    );
+  for (const surface of surfaces()) {
+    await draw(surface, out(surface.file));
   }
-
-  // 1290 by 2796, which is an iPhone 15 Pro Max. It is scaled to cover whatever
-  // screen it lands on, and a mesh gradient survives that without a seam.
-  await splash(1290, 2796, out("splash.png"));
 }
 
 if (require.main === module) {

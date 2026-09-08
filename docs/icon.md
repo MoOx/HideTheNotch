@@ -55,16 +55,65 @@ that trusts the artboard bounds clips the pencil and the brush.
 | `assets/logo.svg` | the 7 marks alone, white, on transparency |
 | `assets/icon.svg` | the full composition: gradient, guides, marks |
 | `assets/icon.png` | 1024 x 1024, full bleed (iOS masks the corners itself) |
-| `assets/android-icon-background.png` | gradient and guides, 1024 |
-| `assets/android-icon-foreground.png` | marks only, sized for the 66 percent adaptive safe zone |
-| `assets/android-icon-monochrome.png` | same silhouette, for Android themed icons |
-| `assets/splash-icon.png` | marks only, smaller |
+| `assets/icon-dark.png`, `assets/icon-tinted.png` | the same drawing in the two other tones iOS 18 asks for |
+| `assets/android-icon-background.png` | gradient and guides, on Android's 108 unit canvas |
+| `assets/android-icon-foreground.png` | marks and band, on the same canvas |
+| `assets/android-icon-monochrome.png` | the marks alone, what a themed icon is cut from |
+| `assets/splash-icon.png` | the same layer again, for Android's system splash |
+| `assets/play-icon.png` | 512, 32 bit, which is what Play checks |
+| `assets/feature-graphic.png` | 1024 x 500, which Play will not publish a listing without |
 | `assets/favicon.png` | 64 x 64 |
 
-The two SVGs are the source. The PNGs are rasterised from them with headless
-Chromium at the sizes above; any renderer that understands plain paths and a
-linear gradient will do, there is nothing exotic in the files.
+`assets/logo.svg` is the source of the marks. Everything else is composed by
+`tools/brand.cjs` and rasterised with headless Chromium; there is nothing exotic
+in the drawing, any renderer that understands plain paths and a linear gradient
+would do.
 
 The marks occupy 76 percent of the icon height, centred. The 2017 icon let them
 run slightly past the frame; centring them whole reads better at small sizes and
 loses nothing.
+
+## One drawing, and how it is kept that way
+
+The PNGs are committed because a build must not need a browser. That means the
+tree carries a copy of the drawing, and a copy can fall behind: it did. The
+Android layers were composed from their own recipe, marks on a gradient, and
+never got the band that was added to the icon later. Every other surface showed
+the current icon and the phones showed the 2017 one, for a year, with nothing
+anywhere to say so.
+
+Two things now make that impossible, and both are worth keeping in that order.
+
+**One drawing.** `iconBody()` is the icon without its ground, and `adaptive()`
+is the only thing that knows about Android: it places that same body on the 108
+unit canvas, in the inner 72 the launcher is certain to show, at exactly the
+proportions the icon has on iOS. There is no second recipe left to forget.
+
+```
+108 canvas   the file
+ 72 icon     what every mask keeps: the icon, unchanged
+ 18 margin   cropped or slid under by the launcher
+```
+
+Nothing new is invented in that margin, and nothing stops at the edge of the
+visible square either, because a launcher can slide the layers apart and would
+show the ends: the gradient runs on in the colour the ramp would have reached,
+the guides keep going at the same spacing, the band runs off both sides at the
+depth it has where the square cuts it.
+
+The band is deliberately not in the monochrome layer. A themed icon is cut from
+that layer's alpha and repainted in one colour of the system's choosing, so half
+opaque black would come back as a solid slab of it with the marks lost inside.
+
+**One check.** `npm run brand:check` redraws every surface in the table and
+compares it to the file in the tree, fails on a PNG in `assets/` that nothing
+draws, and fails on an image `app.json` points at that is not in the table. It
+runs in CI on any change to `src/`, `tools/`, `assets/` or `app.json`, so
+editing the recipe without regenerating fails the build, and so does dropping a
+hand exported PNG into `assets/`. The fix is always `npm run brand`.
+
+The comparison is not byte for byte: two Chromiums disagree along an antialiased
+edge, and a check that cries wolf on a runner upgrade is a check that gets
+switched off. A pixel counts as moved only when nothing within one pixel of it
+matches, in either direction. On the drift this was written for, 29 percent of
+the foreground layer had moved.

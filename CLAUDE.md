@@ -39,6 +39,12 @@ npm run verify     # checks the two properties above on real pixels
 `npm run verify` runs the real rendering code against CanvasKit, out of the app,
 so it catches a regression without a device. It is also the first job in CI.
 
+The icon has one source too, `tools/brand.cjs`, and the PNGs in `assets/` are
+its output: every platform's version of it, iOS tones and Android layers alike,
+comes from one drawing there. Never edit an asset by hand or add a second
+recipe for a platform. Run `npm run brand` and commit what it writes;
+`npm run brand:check` proves the tree still matches, and CI runs it.
+
 Signing material lives in the private `MoOx/certificates` repository, never
 here. `fastlane/` and `.github/workflows/ios-testflight.yml` come from its
 templates: prefer fixing them upstream over diverging locally.

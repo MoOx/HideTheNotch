@@ -93,6 +93,24 @@ function colourType(file) {
   return head[25];
 }
 
+/**
+ * Runs `fn` with `console.log` muted, and gives it back whatever happens.
+ *
+ * brand.cjs prints every file it writes, and here that is noise: the line that
+ * matters is the comparison. The `finally` is the whole point: a surface that
+ * throws while drawing must not leave the rest of the run silent, which would
+ * turn a loud failure into a quiet one.
+ */
+async function quietly(fn) {
+  const log = console.log;
+  console.log = () => {};
+  try {
+    return await fn();
+  } finally {
+    console.log = log;
+  }
+}
+
 /** Every image `app.json` names, as a bare file name. */
 function referenced() {
   const config = JSON.parse(fs.readFileSync(path.join(ROOT, "app.json"), "utf8"));
@@ -131,12 +149,7 @@ function referenced() {
       continue;
     }
 
-    // brand.cjs prints every file it writes, and here that is noise: the line
-    // that matters is the comparison below.
-    const log = console.log;
-    console.log = () => {};
-    await draw(surface, mine);
-    console.log = log;
+    await quietly(() => draw(surface, mine));
 
     const a = PNG.sync.read(fs.readFileSync(mine));
     const b = PNG.sync.read(fs.readFileSync(theirs));

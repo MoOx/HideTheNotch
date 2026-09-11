@@ -61,7 +61,10 @@
             "deploymentTarget": "16.4"
           },
           "android": {
-            "minSdkVersion": 24
+            "minSdkVersion": 24,
+            "//": "R8 on release builds. Play scores how much of an app's code is obfuscated and warns below 25%; with minifyEnabled off nothing is renamed and the score sits at 1%. The mapping file travels inside the AAB, so Play Console and Sentry both deobfuscate crashes. react-native, expo-modules-core and expo-updates ship their keep rules as consumer rules, reanimated's are already in the generated proguard-rules.pro, and what is left is below. shrinkResources stays off: it is a second, independent risk (resources reached only from native code or from a style) for a category Play is not complaining about.",
+            "enableMinifyInReleaseBuilds": true,
+            "extraProguardRules": "# Skia is reached from C++ by class name. Most of its Java side carries\n# @DoNotStrip, which React Native's own rules keep, but the JNI registration\n# walks the package, so keep the package whole rather than bet on every\n# release annotating every class.\n-keep class com.shopify.reactnative.skia.** { *; }\n\n# AGP's default rules drop SourceFile and LineNumberTable, which costs every\n# Java and Kotlin frame its line number. Sentry and Play Console both apply\n# the mapping file, so keeping them costs nothing and makes traces readable.\n-keepattributes SourceFile,LineNumberTable\n-renamesourcefileattribute SourceFile\n"
           }
         }
       ],

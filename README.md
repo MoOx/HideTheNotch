@@ -355,6 +355,48 @@ file back and stops the run when it does not say what was asked for, because the
 whole cost of that bug was finding out late. Unset, the plugin changes nothing,
 which is what `npx expo run:android` wants.
 
+#### R8, and the score Play gives an app that does not run it
+
+Play Console scores four things under "app optimization" and warns when any of
+them falls under 25 percent. This app scored **1 percent on obfuscation**, for
+one reason: the React Native template ships `minifyEnabled` off, so nothing in
+the DEX is ever renamed and there is nothing to score.
+
+`expo-build-properties` turns it on from `app.json`, which is where it belongs:
+`android/` is generated and a hand edit there lives until the next prebuild.
+
+```json
+"android": {
+  "enableMinifyInReleaseBuilds": true,
+  "extraProguardRules": "..."
+}
+```
+
+Who supplies the keep rules, since between them they are the whole risk:
+
+| Source | What it covers |
+| ------ | -------------- |
+| `react-native` | `@DoNotStrip`, native methods, `NativeModule` and `JavaScriptModule` implementations, the bridge and the TurboModule core. Consumer rules, applied automatically |
+| `expo-modules-core` | anything extending `Module`, `Record` implementations, `Enumerable` enums, `ExpoView` constructors. Consumer rules, so `modules/htn-cutout` needs nothing of its own |
+| `expo-updates` | the two private fields it reads by reflection, and a zstd workaround |
+| the generated `proguard-rules.pro` | reanimated, which does not ship consumer rules |
+| `extraProguardRules` in `app.json` | Skia, whose JNI registration walks the package, and `SourceFile` / `LineNumberTable`, which AGP's defaults drop |
+
+`shrinkResources` stays off. It is a second and independent risk, a resource
+reached only from native code or from a style disappears without a word, and
+Play is not asking for it.
+
+The mapping file travels inside the AAB, under
+`BUNDLE-METADATA/com.android.tools.build.obfuscation/`, so Play Console
+deobfuscates crashes with no upload step. Sentry's Gradle plugin uploads its own
+copy when `SENTRY_AUTH_TOKEN` is in the environment, which is the same condition
+as the source maps.
+
+What to check on a build that has R8 in it, because a keep rule that is missing
+fails at runtime and not at build time: the photo picker, saving to the photo
+library, and the native cutout reading (the geometry line in the app should say
+`system` on Android, not `safeArea`).
+
 ### The store listings
 
 Both stores read a tree of small text files, and they agree on almost nothing:

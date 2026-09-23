@@ -1,0 +1,86 @@
+{
+  "fill-specializations": [
+    {
+      "value": {
+        "linear-gradient": [
+          "srgb:0.32941,0.59216,0.81569,1.00000",
+          "srgb:0.40784,0.12941,0.68627,1.00000"
+        ],
+        "orientation": {
+          "start": {
+            "x": 0,
+            "y": 0
+          },
+          "stop": {
+            "x": 1,
+            "y": 1
+          }
+        }
+      }
+    },
+    {
+      "appearance": "dark",
+      "value": {
+        "linear-gradient": [
+          "srgb:0.17255,0.30980,0.42353,1.00000",
+          "srgb:0.21176,0.06667,0.35686,1.00000"
+        ],
+        "orientation": {
+          "start": {
+            "x": 0,
+            "y": 0
+          },
+          "stop": {
+            "x": 1,
+            "y": 1
+          }
+        }
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "Guides",
+      "layers": [
+        {
+          "image-name": "guides.svg",
+          "name": "guides"
+        }
+      ],
+      "specular": false
+    },
+    {
+      "name": "Marks",
+      "layers": [
+        {
+          "image-name": "pencil.svg",
+          "name": "pencil",
+          "glass": true
+        },
+        {
+          "image-name": "brush.svg",
+          "name": "brush",
+          "glass": true
+        }
+      ],
+      "specular": true,
+      "shadow": {
+        "kind": "layer-color",
+        "opacity": 0.5
+      }
+    },
+    {
+      "name": "Band",
+      "layers": [
+        {
+          "image-name": "band.svg",
+          "name": "band"
+        }
+      ],
+      "specular": false
+    }
+  ],
+  "supported-platforms": {
+    "squares": "shared"
+  }
+}

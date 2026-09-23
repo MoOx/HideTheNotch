@@ -91,6 +91,27 @@ jobs:
         with:
           bundler-cache: true
 
+      # Not in the template: this app generates its listing, and the lane's
+      # `store:listing` needs the screenshots deck, which is not in git. Same
+      # step as store-listings.yml. Without it the lane stops, and the only way
+      # past (HTN_TEXT_ONLY) would upload an empty screenshots directory with
+      # `overwrite_screenshots` and wipe the store's images.
+      - name: The last deck composed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eo pipefail
+          run=$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=store-deck&per_page=30" \
+            --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | last | .workflow_run.id')
+          if [ -z "$run" ] || [ "$run" = "null" ]; then
+            echo "No store-deck artefact anywhere, or every one of them has expired."
+            echo "Push a commit whose message carries [captures] first."
+            exit 1
+          fi
+          echo "==> deck from run $run"
+          gh run download "$run" -n store-deck -D marketing/renders
+          find marketing/renders -name '*.png' | wc -l | xargs echo "   PNG files:"
+
       - name: Promote to production
         run: bundle exec fastlane android release
 

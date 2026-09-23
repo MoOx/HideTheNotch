@@ -25,7 +25,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { PNG } = require("pngjs");
-const { ROOT, surfaces, draw } = require("./brand.cjs");
+const { ROOT, surfaces, draw, png } = require("./brand.cjs");
 
 const ASSETS = path.join(ROOT, "assets");
 
@@ -111,13 +111,69 @@ async function quietly(fn) {
   }
 }
 
+/** Every file in a directory, as paths relative to it, sorted. */
+function tree(dir) {
+  const found = [];
+  const walk = (at, prefix) => {
+    for (const entry of fs
+      .readdirSync(at, { withFileTypes: true })
+      .sort((a, b) => a.name.localeCompare(b.name))) {
+      const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        walk(path.join(at, entry.name), rel);
+      } else {
+        found.push(rel);
+      }
+    }
+  };
+  walk(dir, "");
+  return found;
+}
+
+/**
+ * A `.icon` bundle's layers, composited in order over its fill.
+ *
+ * Not a preview of the icon iOS 26 will show: the glass, the specular and the
+ * shadows are the system's and cannot be had outside it. This is the geometry
+ * alone, which is exactly the thing that can drift. An icon whose layers are a
+ * different picture from `icon.png` is the same bug the Android layers had, one
+ * platform further on, so the layers are composited back here and the result
+ * has to be the icon.
+ */
+function flattened(dir, side) {
+  const manifest = JSON.parse(fs.readFileSync(path.join(dir, "icon.json"), "utf8"));
+  const fill = manifest["fill-specializations"][0].value;
+  const [from, to] = fill["linear-gradient"].map((c) => {
+    const [r, g, b] = c.split(":")[1].split(",").map(Number);
+    return `rgb(${[r, g, b].map((v) => Math.round(v * 255)).join(",")})`;
+  });
+  const { start, stop } = fill.orientation;
+  const layers = manifest.groups
+    .flatMap((group) => group.layers)
+    .map((layer) => {
+      const svg = fs.readFileSync(path.join(dir, "Assets", layer["image-name"]));
+      return (
+        `<image href="data:image/svg+xml;base64,${svg.toString("base64")}"` +
+        ` x="0" y="0" width="${side}" height="${side}"/>`
+      );
+    });
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${side}" height="${side}"
+      viewBox="0 0 ${side} ${side}">
+    <defs><linearGradient id="bg" x1="${start.x}" y1="${start.y}" x2="${stop.x}" y2="${stop.y}">
+      <stop offset="0" stop-color="${from}"/><stop offset="1" stop-color="${to}"/>
+    </linearGradient></defs>
+    <rect width="${side}" height="${side}" fill="url(#bg)"/>
+    ${layers.join("")}
+  </svg>`;
+}
+
 /** Every image `app.json` names, as a bare file name. */
 function referenced() {
   const config = JSON.parse(fs.readFileSync(path.join(ROOT, "app.json"), "utf8"));
   const found = new Set();
   const walk = (node) => {
     if (typeof node === "string") {
-      if (/^\.\/assets\/.+\.(png|jpg|jpeg)$/.test(node)) {
+      if (/^\.\/assets\/.+\.(png|jpg|jpeg|icon)$/.test(node)) {
         found.add(path.basename(node));
       }
       return;
@@ -151,6 +207,33 @@ function referenced() {
 
     await quietly(() => draw(surface, mine));
 
+    // A bundle is text the recipe writes out, not a picture a browser draws, so
+    // it is compared byte for byte and a file on either side that the other
+    // does not have is a failure on its own.
+    if (surface.bundle) {
+      const theirFiles = tree(theirs);
+      const myFiles = tree(mine);
+      const strays = [
+        ...myFiles.filter((f) => !theirFiles.includes(f)).map((f) => `${f} missing from assets/`),
+        ...theirFiles.filter((f) => !myFiles.includes(f)).map((f) => `${f} drawn by nothing`),
+        ...myFiles
+          .filter((f) => theirFiles.includes(f))
+          .filter(
+            (f) =>
+              !fs.readFileSync(path.join(mine, f)).equals(fs.readFileSync(path.join(theirs, f))),
+          )
+          .map((f) => `${f} differs`),
+      ];
+      for (const stray of strays) {
+        failures += 1;
+        console.log(`  FAIL ${surface.file.padEnd(30)} ${stray}`);
+      }
+      if (strays.length === 0) {
+        console.log(`  ok   ${surface.file.padEnd(30)} ${theirFiles.length} files, byte for byte`);
+      }
+      continue;
+    }
+
     const a = PNG.sync.read(fs.readFileSync(mine));
     const b = PNG.sync.read(fs.readFileSync(theirs));
 
@@ -176,13 +259,35 @@ function referenced() {
         (bits === theirBits ? "" : `, colour type ${theirBits} in the tree, ${bits} drawn`),
     );
   }
+
+  // And the layers are the icon. `iconBundle` cuts `icon.png` into the layers
+  // iOS 26 lights; composited back in the order the manifest lists them, they
+  // have to be `icon.png` again.
+  console.log("\n-- the iOS layers composite back to the icon --\n");
+  for (const surface of table.filter((s) => s.bundle)) {
+    const flat = path.join(tmp, "flattened.png");
+    await quietly(() => png(flattened(path.join(ASSETS, surface.file), 1024), 1024, 1024, flat));
+    const a = PNG.sync.read(fs.readFileSync(flat));
+    const b = PNG.sync.read(fs.readFileSync(path.join(ASSETS, "icon.png")));
+    const moved = Math.max(strayed(a, b), strayed(b, a));
+    const ok = moved <= ALLOWED;
+    if (!ok) {
+      failures += 1;
+    }
+    console.log(
+      `  ${ok ? "ok  " : "FAIL"} ${surface.file.padEnd(30)} ` +
+        `${(moved * 100).toFixed(2)} % away from icon.png`,
+    );
+  }
+
   fs.rmSync(tmp, { recursive: true, force: true });
 
   // Nothing hand made in with the drawn files. A PNG in assets/ that no recipe
   // produces is exactly how the Android layers drifted in the first place.
   console.log("\n-- nothing in assets/ that nothing draws --\n");
   for (const file of fs.readdirSync(ASSETS).sort()) {
-    if (!file.endsWith(".png") || drawn.has(file)) {
+    const isDir = fs.statSync(path.join(ASSETS, file)).isDirectory();
+    if ((!file.endsWith(".png") && !isDir) || drawn.has(file)) {
       continue;
     }
     console.log(`  FAIL ${file.padEnd(30)} in assets/, drawn by nothing`);

@@ -387,7 +387,7 @@ which is what a correction to the copy actually needs.
 | Asset | Where it comes from |
 | ----- | ------------------- |
 | Screenshots | `npm run deck`, into `marketing/renders/` |
-| App Store icon, 1024, **no alpha channel** | `assets/icon.png`, plus `icon-dark.png` and `icon-tinted.png`. Apple takes them out of the binary rather than the listing, so nothing uploads them: they are the ones in the asset catalogue. iOS 18 derives the two it is not given, badly, which is why it is given them |
+| App Store icon | `assets/HideTheNotch.icon`, a layered bundle Xcode compiles. Apple takes the icon out of the binary rather than the listing, so nothing uploads it. iOS 26 lights the layers as glass and derives the dark, tinted and clear icons from them; `icon.png`, `icon-dark.png` and `icon-tinted.png` are the same drawing flat, and what `ios.icon` goes back to if the bundle ever has to be dropped |
 | Android adaptive icon, three layers | `android-icon-background.png`, `-foreground.png`, `-monochrome.png`. Not sizes: the launcher composes them, masks the result to whatever shape it uses, and moves them against each other when the icon is dragged. Drawn on the 108 unit canvas with the icon in the inner 72, which is the part every mask keeps. The monochrome one is what a themed icon is cut from, and the band stays out of it: that layer is repainted in one colour, so black at half opacity would come back as a slab |
 | Play listing icon, **exactly 512, 32 bit** | `assets/play-icon.png`. Play checks both, which is why it is a second file and not the same one |
 | Play feature graphic, 1024 x 500 | `assets/feature-graphic.png`. Play will not publish a listing without it |

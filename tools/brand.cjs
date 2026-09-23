@@ -148,10 +148,69 @@ function markPatch(w, h, fill) {
  * left the marks sitting 10 units low at every size, which is 1.5 percent of an
  * icon: far too little to look like a bug and quite enough to look wrong.
  */
-function markBlock(side, fill) {
+function markBlock(side, fill, body = marks()) {
   const k = (side * fill) / 492;
   const offset = (side - 512 * k) / 2;
-  return `<g transform="translate(${offset.toFixed(2)},${offset.toFixed(2)}) scale(${k.toFixed(5)})">${marks()}</g>`;
+  return `<g transform="translate(${offset.toFixed(2)},${offset.toFixed(2)}) scale(${k.toFixed(5)})">${body}</g>`;
+}
+
+/** The `<g>` children of a fragment, at its own level and no deeper. */
+function groupChildren(inner) {
+  const found = [];
+  const tag = /<g\b[^>]*>|<\/g>/g;
+  let depth = 0;
+  let start = 0;
+  let m;
+  while ((m = tag.exec(inner)) !== null) {
+    if (m[0] === "</g>") {
+      depth -= 1;
+      if (depth === 0) {
+        found.push(inner.slice(start, tag.lastIndex));
+      }
+      continue;
+    }
+    if (depth === 0) {
+      start = m.index;
+    }
+    depth += 1;
+  }
+  return found;
+}
+
+/**
+ * The pencil and the brush, each on its own, in the coordinates they share.
+ *
+ * Sketch exported one rotation per nesting level, so `logo.svg` is a column of
+ * groups with one child each until it reaches the level that holds both
+ * objects. That level is where the drawing comes apart, and finding it by
+ * walking down while there is one child is the only rule here: no count of
+ * groups, no index into the file, nothing that a re-export can quietly move.
+ *
+ * Each part keeps every group above it, so both carry the same fill, fill rule
+ * and transforms and land where they land in the whole drawing. `markBlock`
+ * places either one exactly as it places the pair.
+ *
+ * Only iOS 26 asks for this. A Liquid Glass layer is a thing the system lights
+ * and moves on its own, so two objects on two layers are two objects, while one
+ * layer of both is a single pane with a logo shaped hole in it.
+ */
+function markParts() {
+  const shell = [];
+  let body = marks();
+  for (;;) {
+    const open = body.slice(0, body.indexOf(">") + 1);
+    const children = groupChildren(body.slice(open.length, body.lastIndexOf("</g>")));
+    if (children.length === 1) {
+      shell.push(open);
+      body = children[0];
+      continue;
+    }
+    if (children.length !== 2) {
+      throw new Error(`logo.svg should come apart in two objects, found ${children.length}`);
+    }
+    const opens = [...shell, open];
+    return children.map((child) => opens.join("") + child + "</g>".repeat(opens.length));
+  }
 }
 
 // --- the icon ---------------------------------------------------------------
@@ -333,6 +392,99 @@ function adaptive(side, layer) {
   return `${open}
     ${at(body)}
   </svg>`;
+}
+
+// --- the same icon, as iOS 26 asks for it -----------------------------------
+
+/**
+ * Icon Composer's canvas, which is 1024 points for iPhone, iPad and Mac alike.
+ *
+ * Every layer here is a whole canvas with the artwork already where it belongs,
+ * and no layer carries a `position`. Icon Composer can scale and nudge a layer
+ * against the canvas, which is how you place a small logo dropped into the app;
+ * a layer drawn at canvas size has nothing left to place, and leaving the key
+ * out is the one way of saying that which cannot be a wrong number.
+ */
+const CANVAS = 1024;
+
+/** A colour as `icon.json` writes one. */
+function iconColour(c) {
+  return `srgb:${hex(c)
+    .map((v) => (v / 255).toFixed(5))
+    .join(",")},1.00000`;
+}
+
+/** The gradient of a tone, as the bundle's ground. */
+function iconFill(tone) {
+  const { from, to } = tones(tone);
+  return {
+    "linear-gradient": [iconColour(from), iconColour(to)],
+    orientation: { start: { x: 0, y: 0 }, stop: { x: 1, y: 1 } },
+  };
+}
+
+/** One layer file: a body, on the canvas, at canvas size. */
+function iconLayer(body) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${CANVAS}" height="${CANVAS}"
+      viewBox="0 0 ${CANVAS} ${CANVAS}">${body}</svg>\n`;
+}
+
+/**
+ * The icon again, in layers, for the glass iOS 26 builds icons out of.
+ *
+ * iOS 18 took three flat pictures, which is what `ios.icon` still held: the
+ * system put the picture inside the glass shape and that was the whole of it.
+ * iOS 26 takes the drawing apart instead. It lights each layer, floats them at
+ * different depths, casts one on the next and rebuilds the dark, tinted and
+ * clear icons from the same layers, which is why every other icon on the home
+ * screen has a highlight running across it and this one was flat white.
+ *
+ * So the same drawing once more, cut where it already comes apart:
+ *
+ *   ground       the gradient, which the bundle takes as a colour, not a layer
+ *   Guides       the blueprint grid, flat, texture on the ground
+ *   Marks        the pencil and the brush, glass, one layer each
+ *   Band         the app's own shape, over them, as it is in the square icon
+ *
+ * Only the marks are glass. They are the objects in the picture and the thing
+ * the glass has anything to say about. The grid is printed on the ground and
+ * the band is a panel lying on the artwork, and lighting either of them as a
+ * pane of glass makes it a fourth object in an icon that has two.
+ *
+ * Ground, then Guides, then Marks, then Band, bottom first, which is the order
+ * `square()` draws them in: the band is over the marks in the square icon, and
+ * an icon whose layers are a different picture from the icon is the drift this
+ * whole file exists to make impossible. `tools/check-brand.cjs` composites
+ * these layers back and fails unless they come out as `icon.png`.
+ */
+function iconBundle() {
+  const [pencil, brush] = markParts();
+  const layer = (name, extra = {}) => ({ "image-name": `${name}.svg`, name, ...extra });
+  const manifest = {
+    "fill-specializations": [
+      { value: iconFill("light") },
+      { appearance: "dark", value: iconFill("dark") },
+    ],
+    groups: [
+      { name: "Guides", layers: [layer("guides")], specular: false },
+      {
+        name: "Marks",
+        layers: [layer("pencil", { glass: true }), layer("brush", { glass: true })],
+        specular: true,
+        shadow: { kind: "layer-color", opacity: 0.5 },
+      },
+      { name: "Band", layers: [layer("band")], specular: false },
+    ],
+    // No `circles`: that is the watchOS shape, and there is no watch app.
+    "supported-platforms": { squares: "shared" },
+  };
+  return {
+    "icon.json": `${JSON.stringify(manifest, null, 2)}\n`,
+    "Assets/guides.svg": iconLayer(`<g transform="scale(${CANVAS / 512})">${GRID}</g>`),
+    "Assets/pencil.svg": iconLayer(markBlock(CANVAS, 0.76, pencil)),
+    "Assets/brush.svg": iconLayer(markBlock(CANVAS, 0.76, brush)),
+    "Assets/band.svg": iconLayer(band(CANVAS)),
+  };
 }
 
 // --- rendering --------------------------------------------------------------
@@ -606,6 +758,11 @@ function surfaces() {
     { file: "icon-tinted.png", side: 1024, art: () => icon(1024, { tone: "tinted" }) },
     { file: "favicon.png", side: 64, art: () => icon(64) },
 
+    // The same icon once more, in layers, which is the only form iOS 26 can
+    // light as glass. `ios.icon` in app.json points here; `adaptive` above is
+    // the same idea for Android, and `iconBundle` explains the cut.
+    { file: "HideTheNotch.icon", bundle: () => iconBundle() },
+
     // Android's adaptive icon: three layers, all of them views of the icon
     // above, on the 108 dp canvas `adaptive` explains.
     { file: "android-icon-background.png", side: 1024, art: () => adaptive(1024, "background") },
@@ -634,8 +791,22 @@ function surfaces() {
   ];
 }
 
-/** One surface, to one file. */
+/** One surface, to one file, or to one directory when it is a bundle. */
 async function draw(surface, out) {
+  if (surface.bundle) {
+    const files = surface.bundle();
+    fs.rmSync(out, { recursive: true, force: true });
+    for (const [name, content] of Object.entries(files)) {
+      const file = path.join(out, name);
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, content);
+    }
+    const kb = Math.round(
+      Object.values(files).reduce((n, c) => n + Buffer.byteLength(c), 0) / 1024,
+    );
+    console.log(`  ${path.relative(ROOT, out)}  ${Object.keys(files).length} files  ${kb} kB`);
+    return;
+  }
   if (surface.draw) {
     await surface.draw(out);
     return;
@@ -648,6 +819,7 @@ async function draw(surface, out) {
 module.exports = {
   icon,
   adaptive,
+  iconBundle,
   square,
   markBlock,
   markPatch,

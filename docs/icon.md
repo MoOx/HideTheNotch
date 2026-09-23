@@ -56,6 +56,7 @@ that trusts the artboard bounds clips the pencil and the brush.
 | `assets/icon.svg` | the full composition: gradient, guides, marks |
 | `assets/icon.png` | 1024 x 1024, full bleed (iOS masks the corners itself) |
 | `assets/icon-dark.png`, `assets/icon-tinted.png` | the same drawing in the two other tones iOS 18 asks for |
+| `assets/HideTheNotch.icon` | the same drawing in layers, which is what iOS 26 lights as glass |
 | `assets/android-icon-background.png` | gradient and guides, on Android's 108 unit canvas |
 | `assets/android-icon-foreground.png` | marks and band, on the same canvas |
 | `assets/android-icon-monochrome.png` | the marks alone, what a themed icon is cut from |
@@ -114,6 +115,46 @@ its own cut end travelling through the mask.
 The band is deliberately not in the monochrome layer. A themed icon is cut from
 that layer's alpha and repainted in one colour of the system's choosing, so half
 opaque black would come back as a solid slab of it with the marks lost inside.
+
+## The same drawing again, for iOS 26
+
+iOS 18 took three flat pictures and `ios.icon` handed it three: the system put
+the picture inside the glass shape and that was all of it. iOS 26 takes the
+drawing apart instead. It lights each layer, floats them at different depths,
+casts one on the next, and rebuilds the dark, tinted and clear icons out of the
+same layers. A flat picture gets none of that, which is why this icon sat on a
+home screen full of highlights with nothing moving across it.
+
+So `ios.icon` points at `assets/HideTheNotch.icon` now, a bundle of an
+`icon.json` and one SVG per layer, all written by `iconBundle()` in
+`tools/brand.cjs` from the same pieces as every other surface.
+
+```
+ground      the gradient, which the bundle takes as a colour, not a layer
+Guides      the blueprint grid, flat, texture on the ground
+Marks       the pencil and the brush, glass, one layer each
+Band        the app's own shape, over them, as it is in the square icon
+```
+
+Only the marks are glass. They are the objects in the picture and the thing the
+glass has anything to say about; the grid is printed on the ground and the band
+is a panel lying on the artwork, and lighting either as a pane of glass adds a
+third and fourth object to an icon that has two. The pencil and the brush are
+separate layers because a layer is a thing the system moves on its own, and
+`logo.svg` already comes apart there: `markParts()` walks down the nesting until
+it reaches the level holding both objects, which is a rule rather than an index
+into the file.
+
+The order is the order `square()` draws in, ground first, so the band is over
+the marks here exactly as it is in the square icon. `npm run brand:check`
+composites the committed layers back over the committed fill and fails unless
+the result is `icon.png`. That is geometry only: the glass, the specular and the
+shadows belong to the system and cannot be had outside it, so the check proves
+the layers are the icon taken apart and a device is what proves the rest.
+
+The two tone PNGs stay drawn. Nothing points at them while the bundle is in
+place, and they are what `ios.icon` goes back to in one line if it ever has to
+be dropped.
 
 **One check.** `npm run brand:check` redraws every surface in the table and
 compares it to the file in the tree, fails on a PNG in `assets/` that nothing

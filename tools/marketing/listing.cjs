@@ -45,6 +45,13 @@ const PLAY_LOCALE = {
 /**
  * Every limit the two stores enforce, and the one field each of them counts
  * differently. Exceeding one is a rejection, so it is a failure here.
+ *
+ * One number per field, so where both stores take the field the tighter of the
+ * two is the one written down. That matters for exactly one line. `release`
+ * goes out as Apple's `release_notes.txt`, which takes 4000, and as Play's
+ * `changelogs/default.txt`, which takes 500: 4000 here let a note through that
+ * `supply` would have refused at upload, which is the one moment in a release
+ * when nobody wants to be writing copy.
  */
 const LIMITS = {
   name: [30, "App Store name and Play title"],
@@ -53,7 +60,7 @@ const LIMITS = {
   promo: [170, "App Store promotional text"],
   keywords: [100, "App Store keywords"],
   description: [4000, "description, both stores"],
-  release: [4000, "release notes and changelog"],
+  release: [500, "release notes and changelog"],
 };
 
 function write(file, text) {

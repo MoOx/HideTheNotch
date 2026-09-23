@@ -1,0 +1,59 @@
+name: Sentry issues
+
+# Opens a GitHub issue for every unresolved Sentry issue that does not have one.
+#
+# Sentry does this natively, but only on its Business plan (Team for a manual
+# button), and this project is on the free one. The API is open on every plan,
+# so this polls it instead.
+#
+# No state is stored: the Sentry short id (HIDE-THE-NOTCH-1A) is in the GitHub
+# title, and an issue carrying the `sentry` label with that id in its title,
+# open or closed, means it has been handled. Closing the GitHub issue does not
+# resolve the Sentry one; resolve it there, or with `Fixes HIDE-THE-NOTCH-1A`
+# in a commit message.
+#
+# The work is in `tools/sentry-issues.cjs`, which says what an issue carries.
+# Run it by hand with `refresh` ticked to rewrite the existing issues after
+# changing that.
+#
+# Needs the `SENTRY_API_TOKEN` secret: a personal token with `project:read` and
+# `event:read`. `SENTRY_AUTH_TOKEN` cannot do it, its one scope is `org:ci`.
+on:
+  # Cron is UTC: 7:00 is 9:00 in Paris in summer, 8:00 in winter.
+  schedule:
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+    inputs:
+      refresh:
+        description: Also rewrite the body of the issues already opened
+        type: boolean
+        default: false
+
+concurrency:
+  group: sentry-issues
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  sync:
+    name: Open GitHub issues for new Sentry issues
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      SENTRY_API_TOKEN: ${{ secrets.SENTRY_API_TOKEN }}
+      SENTRY_ORG: moox
+      SENTRY_PROJECT: hide-the-notch
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+
+      - name: Sync
+        run: node tools/sentry-issues.cjs ${{ inputs.refresh && '--refresh' || '' }}

@@ -267,6 +267,7 @@ Actions*:
 | `MATCH_PASSWORD` | Secrets | match passphrase |
 | `SECRETS_PASSPHRASE` | Secrets | passphrase for the `secrets/` directory of the certificates repository |
 | `SENTRY_AUTH_TOKEN` | Secrets | organisation token from sentry.io, Settings, Auth Tokens. Its one scope, `org:ci`, is not a choice and is the right one. Source map upload only: without it, builds pass and crash reports arrive minified |
+| `SENTRY_API_TOKEN` | Secrets | personal token from sentry.io, User Settings, Personal Tokens, with `project:read` and `event:read` only. Read by `sentry-issues.yml`, which opens a GitHub issue for each new Sentry issue every morning; without it the workflow does nothing |
 | `APPLE_TEAM_ID` | Variables | developer.apple.com, Membership |
 
 Creating the deploy key is covered in `docs/03-sharing-access.md` of the

@@ -98,8 +98,18 @@ proportions the icon has on iOS. There is no second recipe left to forget.
 Nothing new is invented in that margin, and nothing stops at the edge of the
 visible square either, because a launcher can slide the layers apart and would
 show the ends: the gradient runs on in the colour the ramp would have reached,
-the guides keep going at the same spacing, the band runs off both sides at the
-depth it has where the square cuts it.
+the guides keep going at the same spacing, and the band runs off all four sides
+of the canvas.
+
+The band runs off them as one path, its own outer edges moved out, rather than
+as rectangles butted against the drawing. Two shapes that meet on a line falling
+between pixels each take a part of that pixel and composite to less than one,
+and the line here is the edge of the visible square, which is exactly where a
+circular mask touches it: the seam read as a pale hairline down both sides of
+the round icon. One path is also what lets the sides run past the depth the
+drawing stops at. A drawing can end; a layer a launcher slides and scales
+cannot, and a side that stopped two fifths of the way down the canvas would show
+its own cut end travelling through the mask.
 
 The band is deliberately not in the monochrome layer. A themed icon is cut from
 that layer's alpha and repainted in one colour of the system's choosing, so half

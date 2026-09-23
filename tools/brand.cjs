@@ -157,24 +157,38 @@ function markBlock(side, fill) {
 // --- the icon ---------------------------------------------------------------
 
 /**
- * The band, exactly as it was drawn in Sketch.
+ * The band, exactly as it was drawn in Sketch, out to whatever edges it is
+ * given.
  *
  * Not a rounded rectangle. Its bottom corners turn **downwards** at the screen
  * edges and it rises in the middle, which is the app's own first family: black
  * that curves up at the edges reads as a card lying on the artwork, black that
- * curves down reads as the panel it is. The shape overflows the square by 35
- * units on each side and starts 48 above it, so what the icon mask keeps is the
- * middle of a band drawn for something wider.
+ * curves down reads as the panel it is. The square sits at (35, 48) in these
+ * coordinates, so the shape as Sketch drew it overflows the square by 35 units
+ * on each side and starts 48 above it: what the icon mask keeps is the middle
+ * of a band drawn for something wider.
  *
- * Kept as the path it came as, scaled, rather than rebuilt from numbers. The
- * arc is a hair off a true quarter circle, the two ends are a thousandth of a
- * unit apart, and every one of those accidents is what makes it that drawing
- * and not a reconstruction of it.
+ * The middle is the drawing and never moves. Everything between `L547,...` and
+ * `...,35` below is the path it came as, scaled, rather than rebuilt from
+ * numbers: the arc is a hair off a true quarter circle, the two ends are a
+ * thousandth of a unit apart, and every one of those accidents is what makes it
+ * that drawing and not a reconstruction of it.
+ *
+ * What the four edges do move is where the band *stops*, which on the Android
+ * canvas is not where Sketch put it. Pushed out to the canvas, one path covers
+ * the icon and its margin both, which is the whole trick: the margin is the
+ * same band run further, not a second shape butted against the first. Two
+ * shapes meeting on a line that falls between pixels each take part of it and
+ * composite to less than one, which is a pale hairline down the seam, and that
+ * seam would land exactly on the edge of the visible square, where a circular
+ * mask touches it.
  */
-const BAND = `M582,0 L582,214 L547,214 L547,212.000779
+function bandPath({ left, top, right, bottom }) {
+  return `M${n(right)},${n(top)} L${n(right)},${n(bottom)} L547,${n(bottom)} L547,212.000779
   C547,138.740311 499.9552,90.9626061 427.212178,90.0143781
   L425,90 L157,90 C83,90 35,138.000306 35,212.000779
-  L35,214 L0,214 L0,0 L582,0 Z`;
+  L35,${n(bottom)} L${n(left)},${n(bottom)} L${n(left)},${n(top)} Z`;
+}
 
 /**
  * The icon, in one of two tellings.
@@ -198,45 +212,34 @@ function icon(side, opts = {}) {
 /**
  * The band, over a square of `side`.
  *
- * `bleed` runs it that many units past the square on three sides, changing
+ * `bleed` runs it that many units past the square on all four sides, changing
  * nothing inside it. That is the Android margin being filled: a launcher that
  * crops or slides the foreground layer finds the band still there rather than
  * the end of it.
  *
- * The numbers below are read off the path above, in its own coordinates: the
- * square sits at (35, 48) in them, the band's straight lower edge is at y = 90,
- * and where the square cuts its sides it is at its lowest, y = 214.
+ * Filled by moving the band's own outer edges out to the canvas, not by drawing
+ * anything beside it. The drawing's edges sit 35 units from the square and the
+ * margin is nearer 128, so the path as Sketch left it would put a rail of black
+ * either side of the icon and then stop, which is a pair of ears. Run out to
+ * the canvas instead, it is one band across something wider, which is what it
+ * has always been a crop of.
+ *
+ * Out to the canvas on the way down as well, past the y = 214 the rails stop at
+ * in the original. That depth is the bottom of the drawing, and a drawing can
+ * end; a layer a launcher slides and scales cannot, and a rail that stopped two
+ * fifths of the way down the canvas would show its own cut end travelling
+ * through the mask. Nothing of this is visible at rest: a mask keeps the inner
+ * 72 and the margin is the part only an animation ever uncovers.
  */
 function band(side, { alpha = 0.5, bleed = 0 } = {}) {
   const k = side / 512;
   const b = bleed / k;
-  // With a margin to spill into, the band is clipped to the square and the
-  // margin is filled with what the band *is* at each edge, rather than with
-  // more of the drawing. The band is drawn for something wider than the icon
-  // and ends out there in two rails, which inside a square icon are cut off by
-  // the frame; on the Android canvas there is no frame until the launcher's
-  // mask, so those rails would show as a pair of ears in the margin.
-  //
-  // What continues instead: the solid top across the whole width, and at each
-  // side the depth the band has where the square cuts it, which is the whole
-  // 214 since the shape is at its lowest exactly there. So the band runs off
-  // both sides, the way a band across a screen does, and the only edge left in
-  // the canvas is at the canvas edge, where nothing can reach it.
-  const sides = [35 - b, 547].map(
-    (x) =>
-      `<rect x="${n(x)}" y="${n(48 - b)}" width="${n(b)}" height="${n(166 + b)}" fill="#000000"/>`,
-  );
-  const shape =
-    bleed > 0
-      ? `<defs><clipPath id="band"><rect x="35" y="48" width="512" height="512"/></clipPath></defs>` +
-        `<rect x="${n(35 - b)}" y="${n(48 - b)}" width="${n(512 + 2 * b)}" height="${n(42 + b)}" fill="#000000"/>` +
-        sides.join("") +
-        `<g clip-path="url(#band)"><path d="${BAND}" fill="#000000"/></g>`
-      : `<path d="${BAND}" fill="#000000"/>`;
-  // One group at half opacity rather than each shape at half of its own:
-  // overlapping them individually would darken the seam.
+  // One group at half opacity rather than the path at half of its own: a group
+  // is composited once, so nothing inside it can overlap itself into a darker
+  // seam. It is also why the whole band has to be one path.
   return `<g opacity="${alpha}" transform="scale(${k.toFixed(6)}) translate(-35,-48)">
-           ${shape}
+           <path d="${bandPath({ left: 35 - b, top: 48 - b, right: 547 + b, bottom: 560 + b })}"
+                 fill="#000000"/>
          </g>`;
 }
 

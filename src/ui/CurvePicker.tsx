@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Canvas, Path, Skia } from "@shopify/react-native-skia";
-import * as Haptics from "expo-haptics";
+import { tick } from "./haptics";
 
 import { t } from "../i18n";
 import { Caption } from "./Caption";
@@ -69,7 +69,7 @@ export function CurvePicker({
               style={[styles.cell, on && styles.cellOn]}
               onPress={() => {
                 if (id !== value) {
-                  void Haptics.selectionAsync();
+                  tick();
                   onChange(id);
                 }
               }}

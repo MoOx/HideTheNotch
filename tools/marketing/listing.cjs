@@ -115,10 +115,14 @@ function main() {
       const value = copy[field];
       if (typeof value !== "string" || value.trim() === "") {
         problems.push(`${locale}: ${field} is missing`);
-      } else if ([...value].length > limit) {
-        problems.push(
-          `${locale}: ${what} is ${[...value].length} characters, the limit is ${limit}`,
-        );
+      } else {
+        // Code points on purpose: the stores count an accented letter or a
+        // Japanese character as one, which `.length` would not always do.
+        // oxlint-disable-next-line typescript/no-misused-spread
+        const length = [...value].length;
+        if (length > limit) {
+          problems.push(`${locale}: ${what} is ${length} characters, the limit is ${limit}`);
+        }
       }
     }
   }

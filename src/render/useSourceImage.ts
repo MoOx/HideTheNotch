@@ -146,7 +146,10 @@ export function useSourceImage(uri: string | null): SourceImage {
     let live = true;
     setState({ image: null, error: null, loading: true });
 
-    (async () => {
+    // Nothing escapes this: every failure lands in the catch below and becomes
+    // `error`, which App reports as photo.open and shows. `void` says so.
+    // oxlint-disable-next-line typescript/no-floating-promises
+    void (async () => {
       try {
         const { image, bytes } = await load(uri);
         if (!live) {

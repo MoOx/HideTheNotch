@@ -27,6 +27,15 @@
     "typescript/no-non-null-assertion": "error",
     "eslint/no-unused-vars": "error",
 
+    // A promise nobody handles is a failure nobody hears about: the photo
+    // picker and the support sheet's links each failed on a real phone with
+    // the tap doing nothing, and `void` in front of the call is what made that
+    // look deliberate. So `void` does not count as handling. A promise either
+    // ends in a catch (usually `fail()` or `report()` from src/report.ts), or
+    // says in a comment why its failure cannot matter. Needs type information,
+    // hence `--type-aware` in the lint script.
+    "typescript/no-floating-promises": ["error", { "ignoreVoid": false }],
+
     // The automatic JSX transform means React is never in scope, and the
     // gesture builders (`Gesture.Pan()`) are capitalised calls that are not
     // components.

@@ -297,7 +297,7 @@ function referenced() {
   // And the other direction: an image the app asks for that is not in the
   // table is an image with no source.
   console.log("\n-- app.json points at drawn files only --\n");
-  for (const file of [...referenced()].sort()) {
+  for (const file of [...referenced()].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))) {
     const ok = drawn.has(file);
     if (!ok) {
       failures += 1;

@@ -14,7 +14,7 @@ import * as SplashScreen from "expo-splash-screen";
 import * as ImagePicker from "expo-image-picker";
 import * as Sharing from "expo-sharing";
 import { File, Paths } from "expo-file-system";
-import * as Haptics from "expo-haptics";
+import { tick, success } from "./src/ui/haptics";
 
 import type { DemoSheet } from "./src/demo/script";
 import { PHOTO_FRAMING, SHEET_SETTLE, SHOTS, type Shot } from "./src/demo/shots";
@@ -42,7 +42,7 @@ import {
 import { presetSource } from "./src/render/palettes";
 import { describeContext, renderToFile, saveToPhotos } from "./src/render/export";
 import { useSourceImage } from "./src/render/useSourceImage";
-import { fail, reportGeometry } from "./src/report";
+import { fail, report, reportGeometry } from "./src/report";
 import { ADJUST, adjustStep } from "./src/ui/a11y";
 import { BUTTON, CornerButton } from "./src/ui/CornerButton";
 import { familyLabel, t, tp } from "./src/i18n";
@@ -275,7 +275,8 @@ function Editor() {
     }
     shown.current = true;
     requestAnimationFrame(() => {
-      void SplashScreen.hideAsync();
+      // A launch image that will not go is the whole app hidden behind it.
+      SplashScreen.hideAsync().catch((e: unknown) => report("splash.hide", e));
       launchT.value = withTiming(0, SWEEP);
     });
   }, [launchT]);
@@ -353,7 +354,7 @@ function Editor() {
       const notch = Math.round(v * 10);
       if (notch !== paramNotch.current) {
         paramNotch.current = notch;
-        void Haptics.selectionAsync();
+        tick();
       }
       setMask(controlRef.current.apply(v));
     },
@@ -363,7 +364,7 @@ function Editor() {
     setFamily((prev) => {
       const next = FAMILY_ORDER[i];
       if (prev !== next) {
-        void Haptics.selectionAsync();
+        tick();
       }
       return next;
     });
@@ -656,7 +657,9 @@ function Editor() {
     const timer = setTimeout(() => {
       setPending(null);
       if (pending === "photo") {
-        void pickPhoto();
+        // The picker itself is caught inside; this is the permission request
+        // before it, which can reject too.
+        pickPhoto().catch((e: unknown) => fail("photo.open", e, t("photoFailed")));
       } else if (pending === "support") {
         setSupportOpen(true);
       } else {
@@ -795,7 +798,9 @@ function Editor() {
   }, [play]);
 
   useEffect(() => {
-    void Linking.getInitialURL().then(play);
+    Linking.getInitialURL()
+      .then(play)
+      .catch((e: unknown) => report("link.initial", e));
     const sub = Linking.addEventListener("url", (e) => play(e.url));
     return () => sub.remove();
   }, [play]);
@@ -805,7 +810,7 @@ function Editor() {
     const outcome = await saveToPhotos(ctx);
     setBusy(false);
     if (outcome.ok) {
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      success();
       setExportOpen(false);
       Alert.alert(
         t("saved"),

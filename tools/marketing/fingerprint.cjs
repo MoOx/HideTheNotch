@@ -57,7 +57,8 @@ function meaningful(source) {
 
 function fingerprint() {
   const hash = crypto.createHash("sha256");
-  for (const file of WATCHED.flatMap(files).sort()) {
+  // Code unit order, which is what a bare sort() gave: the hash depends on it.
+  for (const file of WATCHED.flatMap(files).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))) {
     hash.update(file);
     hash.update(meaningful(fs.readFileSync(path.join(ROOT, file), "utf8")));
   }

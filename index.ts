@@ -3,6 +3,7 @@ import * as SplashScreen from "expo-splash-screen";
 import * as Sentry from "@sentry/react-native";
 
 import App from "./App";
+import { report } from "./src/report";
 
 /**
  * Crash reporting, and deliberately nothing else.
@@ -120,7 +121,9 @@ function scrub(value: unknown): unknown {
 // is the app's own aurora gradient drawn by the same code: the gradient stays
 // where it is, and what changes across the fade is the black arriving at the
 // top, the marks going, and the controls sliding in from the edges.
-SplashScreen.preventAutoHideAsync();
+// Reported rather than ignored: a refusal here means the launch image goes
+// before the first frame is painted, which is a flash nobody would describe.
+SplashScreen.preventAutoHideAsync().catch((e: unknown) => report("splash.hold", e));
 SplashScreen.setOptions({ duration: 450, fade: true });
 
 // registerRootComponent calls AppRegistry.registerComponent('main', () => App);

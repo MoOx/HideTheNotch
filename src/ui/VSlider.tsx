@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { SymbolView, type SFSymbol } from "expo-symbols";
-import * as Haptics from "expo-haptics";
+import { tick } from "./haptics";
 
 import { ADJUST, adjustStep } from "./a11y";
 import { Caption } from "./Caption";
@@ -95,7 +95,7 @@ export function VSlider({ value, onChange, label, symbol, readout, height = SLID
           const notch = Math.round(v * 10);
           if (notch !== lastNotch.current) {
             lastNotch.current = notch;
-            void Haptics.selectionAsync();
+            tick();
           }
           onChangeRef.current(v);
         })

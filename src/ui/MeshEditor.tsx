@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { SymbolView, type SFSymbol } from "expo-symbols";
-import * as Haptics from "expo-haptics";
+import { bump, ImpactFeedbackStyle } from "./haptics";
 
 import { cutoutBottom, type Geometry } from "../geometry/devices";
 import { MESH_MAX, type MeshPoint } from "../recipe/types";
@@ -165,7 +165,7 @@ export function MeshEditor({
     if (points.length >= MESH_MAX) {
       return;
     }
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    bump(ImpactFeedbackStyle.Light);
     // Where the eye is, not where the maths is: the middle of the screen is
     // both the least likely place to already hold a point and the place the
     // thumb is already near.
@@ -178,7 +178,7 @@ export function MeshEditor({
     if (menuFor === null || points.length <= 2) {
       return;
     }
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    bump(ImpactFeedbackStyle.Medium);
     onChange(points.filter((_, i) => i !== menuFor));
     setMenuFor(null);
     onSelect(null);
@@ -199,7 +199,7 @@ export function MeshEditor({
 
   const openMenu = useCallback(
     (i: number) => {
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      bump(ImpactFeedbackStyle.Medium);
       onSelect(i);
       setMenuFor(i);
     },

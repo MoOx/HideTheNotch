@@ -2,11 +2,14 @@ appId: ${APP_ID}
 ---
 - runFlow: subflows/start.yaml
 # Import a photo through the system picker, which HEIC and iCloud have broken
-# before. The simulator's library ships sample photos, named "Photo, <date>".
+# before. A fresh emulator has an empty library, so tools/e2e.sh adds one
+# first: the same cat the store captures use (see shotPhoto in App.tsx).
 - tapOn: "Wallpaper"
 - tapOn: "Choose a photo"
+# iOS names a picker cell "Photo, <date>", Android "Photo taken on <date>".
+# Not "Photo.*": that also matches the iOS picker's "Photos" tab.
 - tapOn:
-    text: "Photo, .*"
+    text: "Photo(,| taken on) .*"
     index: 0
 - assertNotVisible: "That photo could not be opened"
 # The source sheet says the photo is the one in use.

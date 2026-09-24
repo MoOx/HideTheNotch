@@ -6,7 +6,17 @@ appId: ${APP_ID}
     element: "Support"
 - tapOn: "Support"
 - assertVisible: "Email support"
-- tapOn: "Email support"
-- assertVisible: "That link could not be opened"
-- assertVisible: "apps+hide-the-notch@moox.io"
-- tapOn: "OK"
+- assertVisible: "App website"
+- assertVisible: "Improve the translation"
+# A link the phone refuses to open must say so rather than do nothing, which
+# is what it did on a real phone (Sentry HIDE-THE-NOTCH-5G, 5H and 5J). The iOS
+# simulator has no Mail app, so there mailto is refused every time; an Android
+# emulator has one, and the link simply opens.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn: "Email support"
+      - assertVisible: "That link could not be opened"
+      - assertVisible: "apps+hide-the-notch@moox.io"
+      - tapOn: "OK"

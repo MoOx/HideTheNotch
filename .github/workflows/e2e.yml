@@ -1,7 +1,15 @@
 name: End to end
 
-# The release build, started on a simulator and an emulator and driven through
-# what the app is for: the Maestro flows in .maestro/, run by tools/e2e.sh.
+# The release build, started on a simulator and driven through what the app is
+# for: the Maestro flows in .maestro/, run by tools/e2e.sh.
+#
+# iOS only. Android is run locally with `npm run e2e:android`, on an emulator
+# booted with `-gpu host`: the hosted Linux runners have no GPU, the emulator
+# then renders in software (SwiftShader), and one frame of the wallpaper at
+# 1080 x 2400 takes about five seconds. The app is declared not responding
+# before a flow can finish. No phone renders without a GPU, so that is the
+# runner's limit and not the app's, and a job that always fails for it would
+# only teach everybody to ignore it.
 #
 # Everything else in CI proves that the code compiles, bundles and draws the
 # right pixels, and none of it starts the app. This is the job that notices a
@@ -66,61 +74,5 @@ jobs:
         if: failure()
         with:
           name: e2e-ios
-          path: ~/.maestro/tests
-          retention-days: 7
-
-  android:
-    name: Android emulator
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[e2e]')
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version-file: .node-version
-          cache: npm
-          cache-dependency-path: package-lock.json
-      - run: npm ci
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Build the APK
-        run: tools/marketing/build-android.sh
-
-      - name: Maestro
-        run: |
-          curl -fsSL -o maestro.zip \
-            "https://github.com/mobile-dev-inc/maestro/releases/download/cli-$MAESTRO_VERSION/maestro.zip"
-          unzip -q maestro.zip -d "$HOME"
-          echo "$HOME/maestro/bin" >> "$GITHUB_PATH"
-
-      # The emulator needs KVM, which is available on the hosted Linux runners
-      # once the device node is world writable.
-      - name: Enable KVM
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
-            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-
-      - name: Flows
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 34
-          target: google_apis
-          arch: x86_64
-          profile: pixel_6
-          disable-animations: true
-          # One line: the action hands each line to `sh -c` on its own.
-          script: tools/e2e.sh android
-
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: e2e-android
           path: ~/.maestro/tests
           retention-days: 7

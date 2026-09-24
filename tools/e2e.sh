@@ -3,6 +3,13 @@
 # Runs the Maestro flows in .maestro/ against a release build on a simulator
 # or an emulator that is already booted.
 #
+# Boot an Android emulator with the host GPU:
+#
+#   emulator -avd htn-pixel -gpu host
+#
+# Without it the emulator renders in software, a frame of the wallpaper takes
+# seconds, and Android kills the app as not responding before a flow ends.
+#
 #   tools/e2e.sh ios        # installs the last iOS simulator build
 #   tools/e2e.sh android    # installs the last release APK
 #   HTN_APP=path/to/HideTheNotch.app tools/e2e.sh ios
@@ -34,6 +41,11 @@ if ! command -v maestro >/dev/null; then
   exit 1
 fi
 
+# The photo flow picks from the library, and a fresh emulator's is empty. The
+# flow cannot bring it itself: Maestro reads nothing outside .maestro/, links
+# included, and a second copy of the asset is a second thing to keep in step.
+PHOTO="$ROOT/assets/demo-photo.jpg"
+
 case "$PLATFORM" in
   ios)
     APP_ID=io.moox.HideTheNotch
@@ -43,6 +55,7 @@ case "$PLATFORM" in
       exit 1
     fi
     xcrun simctl install booted "$APP"
+    xcrun simctl addmedia booted "$PHOTO"
     ;;
   android)
     APP_ID=io.moox.hidethenotch
@@ -52,6 +65,9 @@ case "$PLATFORM" in
       exit 1
     fi
     adb install -r "$APK" >/dev/null
+    adb push "$PHOTO" /sdcard/Pictures/demo-photo.jpg >/dev/null
+    adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE \
+      -d file:///sdcard/Pictures/demo-photo.jpg >/dev/null
     ;;
   *)
     echo "usage: tools/e2e.sh ios|android [flow...]" >&2

@@ -7,10 +7,14 @@ name: Sentry issues
 # so this polls it instead.
 #
 # No state is stored: the Sentry short id (HIDE-THE-NOTCH-1A) is in the GitHub
-# title, and an issue carrying the `sentry` label with that id in its title,
-# open or closed, means it has been handled. Closing the GitHub issue does not
-# resolve the Sentry one; resolve it there, or with `Fixes HIDE-THE-NOTCH-1A`
-# in a commit message.
+# title, and an issue carrying the `sentry` label with that id in its title
+# means it has been handled. Closing the GitHub issue does not resolve the
+# Sentry one; resolve it there by hand.
+#
+# A fix that did not hold comes back in Sentry under the same short id. So a
+# closed issue whose Sentry twin is unresolved and has been seen since the
+# closing is reopened, with the new event as a comment rather than over the
+# body, which keeps the history in the thread.
 #
 # The work is in `tools/sentry-issues.cjs`, which says what an issue carries.
 # Run it by hand with `refresh` ticked to rewrite the existing issues after

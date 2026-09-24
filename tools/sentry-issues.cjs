@@ -156,55 +156,68 @@ function breadcrumbs(event) {
 
 // --- body -------------------------------------------------------------------
 
-function body(issue, event) {
-  const tags = Object.fromEntries((event?.tags || []).map((t) => [t.key, t.value]));
-  const contexts = event?.contexts || {};
-  const { screen, ...otherContexts } = contexts;
-  const extra = event?.context && Object.keys(event.context).length ? event.context : null;
-  const message = entry(event || {}, "message");
+const tagsOf = (event) => Object.fromEntries((event?.tags || []).map((t) => [t.key, t.value]));
+
+function summary(issue, event) {
+  const tags = tagsOf(event);
+  return table([
+    ["Level", issue.level],
+    ["Where", issue.culprit && `\`${issue.culprit.replace(/`/g, "'")}\``],
+    ["Tag `where`", tags.where],
+    ["Release", tags.release],
+    ["Events", issue.count],
+    ["Users", issue.userCount],
+    ["First seen", issue.firstSeen],
+    ["Last seen", issue.lastSeen],
+  ]);
+}
+
+function latest(issue, event) {
+  if (!event) return ["_The latest event could not be fetched; see Sentry._"];
+  const tags = tagsOf(event);
+  const { screen, ...otherContexts } = event.contexts || {};
+  const extra = event.context && Object.keys(event.context).length ? event.context : null;
+  const message = entry(event, "message");
 
   const sections = [
-    `**Sentry:** [${issue.shortId}](${issue.permalink})`,
-    table([
-      ["Level", issue.level],
-      ["Where", issue.culprit && `\`${issue.culprit.replace(/`/g, "'")}\``],
-      ["Tag `where`", tags.where],
-      ["Release", tags.release],
-      ["Events", issue.count],
-      ["Users", issue.userCount],
-      ["First seen", issue.firstSeen],
-      ["Last seen", issue.lastSeen],
-    ]),
+    `## Latest event\n\n[${event.eventID}](${issue.permalink}events/${event.eventID}/), ${event.dateCreated}`,
   ];
-
-  if (!event) {
-    sections.push("_The latest event could not be fetched; see Sentry._");
-  } else {
-    sections.push(
-      `## Latest event\n\n[${event.eventID}](${issue.permalink}events/${event.eventID}/), ${event.dateCreated}`,
-    );
-    if (message?.formatted) sections.push(fence(message.formatted));
-    const exc = exceptions(event);
-    if (exc) sections.push(exc);
-    if (screen) {
-      const { type: _type, ...rest } = screen;
-      sections.push(`## Screen\n\n${table(Object.entries(rest))}`);
-    }
-    if (extra) sections.push(`## Extra\n\n${json(extra)}`);
-    sections.push(`## Tags\n\n${table(Object.entries(tags))}`);
-    if (Object.keys(otherContexts).length) sections.push(details("Contexts", json(otherContexts)));
-    const crumbs = breadcrumbs(event);
-    if (crumbs) sections.push(crumbs);
+  if (message?.formatted) sections.push(fence(message.formatted));
+  sections.push(exceptions(event));
+  if (screen) {
+    const { type: _type, ...rest } = screen;
+    sections.push(`## Screen\n\n${table(Object.entries(rest))}`);
   }
+  if (extra) sections.push(`## Extra\n\n${json(extra)}`);
+  sections.push(`## Tags\n\n${table(Object.entries(tags))}`);
+  if (Object.keys(otherContexts).length) sections.push(details("Contexts", json(otherContexts)));
+  sections.push(breadcrumbs(event));
+  return sections;
+}
 
-  sections.push(
-    `---\nOpened by \`tools/sentry-issues.cjs\`. Resolve it in Sentry, or with \`Fixes ${issue.shortId}\` in a commit message.`,
-  );
-
+function cap(sections) {
   const text = sections.filter(Boolean).join("\n\n");
   return text.length > MAX_BODY
     ? `${text.slice(0, MAX_BODY)}\n\n_Truncated, the rest is in Sentry._`
     : text;
+}
+
+function body(issue, event) {
+  return cap([
+    `**Sentry:** [${issue.shortId}](${issue.permalink})`,
+    summary(issue, event),
+    ...latest(issue, event),
+    `---\nOpened by \`tools/sentry-issues.cjs\`. Once fixed, close it here and resolve it in Sentry. If it comes back, it is reopened here with a comment.`,
+  ]);
+}
+
+/** Posted when a closed issue comes back, so the thread keeps its history. */
+function comment(issue, event) {
+  return cap([
+    `**Back in Sentry**, last seen ${issue.lastSeen}.`,
+    summary(issue, event),
+    ...latest(issue, event),
+  ]);
 }
 
 // --- sync -------------------------------------------------------------------
@@ -242,18 +255,22 @@ async function main() {
         "--limit",
         "1000",
         "--json",
-        "number,title",
+        "number,title,state,closedAt",
       ]),
     );
-    for (const { number, title } of listed) {
-      const id = title.match(/^\[([A-Z0-9-]+)\]/)?.[1];
-      if (id) known.set(id, number);
+    for (const gi of listed) {
+      const id = gi.title.match(/^\[([A-Z0-9-]+)\]/)?.[1];
+      if (id) known.set(id, gi);
     }
   }
 
   for (const issue of issues) {
-    const number = known.get(issue.shortId);
-    if (number && !REFRESH) continue;
+    const gi = known.get(issue.shortId);
+    // Closed here but unresolved in Sentry, with an event after the closing:
+    // it came back. Closed with nothing since means it was closed here and not
+    // yet resolved in Sentry, which is not news.
+    const back = gi?.state === "CLOSED" && new Date(issue.lastSeen) > new Date(gi.closedAt ?? 0);
+    if (gi && !back && !REFRESH) continue;
 
     let event = null;
     try {
@@ -261,18 +278,22 @@ async function main() {
     } catch (err) {
       console.log(`::warning::${issue.shortId}: ${err.message}`);
     }
-    const text = body(issue, event);
 
     if (DRY) {
-      console.log(`\n===== ${issue.shortId}${number ? ` (#${number})` : ""}\n\n${text}`);
-    } else if (number) {
-      gh(["issue", "edit", String(number), "--body-file", "-"], text);
-      console.log(`${issue.shortId}: refreshed #${number}`);
+      const text = back ? comment(issue, event) : body(issue, event);
+      console.log(`\n===== ${issue.shortId}${gi ? ` (#${gi.number})` : ""}\n\n${text}`);
+    } else if (back) {
+      gh(["issue", "reopen", String(gi.number)]);
+      gh(["issue", "comment", String(gi.number), "--body-file", "-"], comment(issue, event));
+      console.log(`${issue.shortId}: back, reopened #${gi.number}`);
+    } else if (gi) {
+      gh(["issue", "edit", String(gi.number), "--body-file", "-"], body(issue, event));
+      console.log(`${issue.shortId}: refreshed #${gi.number}`);
     } else {
       const title = `[${issue.shortId}] ${issue.title}`.slice(0, 250);
       const url = gh(
         ["issue", "create", "--label", LABEL, "--title", title, "--body-file", "-"],
-        text,
+        body(issue, event),
       ).trim();
       console.log(`${issue.shortId}: opened ${url}`);
     }

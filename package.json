@@ -20,6 +20,8 @@
     "format:check": "oxfmt --check",
     "ios": "expo run:ios",
     "lint": "oxlint --type-aware",
+    "e2e:ios": "tools/e2e.sh ios",
+    "e2e:android": "tools/e2e.sh android",
     "doctor": "tools/fastlane.sh doctor",
     "bundle:android": "tools/fastlane.sh android bundle",
     "codes:android": "tools/fastlane.sh android codes",

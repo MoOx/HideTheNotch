@@ -1,0 +1,126 @@
+name: End to end
+
+# The release build, started on a simulator and an emulator and driven through
+# what the app is for: the Maestro flows in .maestro/, run by tools/e2e.sh.
+#
+# Everything else in CI proves that the code compiles, bundles and draws the
+# right pixels, and none of it starts the app. This is the job that notices a
+# launch image that never goes, a tap that does nothing, or a crash on export.
+#
+# Not on every push: the iOS half is a macOS runner and a full native build.
+# Run it before a release, by hand or with `[e2e]` in the commit message
+# (`workflow_dispatch` cannot be triggered from a branch that is not the
+# default one, hence the marker, like the other workflows here).
+on:
+  workflow_dispatch:
+  push:
+    branches: ["**"]
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pinned: a flow that passes today should not fail tomorrow because the tool
+  # changed underneath it. Bump by hand, after running the flows locally.
+  MAESTRO_VERSION: 2.10.0
+
+jobs:
+  ios:
+    name: iOS simulator
+    runs-on: macos-latest
+    timeout-minutes: 60
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[e2e]')
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+
+      - name: Build
+        run: tools/marketing/build-ios-sim.sh
+
+      - name: Maestro
+        run: |
+          curl -fsSL -o maestro.zip \
+            "https://github.com/mobile-dev-inc/maestro/releases/download/cli-$MAESTRO_VERSION/maestro.zip"
+          unzip -q maestro.zip -d "$HOME"
+          echo "$HOME/maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Boot a simulator
+        run: |
+          udid=$(xcrun simctl list devices available -j \
+            | jq -r '[.devices | to_entries[] | select(.key | test("iOS")) | .value[]
+                     | select(.name | test("^iPhone .* Pro$"))] | last | .udid')
+          echo "Booting $udid"
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+
+      - name: Flows
+        run: tools/e2e.sh ios
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-ios
+          path: ~/.maestro/tests
+          retention-days: 7
+
+  android:
+    name: Android emulator
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[e2e]')
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Build the APK
+        run: tools/marketing/build-android.sh
+
+      - name: Maestro
+        run: |
+          curl -fsSL -o maestro.zip \
+            "https://github.com/mobile-dev-inc/maestro/releases/download/cli-$MAESTRO_VERSION/maestro.zip"
+          unzip -q maestro.zip -d "$HOME"
+          echo "$HOME/maestro/bin" >> "$GITHUB_PATH"
+
+      # The emulator needs KVM, which is available on the hosted Linux runners
+      # once the device node is world writable.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Flows
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          # One line: the action hands each line to `sh -c` on its own.
+          script: tools/e2e.sh android
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-android
+          path: ~/.maestro/tests
+          retention-days: 7

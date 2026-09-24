@@ -1,0 +1,11 @@
+appId: ${APP_ID}
+---
+- runFlow: subflows/start.yaml
+# The one thing the app is for: render the wallpaper at native resolution and
+# write it to the library.
+- tapOn: "Export"
+- tapOn: "Save to Photos"
+- extendedWaitUntil:
+    visible: "Saved"
+    timeout: 20000
+- tapOn: "OK"

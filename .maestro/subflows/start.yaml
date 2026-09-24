@@ -1,0 +1,22 @@
+# A fresh launch, in English, with photo access already granted, and the one
+# thing every flow depends on: the launch image gives way to the interface.
+#
+# The app holds the launch image itself and hides it one frame after its
+# first layout (see index.ts and revealApp in App.tsx). A launch image that
+# stays is the whole app hidden behind it, so this waits for the interface
+# explicitly, and generously: a cold start on a busy simulator has been seen
+# to take well over the default wait, and that is not the bug being looked for.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+    permissions:
+      photos: allow
+    # iOS reads these as launch arguments; Android ignores them and takes the
+    # emulator's own language, which the CI image sets to English.
+    arguments:
+      AppleLanguages: "(en)"
+      AppleLocale: en_US
+- extendedWaitUntil:
+    visible: "Wallpaper"
+    timeout: 30000

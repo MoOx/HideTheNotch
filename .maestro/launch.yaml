@@ -1,0 +1,5 @@
+appId: ${APP_ID}
+---
+# The app starts, gets past its launch image, and shows both corner buttons.
+- runFlow: subflows/start.yaml
+- assertVisible: "Export"

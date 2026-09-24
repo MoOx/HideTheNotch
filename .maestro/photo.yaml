@@ -1,0 +1,14 @@
+appId: ${APP_ID}
+---
+- runFlow: subflows/start.yaml
+# Import a photo through the system picker, which HEIC and iCloud have broken
+# before. The simulator's library ships sample photos, named "Photo, <date>".
+- tapOn: "Wallpaper"
+- tapOn: "Choose a photo"
+- tapOn:
+    text: "Photo, .*"
+    index: 0
+- assertNotVisible: "That photo could not be opened"
+# The source sheet says the photo is the one in use.
+- tapOn: "Wallpaper"
+- assertVisible: "In use.*"

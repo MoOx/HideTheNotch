@@ -1,0 +1,26 @@
+appId: ${APP_ID}
+---
+- runFlow: subflows/start.yaml
+# The wallpaper pages slide like home screen pages: Fade, then Band, then
+# Blinds, and the slider on the right is named after the current one.
+#
+# Swipes are given explicit points and a short duration. XCTest presses before
+# it drags, and a finger held still for 150 ms is the long press that shows the
+# wallpaper without the interface, which wins the gesture race and pages
+# nothing.
+- assertVisible: "Fade"
+- swipe:
+    start: 80%, 40%
+    end: 15%, 40%
+    duration: 150
+- assertVisible: "Band"
+- swipe:
+    start: 80%, 40%
+    end: 15%, 40%
+    duration: 150
+- assertVisible: "Blinds"
+- swipe:
+    start: 15%, 40%
+    end: 80%, 40%
+    duration: 150
+- assertVisible: "Band"

@@ -555,18 +555,31 @@ function Editor() {
         return;
       }
     }
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      quality: 1,
-      exif: false,
-      // iPhones shoot HEIC, and the picker hands back the container untouched
-      // when the asset already is one. Skia has no HEIC decoder, so every photo
-      // taken with the phone failed to open. "Compatible" asks the system for a
-      // JPEG representation instead, which it transcodes itself, losslessly as
-      // far as we are concerned since quality stays at 1.
-      preferredAssetRepresentationMode:
-        ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
-    });
+    let res: ImagePicker.ImagePickerResult;
+    try {
+      res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        quality: 1,
+        exif: false,
+        // iPhones shoot HEIC, and the picker hands back the container untouched
+        // when the asset already is one. Skia has no HEIC decoder, so every photo
+        // taken with the phone failed to open. "Compatible" asks the system for a
+        // JPEG representation instead, which it transcodes itself, losslessly as
+        // far as we are concerned since quality stays at 1.
+        preferredAssetRepresentationMode:
+          ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
+      });
+    } catch (e) {
+      // The system can fail to produce that JPEG after the photo was chosen
+      // ("Cannot load representation of type public.jpeg", seen once, likely a
+      // photo only in iCloud or a phone short on memory). Uncaught, the picker
+      // closed on an unchanged screen and the report arrived untagged. Same
+      // outcome as a photo Skia cannot decode, so the same report and alert;
+      // the native message is for Sentry, not for the person holding the phone.
+      report("photo.open", e);
+      Alert.alert(t("photoFailed"));
+      return;
+    }
     if (!res.canceled && res.assets[0]) {
       setEditing(false);
       setSource({

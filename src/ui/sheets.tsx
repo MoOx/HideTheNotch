@@ -8,6 +8,7 @@ import { SymbolView, type SFSymbol } from "expo-symbols";
 
 import type { Geometry } from "../geometry/devices";
 import { locale, t, tp } from "../i18n";
+import { fail } from "../report";
 import type { GradientPresetId, Mask, MaskFamily, Source } from "../recipe/types";
 import { Row } from "./Row";
 import { supporting } from "./supporting";
@@ -148,6 +149,21 @@ const COMMIT = process.env.EXPO_PUBLIC_COMMIT ?? "dev";
 
 const SUPPORT_EMAIL = "apps+hide-the-notch@moox.io";
 const WEBSITE = "https://moox.io/apps/hide-the-notch";
+
+/**
+ * Opens a link, and says so when the phone will not.
+ *
+ * iOS refused all three of these once, `https` included, on a phone that most
+ * likely had Safari and Mail blocked by Screen Time. The taps did nothing. The
+ * alert gives the address in plain text, since typing it elsewhere is the one
+ * way left to reach it, and the report is how a failure that is not that rare
+ * after all would show itself.
+ */
+function open(url: string, shown: string) {
+  Linking.openURL(url).catch((e: unknown) => {
+    fail("link.open", e, t("linkFailed"), shown, { scheme: url.split(":")[0] });
+  });
+}
 
 /**
  * The three sheets, on the platform's own sheet and in the platform's own form.
@@ -412,21 +428,21 @@ export function SupportSheet({
       <FieldGroup style={CLEAR}>
         <FieldGroup.Section title={t("support")} modifiers={FIRST}>
           <Row
-            onPress={() => void Linking.openURL(mailto)}
+            onPress={() => open(mailto, SUPPORT_EMAIL)}
             leading={<Glyph icon="mail" />}
             supportingText={supporting(SUPPORT_EMAIL)}
           >
             {t("emailSupport")}
           </Row>
           <Row
-            onPress={() => void Linking.openURL(WEBSITE)}
+            onPress={() => open(WEBSITE, WEBSITE)}
             leading={<Glyph icon="web" />}
             supportingText={supporting(WEBSITE)}
           >
             {t("appWebsite")}
           </Row>
           <Row
-            onPress={() => void Linking.openURL(translationMailto)}
+            onPress={() => open(translationMailto, SUPPORT_EMAIL)}
             leading={<Glyph icon="translate" />}
             supportingText={supporting(t("improveTranslationHint"))}
           >

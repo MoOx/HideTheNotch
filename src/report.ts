@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/react-native";
+import { Alert } from "react-native";
 
 import type { Geometry } from "./geometry/devices";
 
@@ -26,6 +27,30 @@ export function report(where: string, cause: unknown, extra?: Record<string, unk
     tags: { where },
     extra,
   });
+}
+
+/**
+ * A failure the person saw: reported, and said.
+ *
+ * Every failure that follows a tap has two halves, and each was forgotten at
+ * least once. Without the report nobody here ever hears of it; without the
+ * alert the person gets a screen that ignored them. The photo picker lost the
+ * second half, the support sheet's links lost both, and in each case the tap
+ * simply did nothing. One call that does both is the only way to stop picking.
+ *
+ * `title` is what the person reads, so it is a translated string and never the
+ * error's own message, which is for Sentry. `detail` is for what they can act
+ * on, such as the address a link failed to open.
+ */
+export function fail(
+  where: string,
+  cause: unknown,
+  title: string,
+  detail?: string,
+  extra?: Record<string, unknown>,
+) {
+  report(where, cause, extra);
+  Alert.alert(title, detail);
 }
 
 /**

@@ -42,7 +42,7 @@ import {
 import { presetSource } from "./src/render/palettes";
 import { describeContext, renderToFile, saveToPhotos } from "./src/render/export";
 import { useSourceImage } from "./src/render/useSourceImage";
-import { report, reportGeometry } from "./src/report";
+import { fail, reportGeometry } from "./src/report";
 import { ADJUST, adjustStep } from "./src/ui/a11y";
 import { BUTTON, CornerButton } from "./src/ui/CornerButton";
 import { familyLabel, t, tp } from "./src/i18n";
@@ -300,8 +300,7 @@ function Editor() {
       // The message lists every path that was tried, which is what makes it
       // worth sending: the paths themselves are replaced on the way out, see
       // `beforeSend` in index.ts.
-      report("photo.open", imageError);
-      Alert.alert(t("photoFailed"), imageError);
+      fail("photo.open", imageError, t("photoFailed"), imageError);
       setSource(presetSource("aurora"));
     }
   }, [imageError]);
@@ -576,8 +575,7 @@ function Editor() {
       // closed on an unchanged screen and the report arrived untagged. Same
       // outcome as a photo Skia cannot decode, so the same report and alert;
       // the native message is for Sentry, not for the person holding the phone.
-      report("photo.open", e);
-      Alert.alert(t("photoFailed"));
+      fail("photo.open", e, t("photoFailed"));
       return;
     }
     if (!res.canceled && res.assets[0]) {
@@ -828,8 +826,13 @@ function Editor() {
         await Sharing.shareAsync(file.uri, { mimeType: "image/png" });
       }
     } catch (e) {
-      report("export.share", e, describeContext(ctx));
-      Alert.alert(t("shareFailed"), e instanceof Error ? e.message : String(e));
+      fail(
+        "export.share",
+        e,
+        t("shareFailed"),
+        e instanceof Error ? e.message : String(e),
+        describeContext(ctx),
+      );
     } finally {
       setBusy(false);
     }

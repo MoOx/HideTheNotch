@@ -77,6 +77,7 @@ export const en = {
   photoDeniedImport: "Allow access in Settings to import an image.",
   photoDeniedSave: "Allow access in Settings to save.",
   photoFailed: "That photo could not be opened",
+  linkFailed: "That link could not be opened",
   saved: "Saved",
   savedBodyIos:
     "{px} in your photos.\n\nSettings, then Wallpaper. Do not crop, and leave perspective zoom off.",
@@ -155,6 +156,7 @@ const fr: Table = {
   photoDeniedImport: "Autorisez l'accès dans Réglages pour importer une image.",
   photoDeniedSave: "Autorisez l'accès dans Réglages pour enregistrer.",
   photoFailed: "Cette photo n'a pas pu être ouverte",
+  linkFailed: "Ce lien n'a pas pu être ouvert",
   saved: "Enregistré",
   savedBodyIos:
     "{px} dans vos photos.\n\nRéglages, puis Fond d'écran. Ne recadrez pas, et laissez le zoom de perspective désactivé.",
@@ -230,6 +232,7 @@ const de: Table = {
   photoDeniedImport: "Erlaube den Zugriff in den Einstellungen, um ein Bild zu importieren.",
   photoDeniedSave: "Erlaube den Zugriff in den Einstellungen, um zu speichern.",
   photoFailed: "Dieses Foto konnte nicht geöffnet werden",
+  linkFailed: "Dieser Link konnte nicht geöffnet werden",
   saved: "Gespeichert",
   savedBodyIos:
     "{px} in deinen Fotos.\n\nEinstellungen, dann Hintergrundbild. Nicht zuschneiden und den Perspektiven-Zoom auslassen.",
@@ -305,6 +308,7 @@ const es: Table = {
   photoDeniedImport: "Permite el acceso en Ajustes para importar una imagen.",
   photoDeniedSave: "Permite el acceso en Ajustes para guardar.",
   photoFailed: "No se pudo abrir esta foto",
+  linkFailed: "No se pudo abrir este enlace",
   saved: "Guardado",
   savedBodyIos:
     "{px} en tus fotos.\n\nAjustes, luego Fondo de pantalla. No recortes y deja el zoom de perspectiva desactivado.",
@@ -379,6 +383,7 @@ const ja: Table = {
   photoDeniedImport: "画像を読み込むには「設定」でアクセスを許可してください。",
   photoDeniedSave: "保存するには「設定」でアクセスを許可してください。",
   photoFailed: "この写真を開けませんでした",
+  linkFailed: "このリンクを開けませんでした",
   saved: "保存しました",
   savedBodyIos:
     "{px} を写真に保存しました。\n\n「設定」から「壁紙」へ。トリミングはせず、遠近ズームはオフのままにしてください。",
@@ -451,6 +456,7 @@ const zhHans: Table = {
   photoDeniedImport: "请在“设置”中允许访问，以导入图片。",
   photoDeniedSave: "请在“设置”中允许访问，以进行存储。",
   photoFailed: "无法打开这张照片",
+  linkFailed: "无法打开此链接",
   saved: "已存储",
   savedBodyIos: "{px} 已存到你的照片。\n\n打开“设置”，再进入“墙纸”。不要裁剪，并关闭透视缩放。",
   savedBodyAndroid: "{px} 已存到你的相册。\n\n从那里将它设为壁纸，不要裁剪或缩放。",

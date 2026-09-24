@@ -41,7 +41,15 @@ export function renderToFile(ctx: DrawContext): ExportResult {
   drawRecipe(canvas, ctx);
   surface.flush();
 
-  const snapshot = surface.makeImageSnapshot();
+  // The snapshot of a GPU surface is a texture, and encoding a texture reads
+  // it back from the GPU piecemeal, on the GL context the UI thread draws
+  // with. On an Android emulator that took 272 s for one 1080 x 2400 PNG, and
+  // the UI thread, blocked on the same context, was killed as not responding;
+  // found by the Maestro export flow. One read back into memory first (about
+  // 100 ms there) and the encode is plain CPU work: 1 s, same bytes. If the
+  // copy is refused, the texture still encodes, only slowly.
+  const texture = surface.makeImageSnapshot();
+  const snapshot = texture.makeNonTextureImage() ?? texture;
   const bytes = snapshot.encodeToBytes(ImageFormat.PNG, 100);
   if (!bytes) {
     throw new Error("PNG encoding failed");

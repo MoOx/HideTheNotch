@@ -35,6 +35,10 @@
     // says in a comment why its failure cannot matter. Needs type information,
     // hence `--type-aware` in the lint script.
     "typescript/no-floating-promises": ["error", { "ignoreVoid": false }],
+    // And `void` is refused outright, because the rule above only looks at
+    // statements: `onPress={() => void open(url)}` is an arrow's return value,
+    // and that exact shape is how the support sheet's links went silent.
+    "eslint/no-void": "error",
 
     // The automatic JSX transform means React is never in scope, and the
     // gesture builders (`Gesture.Pan()`) are capitalised calls that are not

@@ -996,8 +996,12 @@ function Editor() {
       <ExportSheet
         visible={exportOpen}
         onClose={() => setExportOpen(false)}
-        onSave={stopThen(() => void save())}
-        onShare={stopThen(() => void share())}
+        onSave={stopThen(() =>
+          save().catch((e: unknown) => fail("export.save", e, t("exportFailed"))),
+        )}
+        onShare={stopThen(() =>
+          share().catch((e: unknown) => fail("export.share", e, t("shareFailed"))),
+        )}
         // Both close the sheet first: the demo opens sheets of its own, and the
         // support sheet cannot be presented while this one is still up.
         onDemo={stopThen(() => {

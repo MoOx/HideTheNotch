@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Skia, type SkImage } from "@shopify/react-native-skia";
 import { File } from "expo-file-system";
 
+import { report } from "../report";
+
 export type SourceImage = {
   image: SkImage | null;
   /** Set when the file could not be turned into an image. */
@@ -146,10 +148,10 @@ export function useSourceImage(uri: string | null): SourceImage {
     let live = true;
     setState({ image: null, error: null, loading: true });
 
-    // Nothing escapes this: every failure lands in the catch below and becomes
-    // `error`, which App reports as photo.open and shows. `void` says so.
-    // oxlint-disable-next-line typescript/no-floating-promises
-    void (async () => {
+    // Every failure lands in the catch inside and becomes `error`, which App
+    // reports as photo.open and shows. The outer catch is for a bug in that
+    // catch itself, which would otherwise vanish.
+    (async () => {
       try {
         const { image, bytes } = await load(uri);
         if (!live) {
@@ -173,7 +175,7 @@ export function useSourceImage(uri: string | null): SourceImage {
           });
         }
       }
-    })();
+    })().catch((e: unknown) => report("photo.load", e));
 
     return () => {
       live = false;

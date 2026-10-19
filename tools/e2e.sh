@@ -20,9 +20,10 @@
 # bundle included and no Metro involved.
 #
 # The flows check that the app does its job without crashing or going silent:
-# it starts, pages through the families, imports a photo, exports, and a link
-# that cannot open says so. Whether the pixels are right is `npm run verify`,
-# which no UI test can see.
+# it starts, pages through the families, imports a photo in each of two
+# containers, exports, and a link that cannot open says so and offers the way
+# out. Whether the pixels are right is `npm run verify`, which no UI test can
+# see.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -44,7 +45,21 @@ fi
 # The photo flow picks from the library, and a fresh emulator's is empty. The
 # flow cannot bring it itself: Maestro reads nothing outside .maestro/, links
 # included, and a second copy of the asset is a second thing to keep in step.
-PHOTO="$ROOT/assets/demo-photo.jpg"
+#
+# Two files, and deliberately the same picture twice. The second is a HEIC,
+# which is what every iPhone shoots and what Skia has no decoder for, so the
+# import only works because the picker is asked for a compatible
+# representation and iOS transcodes it on the way out (see
+# preferredAssetRepresentationMode in App.tsx: without it, every photo taken
+# with the phone failed to open). One picture in two containers means the
+# container is the only thing the flow is testing.
+#
+# Not an AVIF, which would be the better fixture, since that one is read by the
+# system decoder rather than by the picker (Sentry HIDE-THE-NOTCH-5K).
+# `simctl addmedia` refuses it: "File type unsupported", NSPOSIXErrorDomain 22,
+# on iOS 27 as on anything older. A simulator's library cannot be made to hold
+# one, so that path has no flow and is not pretended to have one.
+PHOTOS=("$ROOT/assets/demo-photo.jpg" "$ROOT/assets/demo-photo.heic")
 
 case "$PLATFORM" in
   ios)
@@ -55,7 +70,7 @@ case "$PLATFORM" in
       exit 1
     fi
     xcrun simctl install booted "$APP"
-    xcrun simctl addmedia booted "$PHOTO"
+    xcrun simctl addmedia booted "${PHOTOS[@]}"
     ;;
   android)
     APP_ID=io.moox.hidethenotch
@@ -65,9 +80,12 @@ case "$PLATFORM" in
       exit 1
     fi
     adb install -r "$APK" >/dev/null
-    adb push "$PHOTO" /sdcard/Pictures/demo-photo.jpg >/dev/null
-    adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE \
-      -d file:///sdcard/Pictures/demo-photo.jpg >/dev/null
+    for photo in "${PHOTOS[@]}"; do
+      name=$(basename "$photo")
+      adb push "$photo" "/sdcard/Pictures/$name" >/dev/null
+      adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE \
+        -d "file:///sdcard/Pictures/$name" >/dev/null
+    done
     ;;
   *)
     echo "usage: tools/e2e.sh ios|android [flow...]" >&2

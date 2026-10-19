@@ -2,8 +2,17 @@ appId: ${APP_ID}
 ---
 - runFlow: subflows/start.yaml
 # Import a photo through the system picker, which HEIC and iCloud have broken
-# before. A fresh emulator has an empty library, so tools/e2e.sh adds one
-# first: the same cat the store captures use (see shotPhoto in App.tsx).
+# before. A fresh emulator has an empty library, so tools/e2e.sh adds two
+# photos first: the cat the store captures use, and the same picture as a HEIC,
+# the container every iPhone shoots and the one Skia cannot read, which opens
+# only because the picker is asked to transcode it.
+#
+# Both cells are taken in turn rather than one of them by name, because nothing
+# on screen tells the two apart: a picker cell is named after the photo's date,
+# and the date a checkout gives a file is whatever git wrote. So the flow asks
+# for a cell by index, twice, and a photo the library never took leaves the
+# second index unmatched, which fails here rather than quietly importing the
+# first picture a second time.
 - tapOn: "Wallpaper"
 - tapOn: "Choose a photo"
 # iOS names a picker cell "Photo, <date>", Android "Photo taken on <date>".
@@ -12,6 +21,22 @@ appId: ${APP_ID}
     text: "Photo(,| taken on) .*"
     index: 0
 - assertNotVisible: "That photo could not be opened"
-# The source sheet says the photo is the one in use.
+# The source sheet says the photo is the one in use. Reaching the sheet at all
+# is half of that assertion, since the failure alert is modal and nothing
+# behind it can be tapped; a photo that failed falls back to a gradient, and
+# the row then reads "From your library" instead.
+- tapOn: "Wallpaper"
+- assertVisible: "In use.*"
+- tapOn: "Choose a photo"
+- tapOn:
+    text: "Photo(,| taken on) .*"
+    index: 1
+# A container Skia refuses is read by somebody else first, iOS here and the
+# system decoder in useSourceImage.ts on a container the picker leaves alone,
+# and either way that is a transcode and a second decode. So this one is given
+# time to fail rather than asserted at once.
+- extendedWaitUntil:
+    notVisible: "That photo could not be opened"
+    timeout: 15000
 - tapOn: "Wallpaper"
 - assertVisible: "In use.*"

@@ -9,9 +9,11 @@ appId: ${APP_ID}
 - assertVisible: "App website"
 - assertVisible: "Improve the translation"
 # A link the phone refuses to open must say so rather than do nothing, which
-# is what it did on a real phone (Sentry HIDE-THE-NOTCH-5G, 5H and 5J). The iOS
-# simulator has no Mail app, so there mailto is refused every time; an Android
-# emulator has one, and the link simply opens.
+# is what it did on a real phone (Sentry HIDE-THE-NOTCH-5G, 5H and 5J), and it
+# must leave something to do about it, which is what it did not (5M and 5N: an
+# iPhone with no mail app at all). The iOS simulator has no Mail app either, so
+# there mailto is refused every time, which makes this the one failure path the
+# flows can walk end to end. An Android emulator has one, and the link opens.
 - runFlow:
     when:
       platform: iOS
@@ -19,4 +21,8 @@ appId: ${APP_ID}
       - tapOn: "Email support"
       - assertVisible: "That link could not be opened"
       - assertVisible: "apps+hide-the-notch@moox.io"
+      # The way out: the whole message, diagnostics included, to be pasted
+      # into whatever this phone does have.
+      - tapOn: "Copy"
+      - assertVisible: "Copied"
       - tapOn: "OK"

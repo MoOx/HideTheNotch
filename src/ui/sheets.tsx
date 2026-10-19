@@ -1,15 +1,17 @@
-import { Linking, Platform } from "react-native";
+import { Alert, Linking, Platform } from "react-native";
 import { BottomSheet, FieldGroup, Switch, Text } from "@expo/ui";
 import { listSectionMargins, padding } from "@expo/ui/swift-ui/modifiers";
 import { padding as paddingCompose } from "@expo/ui/jetpack-compose/modifiers";
 import * as Application from "expo-application";
+import * as Clipboard from "expo-clipboard";
 import type { SkImage } from "@shopify/react-native-skia";
 import { SymbolView, type SFSymbol } from "expo-symbols";
 
 import type { Geometry } from "../geometry/devices";
 import { locale, t, tp } from "../i18n";
-import { fail } from "../report";
+import { fail, report } from "../report";
 import type { GradientPresetId, Mask, MaskFamily, Source } from "../recipe/types";
+import { success } from "./haptics";
 import { Row } from "./Row";
 import { supporting } from "./supporting";
 import { EffectRow, PaletteRow } from "./Thumbs";
@@ -151,18 +153,84 @@ const SUPPORT_EMAIL = "apps+hide-the-notch@moox.io";
 const WEBSITE = "https://moox.io/apps/hide-the-notch";
 
 /**
- * Opens a link, and says so when the phone will not.
+ * The clipboard, with something said either way.
+ *
+ * A copy that nothing confirms is a tap that did nothing, which is the failure
+ * the rest of this is here to stop happening a second time. `setStringAsync`
+ * also answers `false` rather than throwing when the system refuses the
+ * pasteboard, so both shapes of a refusal are made to end in the same place.
+ *
+ * `got` is what is now in hand, said once it is: an alert that offers to copy
+ * has no room to also explain what copying would give, and this is the moment
+ * the answer is worth reading.
+ */
+function copy(text: string, got?: string) {
+  Clipboard.setStringAsync(text)
+    .then((ok) => {
+      if (!ok) {
+        throw new Error("The clipboard refused the text");
+      }
+      success();
+      Alert.alert(t("copied"), got);
+    })
+    .catch((e: unknown) => fail("link.copy", e, t("copyFailed")));
+}
+
+/**
+ * Opens a link, and hands over what it was for when the phone will not.
  *
  * iOS refused all three of these once, `https` included, on a phone that most
- * likely had Safari and Mail blocked by Screen Time. The taps did nothing. The
- * alert gives the address in plain text, since typing it elsewhere is the one
- * way left to reach it, and the report is how a failure that is not that rare
- * after all would show itself.
+ * likely had Safari and Mail blocked by Screen Time. A `mailto` is also refused
+ * outright on any phone with no mail app at all, since `openURL` asks
+ * `canOpenURL` first and nothing answers for the scheme: that is Sentry
+ * HIDE-THE-NOTCH-5M and 5N, from an iPhone with no Mail on it.
+ *
+ * The taps did nothing, then they said so, and saying so still left the person
+ * holding an alert with an address in it and no way to use it. So what the tap
+ * would have produced goes to the clipboard instead, to be pasted into whatever
+ * this phone does have, webmail or a message.
+ *
+ * Which is why `paste` is not always what is `shown`: the address is what
+ * somebody reads in an alert, and the whole message, diagnostics included, is
+ * what they need to have afterwards. The alert stays as short as it was, and
+ * `got` explains the difference after the copy rather than before it. A link
+ * with nothing behind it, such as the website, is both, and says so by
+ * leaving `paste` out.
  */
-function open(url: string, shown: string) {
+function open(url: string, shown: string, paste = shown, got?: string) {
   Linking.openURL(url).catch((e: unknown) => {
-    fail("link.open", e, t("linkFailed"), shown, { scheme: url.split(":")[0] });
+    // Not `fail`, which is the alert with nothing but an OK in it. The report
+    // is the same one it would have sent, under the same name.
+    report("link.open", e, { scheme: url.split(":")[0] });
+    Alert.alert(t("linkFailed"), shown, [
+      { text: t("cancel"), style: "cancel" },
+      { text: t("copy"), onPress: () => copy(paste, got) },
+    ]);
   });
+}
+
+/**
+ * One message, in the two shapes it may have to leave in.
+ *
+ * The URL is what a mail app is handed. The paste is the same message written
+ * out for somebody who has to fill the fields in themselves, in the order they
+ * come in wherever it is going: address, subject, body. Both are built here so
+ * that they cannot drift apart, which is the only real cost of having a second
+ * copy of the message at all.
+ */
+function message(subject: string, body: string) {
+  return {
+    url:
+      `mailto:${SUPPORT_EMAIL}` +
+      `?subject=${encodeURIComponent(subject)}` +
+      `&body=${encodeURIComponent(body)}`,
+    paste: `${SUPPORT_EMAIL}\n${subject}\n${body}`,
+  };
+}
+
+/** A mail row: the address is read, the whole message is copied. */
+function openMail(mail: { url: string; paste: string }) {
+  open(mail.url, SUPPORT_EMAIL, mail.paste, t("mailCopied"));
 }
 
 /**
@@ -403,19 +471,16 @@ export function SupportSheet({
     `cutout ${geometry.kind} from ${geometry.cutoutFrom}, insets ${geometry.insetTop}/${geometry.insetBottom}`,
   ].join("\n");
 
-  const mailto =
-    `mailto:${SUPPORT_EMAIL}` +
-    `?subject=${encodeURIComponent(t("mailSupportSubject"))}` +
-    `&body=${encodeURIComponent(`\n\n---\n${diagnostics}\n`)}`;
+  const supportMail = message(t("mailSupportSubject"), `\n\n---\n${diagnostics}\n`);
 
   // Five of the six languages are a first pass and want a native read. Asking
   // for the exact wording that is wrong, rather than for "feedback", is the
   // difference between a report that can be acted on and one that cannot: the
   // body arrives with the two questions already in it.
-  const translationMailto =
-    `mailto:${SUPPORT_EMAIL}` +
-    `?subject=${encodeURIComponent(t("mailTranslationSubject"))}` +
-    `&body=${encodeURIComponent(`${t("mailTranslationBody")}---\n${locale}\n${diagnostics}\n`)}`;
+  const translationMail = message(
+    t("mailTranslationSubject"),
+    `${t("mailTranslationBody")}---\n${locale}\n${diagnostics}\n`,
+  );
 
   return (
     <BottomSheet
@@ -428,7 +493,7 @@ export function SupportSheet({
       <FieldGroup style={CLEAR}>
         <FieldGroup.Section title={t("support")} modifiers={FIRST}>
           <Row
-            onPress={() => open(mailto, SUPPORT_EMAIL)}
+            onPress={() => openMail(supportMail)}
             leading={<Glyph icon="mail" />}
             supportingText={supporting(SUPPORT_EMAIL)}
           >
@@ -442,7 +507,7 @@ export function SupportSheet({
             {t("appWebsite")}
           </Row>
           <Row
-            onPress={() => open(translationMailto, SUPPORT_EMAIL)}
+            onPress={() => openMail(translationMail)}
             leading={<Glyph icon="translate" />}
             supportingText={supporting(t("improveTranslationHint"))}
           >

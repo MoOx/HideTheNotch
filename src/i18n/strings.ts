@@ -78,6 +78,11 @@ export const en = {
   photoDeniedSave: "Allow access in Settings to save.",
   photoFailed: "That photo could not be opened",
   linkFailed: "That link could not be opened",
+  copy: "Copy",
+  copied: "Copied",
+  copyFailed: "Could not copy",
+  mailCopied:
+    "The address, the subject and the diagnostics are on the clipboard. Paste them wherever you write from.",
   saved: "Saved",
   savedBodyIos:
     "{px} in your photos.\n\nSettings, then Wallpaper. Do not crop, and leave perspective zoom off.",
@@ -161,6 +166,11 @@ const fr: Table = {
   photoDeniedSave: "Autorisez l'accès dans Réglages pour enregistrer.",
   photoFailed: "Cette photo n'a pas pu être ouverte",
   linkFailed: "Ce lien n'a pas pu être ouvert",
+  copy: "Copier",
+  copied: "Copié",
+  copyFailed: "Copie impossible",
+  mailCopied:
+    "L'adresse, l'objet et les diagnostics sont dans le presse-papiers. Collez-les depuis là où vous écrivez.",
   saved: "Enregistré",
   savedBodyIos:
     "{px} dans vos photos.\n\nRéglages, puis Fond d'écran. Ne recadrez pas, et laissez le zoom de perspective désactivé.",
@@ -241,6 +251,11 @@ const de: Table = {
   photoDeniedSave: "Erlaube den Zugriff in den Einstellungen, um zu speichern.",
   photoFailed: "Dieses Foto konnte nicht geöffnet werden",
   linkFailed: "Dieser Link konnte nicht geöffnet werden",
+  copy: "Kopieren",
+  copied: "Kopiert",
+  copyFailed: "Kopieren nicht möglich",
+  mailCopied:
+    "Die Adresse, der Betreff und die Diagnose liegen in der Zwischenablage. Füge sie dort ein, wo du schreibst.",
   saved: "Gespeichert",
   savedBodyIos:
     "{px} in deinen Fotos.\n\nEinstellungen, dann Hintergrundbild. Nicht zuschneiden und den Perspektiven-Zoom auslassen.",
@@ -321,6 +336,11 @@ const es: Table = {
   photoDeniedSave: "Permite el acceso en Ajustes para guardar.",
   photoFailed: "No se pudo abrir esta foto",
   linkFailed: "No se pudo abrir este enlace",
+  copy: "Copiar",
+  copied: "Copiado",
+  copyFailed: "No se pudo copiar",
+  mailCopied:
+    "La dirección, el asunto y los diagnósticos están en el portapapeles. Pégalos donde escribas.",
   saved: "Guardado",
   savedBodyIos:
     "{px} en tus fotos.\n\nAjustes, luego Fondo de pantalla. No recortes y deja el zoom de perspectiva desactivado.",
@@ -400,6 +420,11 @@ const ja: Table = {
   photoDeniedSave: "保存するには「設定」でアクセスを許可してください。",
   photoFailed: "この写真を開けませんでした",
   linkFailed: "このリンクを開けませんでした",
+  copy: "コピー",
+  copied: "コピーしました",
+  copyFailed: "コピーできませんでした",
+  mailCopied:
+    "アドレス、件名、診断情報をクリップボードに入れました。お使いのメールやメッセージに貼り付けてください。",
   saved: "保存しました",
   savedBodyIos:
     "{px} を写真に保存しました。\n\n「設定」から「壁紙」へ。トリミングはせず、遠近ズームはオフのままにしてください。",
@@ -477,6 +502,10 @@ const zhHans: Table = {
   photoDeniedSave: "请在“设置”中允许访问，以进行存储。",
   photoFailed: "无法打开这张照片",
   linkFailed: "无法打开此链接",
+  copy: "复制",
+  copied: "已复制",
+  copyFailed: "无法复制",
+  mailCopied: "地址、主题和诊断信息已放入剪贴板。可以粘贴到你写信的地方。",
   saved: "已存储",
   savedBodyIos: "{px} 已存到你的照片。\n\n打开“设置”，再进入“墙纸”。不要裁剪，并关闭透视缩放。",
   savedBodyAndroid: "{px} 已存到你的相册。\n\n从那里将它设为壁纸，不要裁剪或缩放。",

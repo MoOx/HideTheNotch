@@ -53,6 +53,7 @@
     "expo-file-system": "~57.0.2",
     "expo-glass-effect": "~57.0.1",
     "expo-haptics": "~57.0.1",
+    "expo-image-manipulator": "~57.0.21",
     "expo-image-picker": "~57.0.2",
     "expo-localization": "~57.0.1",
     "expo-media-library": "~57.0.3",

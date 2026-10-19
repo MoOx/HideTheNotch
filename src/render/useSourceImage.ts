@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Skia, type SkImage } from "@shopify/react-native-skia";
 import { File } from "expo-file-system";
+import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 
 import { report } from "../report";
 
@@ -49,6 +50,50 @@ function undecodable(bytes: Uint8Array): string {
 }
 
 /**
+ * The same file, read by the system and handed back as a PNG.
+ *
+ * Skia reads JPEG, PNG, WebP and GIF, and a photo library is full of the rest:
+ * HEIC from the camera, AVIF saved from a web page. The picker asks iOS for a
+ * "compatible" representation, which covers the camera's own HEIC and nothing
+ * else, so a photo that was imported rather than shot still arrives in
+ * whatever container it was imported in, and that was the dead end.
+ *
+ * Both systems decode those: ImageIO on iOS 16 and later, `ImageDecoder` on
+ * Android 12 and later, and whatever container comes after AVIF as well. So the
+ * file goes through the one decoder on the phone that is kept up to date by
+ * somebody else, and comes back as something Skia certainly reads.
+ *
+ * PNG and not JPEG, which is the same rule as the export: nothing in this
+ * pipeline is allowed to add artefacts to what is drawn under the black. It is
+ * the slowest step in the app, and it runs on a photo that was about to be
+ * refused outright.
+ */
+async function transcoded(uri: string): Promise<Uint8Array> {
+  const rendered = await ImageManipulator.manipulate(uri).renderAsync();
+  const png = await rendered.saveAsync({ format: SaveFormat.PNG });
+  return await new File(png.uri).bytes();
+}
+
+/**
+ * The second chance, and the one thing it is allowed to cost.
+ *
+ * A failure here is not a new failure: it happens only where the photo was
+ * already refused, and the person is told the same thing they would have been
+ * told without it. It is reported under its own name because the reason is one
+ * the other report cannot carry: `photo.open` says which container was refused,
+ * this says what the system said when asked to read it anyway.
+ */
+async function decodedBySystem(uri: string): Promise<SkImage | null> {
+  try {
+    const bytes = await withDeadline(transcoded(uri), TRANSCODE_DEADLINE, "The system decoder");
+    return Skia.Image.MakeImageFromEncoded(Skia.Data.fromBytes(bytes));
+  } catch (e) {
+    report("photo.transcode", e);
+    return null;
+  }
+}
+
+/**
  * What went wrong, in one line.
  */
 function said(e: unknown): string {
@@ -86,6 +131,16 @@ function withDeadline<T>(work: Promise<T>, ms: number, what: string): Promise<T>
 const DEADLINE = 4000;
 
 /**
+ * How long the system decoder gets, which is much longer.
+ *
+ * Reading a file is not work and a decode is: twelve megapixels out of an AVIF
+ * and back into a PNG, on the oldest phone this app runs on. The deadline is
+ * here for the same reason as the one above, a promise that never settles, and
+ * not to put a budget on the work.
+ */
+const TRANSCODE_DEADLINE = 12000;
+
+/**
  * The bytes, or failing that the file.
  *
  * `expo-file-system` will only open what it considers readable: a path outside
@@ -112,7 +167,15 @@ async function load(uri: string) {
   if (uri.startsWith("file://") || uri.startsWith("/")) {
     try {
       const bytes = await new File(uri).bytes();
-      return { image: Skia.Image.MakeImageFromEncoded(Skia.Data.fromBytes(bytes)), bytes };
+      const image = Skia.Image.MakeImageFromEncoded(Skia.Data.fromBytes(bytes));
+      if (image) {
+        return { image, bytes };
+      }
+      // Read, and not decoded: the container is one Skia has no decoder for, so
+      // the system is asked for the same picture in one that it does. The bytes
+      // travel back either way, since they are what names the container to the
+      // person holding the phone when this misses too.
+      return { image: await decodedBySystem(uri), bytes };
     } catch (e) {
       tried.push(`File system: ${said(e)}`);
     }

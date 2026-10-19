@@ -805,6 +805,24 @@ function Editor() {
     return () => sub.remove();
   }, [play]);
 
+  /**
+   * The share sheet, for a PNG that already exists.
+   *
+   * Two taps arrive here: Share, which renders the file for it, and a save the
+   * photo library refused, which is already holding a finished one. That second
+   * one is the whole reason this is a function of its own: the picture is not
+   * lost when Photos says no, and the share sheet is another way into Photos,
+   * through code that is neither this app's nor the library's write request.
+   *
+   * It throws rather than reporting, because the two taps reach it having
+   * already done different amounts of work, and each says so itself.
+   */
+  const shareFile = useCallback(async (uri: string) => {
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(uri, { mimeType: "image/png" });
+    }
+  }, []);
+
   const save = useCallback(async () => {
     setBusy(true);
     const outcome = await saveToPhotos(ctx);
@@ -818,18 +836,35 @@ function Editor() {
       );
     } else if (outcome.reason === "permission") {
       Alert.alert(t("photoDenied"), t("photoDeniedSave"));
+    } else if (outcome.rendered) {
+      // The wallpaper was drawn and encoded, and the library would not take it.
+      // What the person reads is therefore not "export failed", which is wrong
+      // and reads as "start again", but the one thing left to do with a file
+      // that exists. The native reason went to Sentry, where it is of some use;
+      // in an alert it is a sentence in English about PhotoKit.
+      const { uri } = outcome.rendered;
+      Alert.alert(t("saveRefused"), t("saveRefusedBody"), [
+        { text: t("cancel"), style: "cancel" },
+        {
+          text: t("share"),
+          onPress: () => {
+            shareFile(uri).catch((e: unknown) =>
+              fail("export.share", e, t("shareFailed"), undefined, describeContext(ctx)),
+            );
+          },
+        },
+      ]);
     } else {
-      Alert.alert(t("exportFailed"), outcome.message ?? t("unknownError"));
+      // Nothing was rendered, so there is nothing to offer: the drawing or the
+      // encode is what failed, and it is already reported.
+      Alert.alert(t("exportFailed"), t("unknownError"));
     }
-  }, [ctx]);
+  }, [ctx, shareFile]);
 
   const share = useCallback(async () => {
     setBusy(true);
     try {
-      const file = renderToFile(ctx);
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(file.uri, { mimeType: "image/png" });
-      }
+      await shareFile(renderToFile(ctx).uri);
     } catch (e) {
       fail(
         "export.share",
@@ -841,7 +876,7 @@ function Editor() {
     } finally {
       setBusy(false);
     }
-  }, [ctx]);
+  }, [ctx, shareFile]);
 
   return (
     <View style={styles.root} onLayout={revealApp}>

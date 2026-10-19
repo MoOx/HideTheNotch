@@ -84,23 +84,40 @@ export function describeContext(ctx: DrawContext) {
 
 export type SaveOutcome =
   | { ok: true; result: ExportResult }
-  | { ok: false; reason: "permission" | "error"; message?: string };
+  | { ok: false; reason: "permission" }
+  /**
+   * `rendered` is the PNG, when there is one.
+   *
+   * The two halves of saving fail for unrelated reasons, and only one of them
+   * loses the picture. A drawing or an encode that failed leaves nothing; a
+   * photo library that refused a finished file leaves the file, sitting in the
+   * cache, complete. The person can still have it, which is why the file comes
+   * back with the failure instead of being dropped with it.
+   */
+  | { ok: false; reason: "error"; rendered: ExportResult | null };
 
 export async function saveToPhotos(ctx: DrawContext): Promise<SaveOutcome> {
+  let rendered: ExportResult | null = null;
   try {
     const perm = await MediaLibrary.requestPermissionsAsync(true);
     if (!perm.granted) {
       return { ok: false, reason: "permission" };
     }
-    const result = renderToFile(ctx);
+    rendered = renderToFile(ctx);
     // `saveToLibraryAsync` is the deprecated API and says so in a thrown error.
     // The class based one is the current way to add a file to the library.
-    await MediaLibrary.Asset.create(result.uri);
-    return { ok: true, result };
+    //
+    // It is also the half that fails for reasons that are not about this app at
+    // all: PhotoKit answered 3301 once, on iOS 27, which is its own service
+    // saying it could not reach the resource it had just been handed. There is
+    // nothing to retry and nothing to fix here, so the file is offered through
+    // the share sheet instead, where saving to Photos is somebody else's code.
+    await MediaLibrary.Asset.create(rendered.uri);
+    return { ok: true, result: rendered };
   } catch (e) {
     // Worth reporting, and the permission refusal above is not: one is the app
     // failing to do its job, the other is somebody saying no.
     report("export.save", e, describeContext(ctx));
-    return { ok: false, reason: "error", message: e instanceof Error ? e.message : String(e) };
+    return { ok: false, reason: "error", rendered };
   }
 }

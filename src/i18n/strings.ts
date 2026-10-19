@@ -83,6 +83,10 @@ export const en = {
     "{px} in your photos.\n\nSettings, then Wallpaper. Do not crop, and leave perspective zoom off.",
   savedBodyAndroid:
     "{px} in your photos.\n\nSet it from there as your wallpaper, without cropping and without zooming.",
+  cancel: "Cancel",
+  saveRefused: "Photos would not take it",
+  saveRefusedBody:
+    "The wallpaper is ready. Your photo library refused to add it, which is not something this app can fix. Share it and save it from there.",
   exportFailed: "Export failed",
   shareFailed: "Share failed",
   unknownError: "Unknown error",
@@ -162,6 +166,10 @@ const fr: Table = {
     "{px} dans vos photos.\n\nRéglages, puis Fond d'écran. Ne recadrez pas, et laissez le zoom de perspective désactivé.",
   savedBodyAndroid:
     "{px} dans vos photos.\n\nDéfinissez-le de là comme fond d'écran, sans recadrer ni zoomer.",
+  cancel: "Annuler",
+  saveRefused: "Photos n'en a pas voulu",
+  saveRefusedBody:
+    "Le fond d'écran est prêt. Votre photothèque a refusé de l'ajouter, et l'app ne peut rien y faire. Partagez-le et enregistrez-le depuis là.",
   exportFailed: "Échec de l'export",
   shareFailed: "Échec du partage",
   unknownError: "Erreur inconnue",
@@ -238,6 +246,10 @@ const de: Table = {
     "{px} in deinen Fotos.\n\nEinstellungen, dann Hintergrundbild. Nicht zuschneiden und den Perspektiven-Zoom auslassen.",
   savedBodyAndroid:
     "{px} in deinen Fotos.\n\nVon dort als Hintergrundbild festlegen, ohne zuschneiden und ohne zoomen.",
+  cancel: "Abbrechen",
+  saveRefused: "Fotos hat ihn nicht angenommen",
+  saveRefusedBody:
+    "Der Hintergrund ist fertig. Deine Fotobibliothek hat ihn nicht hinzugefügt, und daran kann diese App nichts ändern. Teile ihn und speichere ihn von dort.",
   exportFailed: "Export fehlgeschlagen",
   shareFailed: "Teilen fehlgeschlagen",
   unknownError: "Unbekannter Fehler",
@@ -314,6 +326,10 @@ const es: Table = {
     "{px} en tus fotos.\n\nAjustes, luego Fondo de pantalla. No recortes y deja el zoom de perspectiva desactivado.",
   savedBodyAndroid:
     "{px} en tus fotos.\n\nEstablécelo desde ahí como fondo de pantalla, sin recortar ni ampliar.",
+  cancel: "Cancelar",
+  saveRefused: "Fotos no lo aceptó",
+  saveRefusedBody:
+    "El fondo está listo. Tu fototeca se negó a añadirlo, y la app no puede hacer nada al respecto. Compártelo y guárdalo desde ahí.",
   exportFailed: "Error al exportar",
   shareFailed: "Error al compartir",
   unknownError: "Error desconocido",
@@ -389,6 +405,10 @@ const ja: Table = {
     "{px} を写真に保存しました。\n\n「設定」から「壁紙」へ。トリミングはせず、遠近ズームはオフのままにしてください。",
   savedBodyAndroid:
     "{px} を写真に保存しました。\n\nそこから壁紙に設定してください。トリミングやズームはしないでください。",
+  cancel: "キャンセル",
+  saveRefused: "「写真」が受け付けませんでした",
+  saveRefusedBody:
+    "壁紙はできています。写真ライブラリが追加を拒否しました。このアプリ側では直せないので、共有してそこから保存してください。",
   exportFailed: "書き出しに失敗しました",
   shareFailed: "共有に失敗しました",
   unknownError: "不明なエラー",
@@ -460,6 +480,10 @@ const zhHans: Table = {
   saved: "已存储",
   savedBodyIos: "{px} 已存到你的照片。\n\n打开“设置”，再进入“墙纸”。不要裁剪，并关闭透视缩放。",
   savedBodyAndroid: "{px} 已存到你的相册。\n\n从那里将它设为壁纸，不要裁剪或缩放。",
+  cancel: "取消",
+  saveRefused: "“照片”未接受",
+  saveRefusedBody:
+    "壁纸已经生成。照片图库拒绝添加，这不是这个应用能解决的问题。请共享，然后从那里存储。",
   exportFailed: "导出失败",
   shareFailed: "分享失败",
   unknownError: "未知错误",
